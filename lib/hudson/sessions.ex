@@ -84,13 +84,10 @@ defmodule Hudson.Sessions do
   Adds a product to a session with the given position and optional overrides.
   """
   def add_product_to_session(session_id, product_id, attrs \\ %{}) do
-    attrs =
-      attrs
-      |> Map.put(:session_id, session_id)
-      |> Map.put(:product_id, product_id)
-
     %SessionProduct{}
     |> SessionProduct.changeset(attrs)
+    |> Ecto.Changeset.put_change(:session_id, session_id)
+    |> Ecto.Changeset.put_change(:product_id, product_id)
     |> Repo.insert()
   end
 
@@ -127,7 +124,12 @@ defmodule Hudson.Sessions do
         state =
           state
           |> Repo.preload(current_session_product: [product: :brand])
-          |> Repo.preload(current_session_product: [product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])]])
+          |> Repo.preload(
+            current_session_product: [
+              product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])]
+            ]
+          )
+
         {:ok, state}
     end
   end
@@ -281,7 +283,10 @@ defmodule Hudson.Sessions do
         sp =
           sp
           |> Repo.preload(product: :brand)
-          |> Repo.preload(product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])])
+          |> Repo.preload(
+            product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])]
+          )
+
         {:ok, sp}
     end
   end

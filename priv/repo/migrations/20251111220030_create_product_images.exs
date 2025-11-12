@@ -15,6 +15,7 @@ defmodule Hudson.Repo.Migrations.CreateProductImages do
 
     create index(:product_images, [:product_id])
     create index(:product_images, [:product_id, :position])
+
     create unique_index(:product_images, [:product_id],
              where: "is_primary = true",
              name: :product_images_one_primary_per_product

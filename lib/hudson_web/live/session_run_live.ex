@@ -23,17 +23,23 @@ defmodule HudsonWeb.SessionRunLive do
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection
-    if connected?(socket) do
-      subscribe_to_session(session_id)
-      socket = load_initial_state(socket)
+    socket =
+      if connected?(socket) do
+        subscribe_to_session(session_id)
+        load_initial_state(socket)
+      else
+        socket
+      end
 
-      # Set temporary assigns for memory management
-      {:ok, socket, temporary_assigns: [
-        current_session_product: nil,
-        current_product: nil,
-        talking_points_html: nil,
-        product_images: []
-      ]}
+    # Set temporary assigns for memory management if connected
+    if connected?(socket) do
+      {:ok, socket,
+       temporary_assigns: [
+         current_session_product: nil,
+         current_product: nil,
+         talking_points_html: nil,
+         product_images: []
+       ]}
     else
       # Minimal work during HTTP mount
       {:ok, socket}
@@ -206,9 +212,7 @@ defmodule HudsonWeb.SessionRunLive do
       current_image_index: image_index,
       current_position: session_product.position,
       talking_points_html:
-        render_markdown(
-          session_product.featured_talking_points_md || product.talking_points_md
-        ),
+        render_markdown(session_product.featured_talking_points_md || product.talking_points_md),
       product_images: product.product_images
     )
   end

@@ -38,36 +38,43 @@ defmodule HudsonWeb.ProductUploadLive do
 
   @impl true
   def handle_event("upload", _params, socket) do
-    if socket.assigns.selected_product_id do
-      socket = assign(socket, uploading: true, upload_progress: 0, upload_results: [])
+    socket =
+      if socket.assigns.selected_product_id do
+        socket = assign(socket, uploading: true, upload_progress: 0, upload_results: [])
+        product_id = socket.assigns.selected_product_id
 
-      uploaded_files =
-        consume_uploaded_entries(socket, :product_images, fn %{path: path}, entry ->
-          product_id = socket.assigns.selected_product_id
-          # Position is determined by the order of upload (0-indexed)
-          position = entry.client_name |> extract_position_from_filename()
+        # Get entries with their upload order (0-indexed positions)
+        entries_with_positions =
+          socket.assigns.uploads.product_images.entries
+          |> Enum.with_index(fn entry, index -> {entry, index} end)
 
-          case Media.upload_product_image(path, product_id, position) do
-            {:ok, %{path: img_path, thumbnail_path: thumb_path}} ->
-              # Create product_image record
-              {:ok, product_image} =
-                Catalog.create_product_image(%{
-                  product_id: product_id,
-                  path: img_path,
-                  thumbnail_path: thumb_path,
-                  position: position,
-                  is_primary: position == 0,
-                  alt_text: "#{entry.client_name}"
-                })
+        # Process uploads
+        uploaded_files =
+          consume_uploaded_entries(socket, :product_images, fn %{path: path}, entry ->
+            # Find the position for this entry
+            {_matched_entry, position} =
+              Enum.find(entries_with_positions, fn {e, _pos} -> e.ref == entry.ref end)
 
-              {:ok, %{success: true, filename: entry.client_name, image: product_image}}
+            case Media.upload_product_image(path, product_id, position) do
+              {:ok, %{path: img_path, thumbnail_path: thumb_path}} ->
+                # Create product_image record
+                {:ok, product_image} =
+                  Catalog.create_product_image(%{
+                    product_id: product_id,
+                    path: img_path,
+                    thumbnail_path: thumb_path,
+                    position: position,
+                    is_primary: position == 0,
+                    alt_text: "#{entry.client_name}"
+                  })
 
-            {:error, reason} ->
-              {:postpone, %{success: false, filename: entry.client_name, error: reason}}
-          end
-        end)
+                {:ok, %{success: true, filename: entry.client_name, image: product_image}}
 
-      socket =
+              {:error, reason} ->
+                {:postpone, %{success: false, filename: entry.client_name, error: reason}}
+            end
+          end)
+
         socket
         |> assign(
           uploading: false,
@@ -75,11 +82,11 @@ defmodule HudsonWeb.ProductUploadLive do
           upload_results: uploaded_files
         )
         |> put_flash(:info, "Uploaded #{length(uploaded_files)} image(s) successfully!")
+      else
+        put_flash(socket, :error, "Please select a product first")
+      end
 
-      {:noreply, socket}
-    else
-      {:noreply, put_flash(socket, :error, "Please select a product first")}
-    end
+    {:noreply, socket}
   end
 
   @impl true
@@ -87,35 +94,26 @@ defmodule HudsonWeb.ProductUploadLive do
     {:noreply, cancel_upload(socket, :product_images, ref)}
   end
 
-  # Extract position from filename (e.g., "image-1.jpg" -> 0, "image-2.jpg" -> 1)
-  # Falls back to timestamp-based ordering if no number found
-  defp extract_position_from_filename(filename) do
-    case Regex.run(~r/(\d+)/, filename) do
-      [_, num_str] -> String.to_integer(num_str) - 1
-      _ -> :os.system_time(:millisecond) |> rem(100)
-    end
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
     <div class="upload-container">
       <h1>Upload Product Images</h1>
-
-      <!-- Product Selection -->
+      
+    <!-- Product Selection -->
       <form phx-change="select_product" class="product-select">
         <label for="product-selector">Select Product:</label>
         <select id="product-selector" name="product_id">
           <option value="">-- Choose a product --</option>
           <%= for product <- @products do %>
             <option value={product.id} selected={@selected_product_id == product.id}>
-              <%= product.display_number %>. <%= product.name %>
+              {product.display_number}. {product.name}
             </option>
           <% end %>
         </select>
       </form>
-
-      <!-- Upload Area -->
+      
+    <!-- Upload Area -->
       <%= if @selected_product_id do %>
         <div class="upload-area">
           <form id="upload-form" phx-change="validate" phx-submit="upload">
@@ -131,16 +129,16 @@ defmodule HudsonWeb.ProductUploadLive do
                 Select up to 5 images (JPG, PNG). Max 10MB each.
               </p>
             </div>
-
-            <!-- Preview Uploaded Files -->
+            
+    <!-- Preview Uploaded Files -->
             <%= for entry <- @uploads.product_images.entries do %>
               <div class="upload-entry">
                 <div class="preview">
                   <.live_img_preview entry={entry} width="75" />
                 </div>
                 <div class="info">
-                  <p><%= entry.client_name %></p>
-                  <progress value={entry.progress} max="100"><%= entry.progress %>%</progress>
+                  <p>{entry.client_name}</p>
+                  <progress value={entry.progress} max="100">{entry.progress}%</progress>
                 </div>
                 <button
                   type="button"
@@ -153,28 +151,28 @@ defmodule HudsonWeb.ProductUploadLive do
               </div>
 
               <%= for err <- upload_errors(@uploads.product_images, entry) do %>
-                <p class="error"><%= error_to_string(err) %></p>
+                <p class="error">{error_to_string(err)}</p>
               <% end %>
             <% end %>
-
-            <!-- Upload Button -->
+            
+    <!-- Upload Button -->
             <%= if @uploads.product_images.entries != [] do %>
               <button type="submit" disabled={@uploading}>
-                <%= if @uploading, do: "Uploading...", else: "Upload Images" %>
+                {if @uploading, do: "Uploading...", else: "Upload Images"}
               </button>
             <% end %>
           </form>
-
-          <!-- Upload Results -->
+          
+    <!-- Upload Results -->
           <%= if @upload_results != [] do %>
             <div class="upload-results">
               <h3>Upload Results:</h3>
               <%= for result <- @upload_results do %>
                 <div class={"result #{if result.success, do: "success", else: "error"}"}>
                   <%= if result.success do %>
-                    ✓ <%= result.filename %> uploaded successfully
+                    ✓ {result.filename} uploaded successfully
                   <% else %>
-                    ✗ <%= result.filename %> failed: <%= inspect(result.error) %>
+                    ✗ {result.filename} failed: {inspect(result.error)}
                   <% end %>
                 </div>
               <% end %>

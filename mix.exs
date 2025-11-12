@@ -11,7 +11,11 @@ defmodule Hudson.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: [
+        plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+        plt_add_apps: [:ex_unit]
+      ]
     ]
   end
 
@@ -60,12 +64,20 @@ defmodule Hudson.MixProject do
       {:bandit, "~> 1.5"},
 
       # Hudson-specific dependencies
-      {:supabase_potion, "~> 0.5"},   # Supabase client
-      {:supabase_storage, "~> 0.4"},  # Supabase storage for image uploads
-      {:earmark, "~> 1.4"},           # Markdown rendering for talking points
-      {:bcrypt_elixir, "~> 3.0"},     # Password hashing for authentication
-      {:castore, "~> 1.0"},           # CA certificate store for SSL
-      {:dotenvy, "~> 0.8.0", only: [:dev, :test]}  # Load .env files in development
+      # Supabase client
+      {:supabase_potion, "~> 0.5"},
+      # Supabase storage for image uploads
+      {:supabase_storage, "~> 0.4"},
+      # Markdown rendering for talking points
+      {:earmark, "~> 1.4"},
+      # Password hashing for authentication
+      {:bcrypt_elixir, "~> 3.0"},
+      # CA certificate store for SSL
+      {:castore, "~> 1.0"},
+      # Load .env files in development
+      {:dotenvy, "~> 0.8.0", only: [:dev, :test]},
+      # Static type analysis
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -87,7 +99,13 @@ defmodule Hudson.MixProject do
         "esbuild hudson --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warning-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "dialyzer"
+      ]
     ]
   end
 end

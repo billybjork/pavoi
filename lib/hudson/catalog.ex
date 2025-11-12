@@ -137,8 +137,11 @@ defmodule Hudson.Catalog do
   Creates a product image.
   """
   def create_product_image(attrs \\ %{}) do
+    product_id = Map.get(attrs, :product_id) || Map.get(attrs, "product_id")
+
     %ProductImage{}
     |> ProductImage.changeset(attrs)
+    |> Ecto.Changeset.put_change(:product_id, product_id)
     |> Repo.insert()
   end
 

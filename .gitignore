@@ -34,6 +34,7 @@ Temporary Items
 /deps/
 /*.ez
 /priv/static/
+/priv/plts/
 erl_crash.dump
 *.beam
 .elixir_ls/
