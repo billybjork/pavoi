@@ -21,6 +21,8 @@ defmodule Hudson.Sessions.SessionProduct do
   def changeset(session_product, attrs) do
     session_product
     |> cast(attrs, [
+      :session_id,
+      :product_id,
       :position,
       :section,
       :featured_name,

@@ -419,6 +419,53 @@ defmodule HudsonWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a modal dialog using DaisyUI's native dialog element.
+
+  ## Examples
+
+      <.modal id="new-session-modal">
+        <h3 class="font-bold text-lg">New Session</h3>
+        <p>Modal content goes here</p>
+      </.modal>
+
+      <!-- Trigger with JS -->
+      <button phx-click={show_modal("new-session-modal")}>Open Modal</button>
+  """
+  attr :id, :string, required: true
+  attr :show, :boolean, default: false
+  attr :on_cancel, JS, default: %JS{}
+  slot :inner_block, required: true
+
+  def modal(assigns) do
+    ~H"""
+    <dialog
+      id={@id}
+      class="modal"
+      phx-hook="Modal"
+      data-show={to_string(@show)}
+      phx-remove={hide_modal(@id)}
+    >
+      <div class="modal-box max-w-2xl">
+        <form method="dialog">
+          <button
+            type="button"
+            phx-click={JS.exec(@on_cancel, "data-cancel") |> hide_modal(@id)}
+            class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+            aria-label={gettext("close")}
+          >
+            ✕
+          </button>
+        </form>
+        {render_slot(@inner_block)}
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button phx-click={JS.exec(@on_cancel, "data-cancel") |> hide_modal(@id)}>close</button>
+      </form>
+    </dialog>
+    """
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do
@@ -440,6 +487,20 @@ defmodule HudsonWeb.CoreComponents do
         {"transition-all ease-in duration-200", "opacity-100 translate-y-0 sm:scale-100",
          "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"}
     )
+  end
+
+  @doc """
+  Shows a DaisyUI modal by dispatching a showModal event.
+  """
+  def show_modal(js \\ %JS{}, id) when is_binary(id) do
+    JS.dispatch(js, "daisyui:showmodal", to: "##{id}", detail: %{id: id})
+  end
+
+  @doc """
+  Hides a DaisyUI modal by dispatching a close event.
+  """
+  def hide_modal(js \\ %JS{}, id) when is_binary(id) do
+    JS.dispatch(js, "daisyui:hidemodal", to: "##{id}", detail: %{id: id})
   end
 
   @doc """

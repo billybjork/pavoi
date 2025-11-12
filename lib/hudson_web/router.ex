@@ -24,6 +24,7 @@ defmodule HudsonWeb.Router do
     live "/products/upload", ProductUploadLive
 
     # Session management and live control
+    live "/sessions", SessionsLive.Index
     live "/sessions/:id/run", SessionRunLive
   end
 

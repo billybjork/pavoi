@@ -19,6 +19,18 @@ defmodule Hudson.Sessions do
   end
 
   @doc """
+  Returns the list of sessions with brands and products preloaded, ordered by most recent.
+  """
+  def list_sessions_with_details do
+    ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
+
+    Session
+    |> order_by([s], desc: s.inserted_at)
+    |> preload([:brand, session_products: [product: [product_images: ^ordered_images]]])
+    |> Repo.all()
+  end
+
+  @doc """
   Gets a single session.
   Raises `Ecto.NoResultsError` if the Session does not exist.
   """
@@ -84,11 +96,39 @@ defmodule Hudson.Sessions do
   Adds a product to a session with the given position and optional overrides.
   """
   def add_product_to_session(session_id, product_id, attrs \\ %{}) do
+    attrs =
+      attrs
+      |> Map.put(:session_id, session_id)
+      |> Map.put(:product_id, product_id)
+
     %SessionProduct{}
     |> SessionProduct.changeset(attrs)
-    |> Ecto.Changeset.put_change(:session_id, session_id)
-    |> Ecto.Changeset.put_change(:product_id, product_id)
     |> Repo.insert()
+  end
+
+  @doc """
+  Removes a product from a session by deleting the session_product record.
+  """
+  def remove_product_from_session(session_product_id) do
+    case Repo.get(SessionProduct, session_product_id) do
+      nil -> {:error, :not_found}
+      session_product -> Repo.delete(session_product)
+    end
+  end
+
+  @doc """
+  Gets the next available position for a session.
+  Uses database query to avoid race conditions.
+  """
+  def get_next_position_for_session(session_id) do
+    max_position =
+      from(sp in SessionProduct,
+        where: sp.session_id == ^session_id,
+        select: max(sp.position)
+      )
+      |> Repo.one()
+
+    (max_position || 0) + 1
   end
 
   @doc """

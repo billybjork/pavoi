@@ -1,0 +1,266 @@
+<div class="px-4 py-8 max-w-7xl mx-auto">
+  <.header>
+    Sessions Manager
+    <:subtitle>Manage your live streaming sessions and products</:subtitle>
+    <:actions>
+      <.button phx-click="show_new_session_modal">
+        New Session
+      </.button>
+    </:actions>
+  </.header>
+
+  <div class="mt-8 space-y-4">
+    <%= if @sessions == [] do %>
+      <div class="text-center py-12">
+        <p class="text-lg text-base-content/70">No sessions yet. Create your first session to get started.</p>
+      </div>
+    <% else %>
+      <%= for session <- @sessions do %>
+        <div class="card bg-base-200 hover:bg-base-300 transition-colors duration-200">
+          <div class="card-body">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 cursor-pointer" phx-click="toggle_expand" phx-value-session-id={session.id}>
+                <div class="flex items-center gap-3">
+                  <h3 class="card-title text-xl">{session.name}</h3>
+                  <span class={["badge", status_badge_class(session.status)]}>
+                    {session.status}
+                  </span>
+                </div>
+
+                <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-base-content/70">
+                  <div class="flex items-center gap-2">
+                    <.icon name="hero-building-office" class="size-4" />
+                    <span class="font-semibold">{session.brand.name}</span>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <.icon name="hero-calendar" class="size-4" />
+                    {format_datetime(session.scheduled_at)}
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <.icon name="hero-clock" class="size-4" />
+                    {format_duration(session.duration_minutes)}
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <.icon name="hero-cube" class="size-4" />
+                    {length(session.session_products)} products
+                  </div>
+                </div>
+
+                <%= if session.notes do %>
+                  <p class="mt-2 text-sm text-base-content/60 italic">{session.notes}</p>
+                <% end %>
+              </div>
+
+              <div class="flex gap-2">
+                <.button
+                  variant="primary"
+                  phx-click="enter_session"
+                  phx-value-session-id={session.id}
+                >
+                  Enter
+                </.button>
+
+                <.button
+                  phx-click="load_products_for_session"
+                  phx-value-session-id={session.id}
+                >
+                  Add Product
+                </.button>
+
+                <button
+                  class="btn btn-error btn-outline btn-sm"
+                  phx-click="delete_session"
+                  phx-value-session-id={session.id}
+                  data-confirm="Are you sure you want to delete this session? This action cannot be undone."
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <%= if MapSet.member?(@expanded_session_ids, session.id) do %>
+              <div class="mt-4 pt-4 border-t border-base-300">
+                <h4 class="font-semibold mb-3">Products in this session:</h4>
+
+                <%= if session.session_products == [] do %>
+                  <p class="text-sm text-base-content/60">No products added yet.</p>
+                <% else %>
+                  <div class="space-y-2">
+                    <%= for sp <- session.session_products do %>
+                      <div class="flex items-center gap-4 p-3 bg-base-100 rounded-lg">
+                        <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-primary/10 text-primary rounded-full font-bold text-sm">
+                          {sp.position}
+                        </div>
+
+                        <%= if image = primary_image(sp.product) do %>
+                          <img
+                            src={image.thumbnail_path || image.path}
+                            alt={image.alt_text}
+                            class="w-16 h-16 object-cover rounded"
+                          />
+                        <% end %>
+
+                        <div class="flex-1">
+                          <p class="font-medium">
+                            {sp.featured_name || sp.product.name}
+                          </p>
+                          <%= if sp.product.display_number do %>
+                            <p class="text-xs text-base-content/60">Product #{sp.product.display_number}</p>
+                          <% end %>
+                          <div class="flex gap-2 mt-1">
+                            <%= if sp.featured_sale_price_cents || sp.product.sale_price_cents do %>
+                              <span class="text-sm font-semibold text-success">
+                                {format_price(sp.featured_sale_price_cents || sp.product.sale_price_cents)}
+                              </span>
+                              <span class="text-sm line-through text-base-content/50">
+                                {format_price(sp.featured_original_price_cents || sp.product.original_price_cents)}
+                              </span>
+                            <% else %>
+                              <span class="text-sm font-semibold">
+                                {format_price(sp.featured_original_price_cents || sp.product.original_price_cents)}
+                              </span>
+                            <% end %>
+                          </div>
+                        </div>
+
+                        <button
+                          class="btn btn-sm btn-ghost btn-circle text-error"
+                          phx-click="remove_product"
+                          phx-value-session-product-id={sp.id}
+                          data-confirm="Remove this product from the session?"
+                        >
+                          <.icon name="hero-x-mark" class="size-5" />
+                        </button>
+                      </div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<!-- Add Product Modal (single, dynamically populated) -->
+<%= if @selected_session_for_product do %>
+  <.modal
+    id="add-product-modal"
+    show={@show_modal_for_session != nil}
+    on_cancel={JS.push("close_product_modal")}
+  >
+    <h3 class="font-bold text-lg mb-4">Add Product to Session</h3>
+
+    <div class="mb-4 p-3 bg-base-200 rounded-lg">
+      <p class="text-sm text-base-content/70">Session:</p>
+      <p class="font-semibold">{@selected_session_for_product.name}</p>
+      <p class="text-sm text-base-content/70 mt-1">Brand: {@selected_session_for_product.brand.name}</p>
+    </div>
+
+    <.form for={@product_form} phx-change="validate_product" phx-submit="save_product_to_session">
+      <input type="hidden" name="session_product[session_id]" value={@selected_session_for_product.id} />
+
+      <.input
+        field={@product_form[:product_id]}
+        type="select"
+        label="Product"
+        options={
+          Enum.map(@available_products, fn p ->
+            {p.name <> " (#{if p.display_number, do: "##{p.display_number}", else: "no #"})", p.id}
+          end)
+        }
+        prompt="Select a product"
+      />
+
+      <.input
+        field={@product_form[:position]}
+        type="number"
+        label="Position"
+      />
+
+      <div class="modal-action">
+        <.button type="submit" variant="primary" phx-disable-with="Adding...">
+          Add Product
+        </.button>
+        <button
+          type="button"
+          class="btn"
+          phx-click={JS.push("close_product_modal") |> hide_modal("add-product-modal")}
+        >
+          Cancel
+        </button>
+      </div>
+    </.form>
+  </.modal>
+<% end %>
+
+<!-- New Session Modal -->
+<.modal
+  id="new-session-modal"
+  show={@show_new_session_modal}
+  on_cancel={JS.push("close_new_session_modal")}
+>
+  <h3 class="font-bold text-lg mb-4">Create New Session</h3>
+
+  <.form for={@session_form} phx-change="validate_session" phx-submit="save_session">
+    <.input
+      field={@session_form[:brand_id]}
+      type="select"
+      label="Brand"
+      options={Enum.map(@brands, fn b -> {b.name, b.id} end)}
+      prompt="Select a brand"
+    />
+
+    <.input
+      field={@session_form[:name]}
+      type="text"
+      label="Session Name"
+      placeholder="e.g., Spring 2024 Live Sale"
+    />
+
+    <.input
+      field={@session_form[:scheduled_at]}
+      type="datetime-local"
+      label="Scheduled Date & Time"
+    />
+
+    <.input
+      field={@session_form[:duration_minutes]}
+      type="number"
+      label="Expected Duration (minutes)"
+      placeholder="e.g., 180"
+    />
+
+    <.input
+      field={@session_form[:status]}
+      type="select"
+      label="Status"
+      options={[{"Draft", "draft"}, {"Live", "live"}, {"Complete", "complete"}]}
+    />
+
+    <.input
+      field={@session_form[:notes]}
+      type="textarea"
+      label="Notes"
+      placeholder="Any additional notes about this session"
+    />
+
+    <div class="modal-action">
+      <.button type="submit" variant="primary" phx-disable-with="Creating...">
+        Create Session
+      </.button>
+      <button
+        type="button"
+        class="btn"
+        phx-click={JS.push("close_new_session_modal") |> hide_modal("new-session-modal")}
+      >
+        Cancel
+      </button>
+    </div>
+  </.form>
+</.modal>
