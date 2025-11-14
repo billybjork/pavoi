@@ -344,9 +344,7 @@ Enum.each(products, fn product ->
       IO.puts("  ✓ Generated image for product: #{product.name}")
 
     {:error, reason} ->
-      IO.puts(
-        "  ✗ Failed to upload image for product: #{inspect(reason)}"
-      )
+      IO.puts("  ✗ Failed to upload image for product: #{inspect(reason)}")
   end
 
   # Clean up temp file

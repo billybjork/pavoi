@@ -18,7 +18,9 @@ if config_env() == :dev do
     supabase_url: System.get_env("SUPABASE_URL"),
     supabase_anon_key: System.get_env("SUPABASE_ANON_KEY"),
     supabase_service_role_key: System.get_env("SUPABASE_SERVICE_ROLE_KEY"),
-    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL")
+    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL"),
+    shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
+    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
 end
 
 # ## Using releases
@@ -82,7 +84,9 @@ if config_env() == :prod do
     supabase_url: System.get_env("SUPABASE_URL"),
     supabase_anon_key: System.get_env("SUPABASE_ANON_KEY"),
     supabase_service_role_key: System.get_env("SUPABASE_SERVICE_ROLE_KEY"),
-    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL")
+    storage_public_url: System.get_env("SUPABASE_STORAGE_PUBLIC_URL"),
+    shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
+    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
 
   config :hudson, HudsonWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

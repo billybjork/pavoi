@@ -63,6 +63,7 @@ defmodule HudsonWeb.ProductComponents do
   use Phoenix.Component
 
   import HudsonWeb.CoreComponents
+
   use Phoenix.VerifiedRoutes,
     endpoint: HudsonWeb.Endpoint,
     router: HudsonWeb.Router,
@@ -114,7 +115,10 @@ defmodule HudsonWeb.ProductComponents do
                 alt={image.alt_text}
                 style="width: 100%; height: auto; display: block; border-radius: var(--radius-sm);"
               />
-              <p class="text-sm text-secondary" style="margin-top: var(--space-xs); text-align: center;">
+              <p
+                class="text-sm text-secondary"
+                style="margin-top: var(--space-xs); text-align: center;"
+              >
                 Product Image {if image.is_primary, do: "(Primary)"}
               </p>
               <div style="margin-top: var(--space-sm); text-align: center;">
@@ -203,7 +207,10 @@ defmodule HudsonWeb.ProductComponents do
             <div class="modal__footer">
               <.button
                 type="button"
-                phx-click={JS.push("close_edit_product_modal") |> HudsonWeb.CoreComponents.hide_modal("edit-product-modal")}
+                phx-click={
+                  JS.push("close_edit_product_modal")
+                  |> HudsonWeb.CoreComponents.hide_modal("edit-product-modal")
+                }
               >
                 Cancel
               </.button>
@@ -276,7 +283,11 @@ defmodule HudsonWeb.ProductComponents do
   attr :show_prices, :boolean, default: false, doc: "Whether to show prices"
   attr :show_search, :boolean, default: true, doc: "Whether to show search input"
   attr :loading, :boolean, default: false, doc: "Whether products are currently loading"
-  attr :search_placeholder, :string, default: "Search products...", doc: "Placeholder text for search input"
+
+  attr :search_placeholder, :string,
+    default: "Search products...",
+    doc: "Placeholder text for search input"
+
   attr :is_empty, :boolean, required: true, doc: "Whether the products collection is empty"
 
   def product_grid(assigns) do
@@ -296,7 +307,7 @@ defmodule HudsonWeb.ProductComponents do
           </div>
           <%= if @mode == :select do %>
             <div class="product-grid__count">
-              (<%= MapSet.size(@selected_ids) %> selected)
+              ({MapSet.size(@selected_ids)} selected)
             </div>
           <% end %>
         </div>
@@ -310,7 +321,12 @@ defmodule HudsonWeb.ProductComponents do
         <% else %>
           <%= for {dom_id, product} <- @products do %>
             <%= if @mode == :browse do %>
-              <.product_card_browse id={dom_id} product={product} on_click={@on_product_click} show_prices={@show_prices} />
+              <.product_card_browse
+                id={dom_id}
+                product={product}
+                on_click={@on_product_click}
+                show_prices={@show_prices}
+              />
             <% else %>
               <.live_component
                 module={HudsonWeb.ProductComponents.SelectCardComponent}
@@ -359,7 +375,11 @@ defmodule HudsonWeb.ProductComponents do
     >
       <%= if @product.primary_image do %>
         <img
-          src={Hudson.Media.public_image_url(@product.primary_image.thumbnail_path || @product.primary_image.path)}
+          src={
+            Hudson.Media.public_image_url(
+              @product.primary_image.thumbnail_path || @product.primary_image.path
+            )
+          }
           alt={@product.primary_image.alt_text}
           class="product-card-browse__image"
         />
@@ -370,21 +390,21 @@ defmodule HudsonWeb.ProductComponents do
       <% end %>
 
       <div class="product-card-browse__info">
-        <p class="product-card-browse__name"><%= @product.name %></p>
+        <p class="product-card-browse__name">{@product.name}</p>
 
         <%= if @show_prices do %>
           <div class="product-card-browse__pricing">
             <%= if @product.sale_price_cents do %>
               <span class="product-card-browse__price-original">
-                $<%= format_price(@product.original_price_cents) %>
+                ${format_price(@product.original_price_cents)}
               </span>
               <span class="product-card-browse__price-sale">
-                $<%= format_price(@product.sale_price_cents) %>
+                ${format_price(@product.sale_price_cents)}
               </span>
             <% else %>
               <span class="product-card-browse__price">
                 <%= if @product.original_price_cents do %>
-                  $<%= format_price(@product.original_price_cents) %>
+                  ${format_price(@product.original_price_cents)}
                 <% else %>
                   Price not set
                 <% end %>
@@ -415,15 +435,31 @@ defmodule HudsonWeb.ProductComponents do
       aria-pressed={@selected}
       aria-label={"Select #{@product.name}"}
     >
-      <div class={["product-card-select__checkmark", !@selected && "product-card-select__checkmark--hidden"]}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+      <div class={[
+        "product-card-select__checkmark",
+        !@selected && "product-card-select__checkmark--hidden"
+      ]}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          class="w-5 h-5"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clip-rule="evenodd"
+          />
         </svg>
       </div>
 
       <%= if @product.primary_image do %>
         <img
-          src={Hudson.Media.public_image_url(@product.primary_image.thumbnail_path || @product.primary_image.path)}
+          src={
+            Hudson.Media.public_image_url(
+              @product.primary_image.thumbnail_path || @product.primary_image.path
+            )
+          }
           alt={@product.primary_image.alt_text}
           class="product-card-select__image"
         />
@@ -433,19 +469,21 @@ defmodule HudsonWeb.ProductComponents do
         </div>
       <% end %>
 
-      <p class="product-card-select__name"><%= @product.name %></p>
+      <p class="product-card-select__name">{@product.name}</p>
     </div>
     """
   end
 
   # Helper to format price cents to dollars
   defp format_price(nil), do: "0.00"
+
   defp format_price(cents) when is_integer(cents) do
-    cents / 100 |> Float.round(2) |> Float.to_string()
+    (cents / 100) |> Float.round(2) |> Float.to_string()
   end
 
   # Helper to get the primary image from a product
   defp primary_image(product) when is_nil(product), do: nil
+
   defp primary_image(product) do
     product.product_images
     |> Enum.find(& &1.is_primary)
@@ -485,15 +523,31 @@ defmodule HudsonWeb.ProductComponents do
         aria-pressed={@product.selected}
         aria-label={"Select #{@product.name}"}
       >
-        <div class={["product-card-select__checkmark", !@product.selected && "product-card-select__checkmark--hidden"]}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        <div class={[
+          "product-card-select__checkmark",
+          !@product.selected && "product-card-select__checkmark--hidden"
+        ]}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            class="w-5 h-5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clip-rule="evenodd"
+            />
           </svg>
         </div>
 
         <%= if @product.primary_image do %>
           <img
-            src={Hudson.Media.public_image_url(@product.primary_image.thumbnail_path || @product.primary_image.path)}
+            src={
+              Hudson.Media.public_image_url(
+                @product.primary_image.thumbnail_path || @product.primary_image.path
+              )
+            }
             alt={@product.primary_image.alt_text}
             class="product-card-select__image"
           />
@@ -503,7 +557,7 @@ defmodule HudsonWeb.ProductComponents do
           </div>
         <% end %>
 
-        <p class="product-card-select__name"><%= @product.name %></p>
+        <p class="product-card-select__name">{@product.name}</p>
       </div>
       """
     end

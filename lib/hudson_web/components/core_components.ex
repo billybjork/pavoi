@@ -684,7 +684,7 @@ defmodule HudsonWeb.CoreComponents do
         hours = div(diff_seconds, 3600)
         "#{hours} #{pluralize("hour", hours)} ago"
 
-      diff_seconds < 172800 ->
+      diff_seconds < 172_800 ->
         "Yesterday"
 
       diff_seconds < 604_800 ->

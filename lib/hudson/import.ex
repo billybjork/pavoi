@@ -180,9 +180,7 @@ defmodule Hudson.Import do
         {:ok, product}
 
       {:error, changeset} ->
-        Logger.error(
-          "Failed to create product: #{inspect(changeset.errors)}"
-        )
+        Logger.error("Failed to create product: #{inspect(changeset.errors)}")
 
         {:error, "Failed to create product: #{inspect(changeset.errors)}"}
     end
@@ -210,9 +208,7 @@ defmodule Hudson.Import do
         {:ok, product}
 
       {:error, changeset} ->
-        Logger.error(
-          "Failed to update product: #{inspect(changeset.errors)}"
-        )
+        Logger.error("Failed to update product: #{inspect(changeset.errors)}")
 
         {:error, "Failed to update product: #{inspect(changeset.errors)}"}
     end
@@ -244,9 +240,7 @@ defmodule Hudson.Import do
         )
 
       {:error, reason} ->
-        Logger.error(
-          "Failed to upload image: #{inspect(reason)}"
-        )
+        Logger.error("Failed to upload image: #{inspect(reason)}")
     end
   end
 

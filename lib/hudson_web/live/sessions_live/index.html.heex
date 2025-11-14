@@ -85,7 +85,7 @@
 
           <div class={[
             "session-card__details-wrapper",
-            MapSet.member?(@expanded_session_ids, session.id) &&
+            @expanded_session_id == session.id &&
               "session-card__details-wrapper--expanded"
           ]}>
             <div class="session-card__details">
@@ -217,18 +217,18 @@
 
     <div class="modal__body">
       <.product_grid
-          products={@streams.add_product_products}
-          mode={:select}
-          search_query={@add_product_search_query}
-          has_more={@add_product_has_more}
-          selected_ids={@add_product_selected_ids}
-          on_product_click="toggle_add_product_selection"
-          on_search="search_add_products"
-          on_load_more="load_more_add_products"
-          show_search={true}
-          loading={@loading_add_products}
-          is_empty={@add_product_total_count == 0}
-        />
+        products={@streams.add_product_products}
+        mode={:select}
+        search_query={@add_product_search_query}
+        has_more={@add_product_has_more}
+        selected_ids={@add_product_selected_ids}
+        on_product_click="toggle_add_product_selection"
+        on_search="search_add_products"
+        on_load_more="load_more_add_products"
+        show_search={true}
+        loading={@loading_add_products}
+        is_empty={@add_product_total_count == 0}
+      />
 
       <div class="modal__footer">
         <.button
@@ -244,7 +244,9 @@
           phx-disable-with="Adding..."
           disabled={MapSet.size(@add_product_selected_ids) == 0}
         >
-          Add <%= MapSet.size(@add_product_selected_ids) %> Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>s<% end %>
+          Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>
+            s
+          <% end %>
         </.button>
       </div>
     </div>
@@ -291,14 +293,14 @@
           label="Notes"
           placeholder="Any additional notes about this session"
         />
-
-        <!-- Product Selection Section -->
+        
+<!-- Product Selection Section -->
         <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
           <div style="margin-top: var(--space-4);">
             <h3 style="font-size: var(--text-lg); font-weight: var(--font-semibold); margin: 0 0 var(--space-3) 0;">
               Select Products
               <span style="color: var(--color-text-secondary); font-weight: var(--font-normal); font-size: var(--text-base);">
-                (<%= MapSet.size(@selected_product_ids) %> selected)
+                ({MapSet.size(@selected_product_ids)} selected)
               </span>
             </h3>
             <.product_grid

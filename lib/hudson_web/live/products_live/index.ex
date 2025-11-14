@@ -15,6 +15,8 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:brands, brands)
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+      |> assign(:show_new_product_modal, false)
+      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:product_search_query, "")
       |> assign(:product_page, 1)
       |> assign(:product_total_count, 0)
@@ -27,23 +29,18 @@ defmodule HudsonWeb.ProductsLive.Index do
   end
 
   @impl true
-  def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
-    product = Catalog.get_product_with_images!(product_id)
-
-    # Convert prices from cents to dollars for display by passing as changes
-    changes = %{
-      "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
-      "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
-    }
-
-    changeset = Product.changeset(product, changes)
-
+  def handle_params(params, _uri, socket) do
     socket =
       socket
-      |> assign(:editing_product, product)
-      |> assign(:product_edit_form, to_form(changeset))
+      |> apply_url_params(params)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
+    # Update URL to include product ID
+    {:noreply, push_patch(socket, to: ~p"/products?#{%{p: product_id}}")}
   end
 
   @impl true
@@ -52,6 +49,7 @@ defmodule HudsonWeb.ProductsLive.Index do
       socket
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+      |> push_patch(to: ~p"/products")
 
     {:noreply, socket}
   end
@@ -88,6 +86,64 @@ defmodule HudsonWeb.ProductsLive.Index do
         socket =
           socket
           |> assign(:product_edit_form, to_form(changeset))
+          |> put_flash(:error, "Please fix the errors below")
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("show_new_product_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_new_product_modal, true)
+      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_new_product_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_new_product_modal, false)
+      |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_new_product", %{"product" => product_params}, socket) do
+    changeset =
+      %Product{}
+      |> Product.changeset(product_params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :new_product_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("save_new_product", %{"product" => product_params}, socket) do
+    # Convert price fields from dollars to cents
+    product_params = convert_prices_to_cents(product_params)
+
+    case Catalog.create_product(product_params) do
+      {:ok, _product} ->
+        socket =
+          socket
+          |> assign(:product_page, 1)
+          |> assign(:loading_products, true)
+          |> load_products_for_browse()
+          |> assign(:show_new_product_modal, false)
+          |> assign(:new_product_form, to_form(Product.changeset(%Product{}, %{})))
+          |> put_flash(:info, "Product created successfully")
+
+        {:noreply, socket}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        socket =
+          socket
+          |> assign(:new_product_form, to_form(changeset))
           |> put_flash(:error, "Please fix the errors below")
 
         {:noreply, socket}
@@ -161,6 +217,7 @@ defmodule HudsonWeb.ProductsLive.Index do
   end
 
   defp format_cents_to_dollars(nil), do: nil
+
   defp format_cents_to_dollars(cents) when is_integer(cents) do
     cents / 100
   end
@@ -204,4 +261,41 @@ defmodule HudsonWeb.ProductsLive.Index do
     end
   end
 
+  defp apply_url_params(socket, params) do
+    # Read "p" param for product modal
+    case params["p"] do
+      nil ->
+        # No product in URL, close modal if open
+        socket
+        |> assign(:editing_product, nil)
+        |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+
+      product_id_str ->
+        try do
+          product_id = String.to_integer(product_id_str)
+          # Load the product and open modal
+          product = Catalog.get_product_with_images!(product_id)
+
+          # Convert prices from cents to dollars for display
+          changes = %{
+            "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+            "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
+          }
+
+          changeset = Product.changeset(product, changes)
+
+          socket
+          |> assign(:editing_product, product)
+          |> assign(:product_edit_form, to_form(changeset))
+        rescue
+          Ecto.NoResultsError ->
+            # Product not found, clear param by redirecting
+            push_patch(socket, to: ~p"/products")
+
+          ArgumentError ->
+            # Invalid ID format, clear param by redirecting
+            push_patch(socket, to: ~p"/products")
+        end
+    end
+  end
 end
