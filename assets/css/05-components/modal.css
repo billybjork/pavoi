@@ -65,6 +65,11 @@
   transform: translateY(20px);
 }
 
+/* Modifier for wider modals */
+.modal__box--wide {
+  max-width: 900px;
+}
+
 /* Also support modal__content for consistency */
 .modal__content {
   position: relative;

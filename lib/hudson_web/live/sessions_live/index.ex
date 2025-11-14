@@ -35,6 +35,12 @@ defmodule HudsonWeb.SessionsLive.Index do
         :product_edit_form,
         to_form(Product.changeset(%Product{}, %{}))
       )
+      |> assign(:product_search_query, "")
+      |> assign(:product_page, 1)
+      |> assign(:product_total_count, 0)
+      |> assign(:selected_product_ids, MapSet.new())
+      |> assign(:new_session_products, [])
+      |> assign(:new_session_has_more, false)
 
     {:ok, socket}
   end
@@ -139,7 +145,16 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   @impl true
   def handle_event("show_new_session_modal", _params, socket) do
-    {:noreply, assign(socket, :show_new_session_modal, true)}
+    socket =
+      socket
+      |> assign(:show_new_session_modal, true)
+      |> assign(:product_search_query, "")
+      |> assign(:product_page, 1)
+      |> assign(:selected_product_ids, MapSet.new())
+      |> assign(:new_session_products, [])
+      |> assign(:new_session_has_more, false)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -162,7 +177,23 @@ defmodule HudsonWeb.SessionsLive.Index do
       |> Session.changeset(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :session_form, to_form(changeset))}
+    socket =
+      socket
+      |> assign(:session_form, to_form(changeset))
+
+    # If brand changed, reload products
+    socket =
+      if params["brand_id"] && params["brand_id"] != "" do
+        load_products_for_new_session(socket)
+      else
+        socket
+        |> assign(:new_session_products, [])
+        |> assign(:new_session_has_more, false)
+        |> assign(:product_search_query, "")
+        |> assign(:selected_product_ids, MapSet.new())
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -171,7 +202,10 @@ defmodule HudsonWeb.SessionsLive.Index do
     slug = slugify(session_params["name"])
     session_params = Map.put(session_params, "slug", slug)
 
-    case Sessions.create_session(session_params) do
+    # Extract selected product IDs (as list in order)
+    selected_ids = MapSet.to_list(socket.assigns.selected_product_ids)
+
+    case Sessions.create_session_with_products(session_params, selected_ids) do
       {:ok, _session} ->
         # Preserve expanded state across reload
         expanded_ids = socket.assigns.expanded_session_ids
@@ -186,6 +220,11 @@ defmodule HudsonWeb.SessionsLive.Index do
             :session_form,
             to_form(Session.changeset(%Session{}, %{}))
           )
+          |> assign(:product_search_query, "")
+          |> assign(:product_page, 1)
+          |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:new_session_products, [])
+          |> assign(:new_session_has_more, false)
           |> put_flash(:info, "Session created successfully")
 
         {:noreply, socket}
@@ -352,7 +391,85 @@ defmodule HudsonWeb.SessionsLive.Index do
     end
   end
 
+  @impl true
+  def handle_event("search_products", %{"value" => query}, socket) do
+    socket =
+      socket
+      |> assign(:product_search_query, query)
+      |> assign(:product_page, 1)
+      |> load_products_for_new_session()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("load_more_products", _params, socket) do
+    socket = load_products_for_new_session(socket, append: true)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_product_selection", %{"product-id" => product_id}, socket) do
+    product_id = normalize_id(product_id)
+    selected_ids = socket.assigns.selected_product_ids
+
+    new_selected_ids =
+      if MapSet.member?(selected_ids, product_id) do
+        MapSet.delete(selected_ids, product_id)
+      else
+        MapSet.put(selected_ids, product_id)
+      end
+
+    {:noreply, assign(socket, :selected_product_ids, new_selected_ids)}
+  end
+
   # Helper functions
+
+  defp load_products_for_new_session(socket, opts \\ [append: false]) do
+    append = Keyword.get(opts, :append, false)
+
+    brand_id = get_in(socket.assigns.session_form.params, ["brand_id"])
+    search_query = socket.assigns.product_search_query
+    page = if append, do: socket.assigns.product_page + 1, else: 1
+
+    case brand_id do
+      nil ->
+        socket
+        |> assign(:new_session_products, [])
+        |> assign(:new_session_has_more, false)
+        |> assign(:product_total_count, 0)
+
+      "" ->
+        socket
+        |> assign(:new_session_products, [])
+        |> assign(:new_session_has_more, false)
+        |> assign(:product_total_count, 0)
+
+      brand_id_str ->
+        brand_id = String.to_integer(brand_id_str)
+
+        result =
+          Catalog.search_products_paginated(
+            brand_id: brand_id,
+            search_query: search_query,
+            page: page,
+            per_page: 20
+          )
+
+        products =
+          if append do
+            socket.assigns.new_session_products ++ result.products
+          else
+            result.products
+          end
+
+        socket
+        |> assign(:new_session_products, products)
+        |> assign(:product_total_count, result.total)
+        |> assign(:product_page, result.page)
+        |> assign(:new_session_has_more, result.has_more)
+    end
+  end
 
   defp convert_prices_to_cents(params) do
     params

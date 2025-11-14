@@ -213,6 +213,7 @@
     id="new-session-modal"
     show={true}
     on_cancel={JS.push("close_new_session_modal")}
+    modal_class="modal__box--wide"
   >
     <div class="modal__header">
       <h2 class="modal__title">Create New Session</h2>
@@ -246,6 +247,89 @@
           label="Notes"
           placeholder="Any additional notes about this session"
         />
+
+        <!-- Product Selection Section -->
+        <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
+          <div class="product-selection">
+            <div class="product-selection__header">
+              <h3 class="product-selection__title">
+                Select Products
+                <span class="product-selection__count">
+                  (<%= MapSet.size(@selected_product_ids) %> selected)
+                </span>
+              </h3>
+
+              <div class="product-selection__search">
+                <input
+                  type="text"
+                  placeholder="Search by name, SKU, or PID..."
+                  value={@product_search_query}
+                  phx-keyup="search_products"
+                  phx-debounce="300"
+                  class="input input--sm"
+                />
+              </div>
+            </div>
+
+            <div class="product-selection__grid" id="product-grid">
+              <%= if @new_session_products == [] do %>
+                <p class="product-selection__empty">
+                  No products found. Try a different search.
+                </p>
+              <% else %>
+                <%= for product <- @new_session_products do %>
+                  <div
+                    class={[
+                      "product-selection__item",
+                      MapSet.member?(@selected_product_ids, product.id) &&
+                        "product-selection__item--selected"
+                    ]}
+                    phx-click="toggle_product_selection"
+                    phx-value-product-id={product.id}
+                  >
+                    <%= if MapSet.member?(@selected_product_ids, product.id) do %>
+                      <div class="product-selection__checkmark">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                    <% end %>
+
+                    <%= if product.primary_image do %>
+                      <img
+                        src={public_image_url(product.primary_image.thumbnail_path || product.primary_image.path)}
+                        alt={product.primary_image.alt_text}
+                        class="product-selection__image"
+                      />
+                    <% else %>
+                      <div class="product-selection__image-placeholder">
+                        No Image
+                      </div>
+                    <% end %>
+
+                    <p class="product-selection__name"><%= product.name %></p>
+                  </div>
+                <% end %>
+
+                <%= if @new_session_has_more do %>
+                  <div class="product-selection__loader">
+                    <.button
+                      type="button"
+                      phx-click="load_more_products"
+                      size="sm"
+                    >
+                      Load More Products
+                    </.button>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <p class="text-sm text-secondary">
+            Please select a brand to choose products.
+          </p>
+        <% end %>
 
         <div class="modal__footer">
           <.button

@@ -103,6 +103,86 @@ defmodule Hudson.Catalog do
     end)
   end
 
+  @doc """
+  Searches and paginates products with optional filters.
+
+  ## Options
+    - brand_id: Filter by brand ID
+    - search_query: Search by product name, SKU, or PID (default: "")
+    - page: Current page number (default: 1)
+    - per_page: Items per page (default: 20)
+
+  ## Returns
+    A map with:
+      - products: List of products with primary_image field
+      - total: Total count of matching products
+      - page: Current page number
+      - per_page: Items per page
+      - has_more: Boolean indicating if more products are available
+  """
+  def search_products_paginated(opts \\ []) do
+    brand_id = Keyword.get(opts, :brand_id)
+    search_query = Keyword.get(opts, :search_query, "")
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 20)
+
+    # Build base query
+    query = from(p in Product, preload: :product_images)
+
+    # Filter by brand if provided
+    query =
+      if brand_id do
+        where(query, [p], p.brand_id == ^brand_id)
+      else
+        query
+      end
+
+    # Apply search filter if query provided
+    query =
+      if search_query != "" do
+        search_pattern = "%#{search_query}%"
+
+        where(
+          query,
+          [p],
+          ilike(p.name, ^search_pattern) or
+            ilike(p.sku, ^search_pattern) or
+            ilike(p.pid, ^search_pattern)
+        )
+      else
+        query
+      end
+
+    # Get total count
+    total = Repo.aggregate(query, :count)
+
+    # Get paginated results
+    products =
+      query
+      |> order_by([p], p.name)
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> Repo.all()
+      |> add_primary_image_virtual_field()
+
+    %{
+      products: products,
+      total: total,
+      page: page,
+      per_page: per_page,
+      has_more: total > page * per_page
+    }
+  end
+
+  defp add_primary_image_virtual_field(products) do
+    Enum.map(products, fn product ->
+      primary_image =
+        Enum.find(product.product_images, & &1.is_primary) || List.first(product.product_images)
+
+      Map.put(product, :primary_image, primary_image)
+    end)
+  end
+
   defp apply_product_filters(query, []), do: query
 
   defp apply_product_filters(query, [{:brand_id, brand_id} | rest]) do

@@ -64,6 +64,42 @@ defmodule Hudson.Sessions do
   end
 
   @doc """
+  Creates a session with products in a single transaction.
+
+  Takes session attributes and a list of product IDs. Creates the session
+  and then adds each product as a session_product with sequential positions.
+
+  Returns {:ok, session} or {:error, changeset} on failure.
+  """
+  def create_session_with_products(session_attrs, product_ids \\ []) do
+    Repo.transaction(fn ->
+      case create_session(session_attrs) do
+        {:ok, session} ->
+          case add_products_to_session(session.id, product_ids) do
+            :ok ->
+              session
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp add_products_to_session(session_id, product_ids) do
+    Enum.with_index(product_ids, 1)
+    |> Enum.reduce_while(:ok, fn {product_id, position}, _acc ->
+      case add_product_to_session(session_id, product_id, %{position: position}) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  @doc """
   Updates a session.
   """
   def update_session(%Session{} = session, attrs) do
@@ -77,6 +113,15 @@ defmodule Hudson.Sessions do
   """
   def delete_session(%Session{} = session) do
     Repo.delete(session)
+  end
+
+  # Updates a session's updated_at timestamp to the current time.
+  # This is useful to mark a session as recently modified when its products change.
+  defp touch_session(session_id) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    from(s in Session, where: s.id == ^session_id)
+    |> Repo.update_all(set: [updated_at: now])
   end
 
   ## Session Products
@@ -94,6 +139,7 @@ defmodule Hudson.Sessions do
 
   @doc """
   Adds a product to a session with the given position and optional overrides.
+  Also updates the session's updated_at timestamp to mark it as recently modified.
   """
   def add_product_to_session(session_id, product_id, attrs \\ %{}) do
     attrs =
@@ -101,18 +147,37 @@ defmodule Hudson.Sessions do
       |> Map.put(:session_id, session_id)
       |> Map.put(:product_id, product_id)
 
-    %SessionProduct{}
-    |> SessionProduct.changeset(attrs)
-    |> Repo.insert()
+    result =
+      %SessionProduct{}
+      |> SessionProduct.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, _} -> touch_session(session_id)
+      error -> error
+    end
+
+    result
   end
 
   @doc """
   Removes a product from a session by deleting the session_product record.
+  Also updates the session's updated_at timestamp to mark it as recently modified.
   """
   def remove_product_from_session(session_product_id) do
     case Repo.get(SessionProduct, session_product_id) do
-      nil -> {:error, :not_found}
-      session_product -> Repo.delete(session_product)
+      nil ->
+        {:error, :not_found}
+
+      session_product ->
+        result = Repo.delete(session_product)
+
+        case result do
+          {:ok, _} -> touch_session(session_product.session_id)
+          error -> error
+        end
+
+        result
     end
   end
 
@@ -310,6 +375,7 @@ defmodule Hudson.Sessions do
   @doc """
   Renumbers session product positions to be sequential starting from 1.
   Useful after deleting products that leave gaps in numbering.
+  Also updates the session's updated_at timestamp to mark it as recently modified.
   """
   def renumber_session_products(session_id) do
     session_products =
@@ -319,11 +385,19 @@ defmodule Hudson.Sessions do
       )
       |> Repo.all()
 
-    Repo.transaction(fn ->
-      session_products
-      |> Enum.with_index(1)
-      |> Enum.each(&update_session_product_position/1)
-    end)
+    result =
+      Repo.transaction(fn ->
+        session_products
+        |> Enum.with_index(1)
+        |> Enum.each(&update_session_product_position/1)
+      end)
+
+    case result do
+      {:ok, _} -> touch_session(session_id)
+      error -> error
+    end
+
+    result
   end
 
   defp update_session_product_position({sp, new_position}) when sp.position != new_position do

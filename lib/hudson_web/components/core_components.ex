@@ -500,6 +500,7 @@ defmodule HudsonWeb.CoreComponents do
   attr :id, :string, required: true
   attr :show, :boolean, default: false
   attr :on_cancel, JS, default: %JS{}
+  attr :modal_class, :string, default: "", doc: "Additional CSS classes for the modal box"
   attr :rest, :global, doc: "arbitrary HTML attributes to add to the modal container"
   slot :inner_block, required: true
 
@@ -527,7 +528,7 @@ defmodule HudsonWeb.CoreComponents do
             phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
             phx-key="escape"
             phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-            class="modal__box"
+            class={["modal__box", @modal_class]}
           >
             <button
               type="button"

@@ -133,13 +133,6 @@ defmodule HudsonWeb.ProductComponents do
                 label="SKU"
                 placeholder="Stock keeping unit"
               />
-
-              <.input
-                field={@product_edit_form[:external_url]}
-                type="text"
-                label="External URL"
-                placeholder="https://..."
-              />
             </div>
 
             <div class="modal__footer">

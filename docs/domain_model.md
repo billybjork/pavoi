@@ -135,7 +135,6 @@ Catalog item with global product information. Products are reusable across multi
 | `sale_price_cents` | integer | NULLABLE | Sale price in cents |
 | `pid` | varchar(100) | NULLABLE, UNIQUE | TikTok Product ID or external ID |
 | `sku` | varchar(100) | NULLABLE | Internal SKU |
-| `external_url` | varchar(500) | NULLABLE | Shopify/TikTok product URL |
 | `inserted_at` | timestamp | NOT NULL | Record creation |
 | `updated_at` | timestamp | NOT NULL | Last update |
 
@@ -159,7 +158,6 @@ defmodule Hudson.Catalog.Product do
     field :sale_price_cents, :integer
     field :pid, :string
     field :sku, :string
-    field :external_url, :string
 
     belongs_to :brand, Hudson.Catalog.Brand
     has_many :product_images, Hudson.Catalog.ProductImage, preload_order: [asc: :position]
@@ -173,7 +171,7 @@ defmodule Hudson.Catalog.Product do
     |> cast(attrs, [
       :brand_id, :name, :description,
       :talking_points_md, :original_price_cents, :sale_price_cents,
-      :pid, :sku, :external_url
+      :pid, :sku
     ])
     |> validate_required([:brand_id, :name, :original_price_cents])
     |> validate_number(:original_price_cents, greater_than: 0)

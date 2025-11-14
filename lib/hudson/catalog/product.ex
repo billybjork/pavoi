@@ -16,7 +16,6 @@ defmodule Hudson.Catalog.Product do
     field :sale_price_cents, :integer
     field :pid, :string
     field :sku, :string
-    field :external_url, :string
 
     belongs_to :brand, Hudson.Catalog.Brand
     has_many :product_images, Hudson.Catalog.ProductImage, preload_order: [asc: :position]
@@ -36,8 +35,7 @@ defmodule Hudson.Catalog.Product do
       :original_price_cents,
       :sale_price_cents,
       :pid,
-      :sku,
-      :external_url
+      :sku
     ])
     |> validate_required([:brand_id, :name, :original_price_cents])
     |> validate_number(:original_price_cents, greater_than: 0)
