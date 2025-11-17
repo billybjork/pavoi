@@ -51,7 +51,6 @@
   padding: var(--space-6);
   transition: all var(--transition-base);
   border: 1px solid var(--color-border-secondary);
-  overflow: hidden;
   cursor: pointer;
 }
 
@@ -375,6 +374,7 @@
 .menu-container {
   position: relative;
   display: inline-block;
+  z-index: 100;
 }
 
 .menu-trigger {
@@ -419,16 +419,38 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--space-2);
-  z-index: 50;
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  z-index: 1000;
 }
 
-.session-menu.hidden {
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
+/* LiveView transition classes */
+.session-menu.fade-in {
+  animation: fadeInMenu 0.2s ease-out;
+}
+
+.session-menu.fade-out {
+  animation: fadeOutMenu 0.2s ease-out;
+}
+
+@keyframes fadeInMenu {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutMenu {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 .session-menu__item {
