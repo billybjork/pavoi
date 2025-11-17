@@ -498,12 +498,34 @@ defmodule HudsonWeb.SessionsLive.Index do
     end
   end
 
-  def handle_event("move_product_up", %{"session-product-id" => sp_id}, socket) do
-    move_product(socket, sp_id, :up)
-  end
+  def handle_event("reorder_products", %{"session_id" => session_id, "product_ids" => product_ids}, socket) do
+    session_id = normalize_id(session_id)
 
-  def handle_event("move_product_down", %{"session-product-id" => sp_id}, socket) do
-    move_product(socket, sp_id, :down)
+    # Convert product IDs to integers
+    product_ids = Enum.map(product_ids, &normalize_id/1)
+
+    # Update positions in database
+    case Sessions.reorder_products(session_id, product_ids) do
+      {:ok, _count} ->
+        # Reload sessions with new order
+        expanded_id = socket.assigns.expanded_session_id
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+
+        sorted_sessions = sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
+
+        socket =
+          socket
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket
+        |> put_flash(:error, "Failed to reorder products: #{inspect(reason)}")
+        |> then(&{:noreply, &1})
+    end
   end
 
   def handle_event("delete_session", %{"session-id" => session_id}, socket) do
@@ -831,55 +853,6 @@ defmodule HudsonWeb.SessionsLive.Index do
     end
   end
 
-  defp move_product(socket, sp_id, direction) do
-    sp_id = normalize_id(sp_id)
-    session = find_session_for_product(socket.assigns.sessions, sp_id)
-
-    case session do
-      nil ->
-        socket
-        |> put_flash(:error, "Session not found")
-        |> then(&{:noreply, &1})
-
-      session ->
-        perform_product_swap(socket, sp_id, session, direction)
-    end
-  end
-
-  defp perform_product_swap(socket, sp_id, session, direction) do
-    case find_adjacent_product(session.session_products, sp_id, direction) do
-      nil ->
-        {:noreply, socket}
-
-      adjacent_sp ->
-        execute_product_swap(socket, sp_id, adjacent_sp.id)
-    end
-  end
-
-  defp execute_product_swap(socket, sp_id, adjacent_sp_id) do
-    case Sessions.swap_product_positions(sp_id, adjacent_sp_id) do
-      {:ok, _} ->
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
-        socket =
-          socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
-
-        {:noreply, socket}
-
-      {:error, reason} ->
-        socket
-        |> put_flash(:error, "Failed to move product: #{inspect(reason)}")
-        |> then(&{:noreply, &1})
-    end
-  end
-
   defp load_products_for_new_session(socket, opts \\ [append: false]) do
     append = Keyword.get(opts, :append, false)
 
@@ -1103,24 +1076,6 @@ defmodule HudsonWeb.SessionsLive.Index do
         end
 
       {:error, error}
-    end
-  end
-
-  defp find_session_for_product(sessions, session_product_id) do
-    Enum.find(sessions, fn session ->
-      Enum.any?(session.session_products, &(&1.id == session_product_id))
-    end)
-  end
-
-  defp find_adjacent_product(session_products, sp_id, direction) do
-    sp = Enum.find(session_products, &(&1.id == sp_id))
-
-    case direction do
-      :up ->
-        Enum.find(session_products, &(&1.position == sp.position - 1))
-
-      :down ->
-        Enum.find(session_products, &(&1.position == sp.position + 1))
     end
   end
 

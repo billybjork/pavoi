@@ -363,13 +363,6 @@
   line-height: 1;
 }
 
-/* Spacer for product actions alignment */
-.session-card__product-spacer {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
 /* Three-dots menu */
 .menu-container {
   position: relative;
@@ -491,6 +484,77 @@
   height: 1px;
   background-color: var(--color-border-secondary);
   margin: var(--space-2) 0;
+}
+
+/* ============================================================================
+   DRAG AND DROP (SORTABLE)
+   Styles for drag-and-drop product reordering
+   ============================================================================ */
+
+/* Drag handle - visual indicator for dragging */
+.session-card__drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+  border-radius: var(--radius-sm);
+}
+
+.session-card__drag-handle:hover {
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-hover);
+}
+
+.session-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Sortable states - applied by SortableJS during drag operations */
+
+/* Ghost: placeholder where item will be dropped */
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: var(--color-bg-hover);
+  border: 2px dashed var(--color-border-primary);
+  border-radius: var(--radius-md);
+}
+
+.sortable-ghost * {
+  visibility: hidden;
+}
+
+/* Drag: item being dragged */
+.sortable-drag {
+  opacity: 1;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  transform: rotate(2deg);
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+/* Chosen: item when selected for drag */
+.sortable-chosen {
+  cursor: grabbing;
+}
+
+.sortable-chosen .session-card__drag-handle {
+  cursor: grabbing;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-hover);
+}
+
+/* Prevent text selection during drag */
+.session-card__product-list.sortable-drag-active {
+  user-select: none;
 }
 
 /* Responsive adjustments */
