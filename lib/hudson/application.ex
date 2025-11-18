@@ -42,7 +42,7 @@ defmodule Hudson.Application do
 
   defp neon_enabled? do
     value = System.get_env("HUDSON_ENABLE_NEON", "true") |> String.downcase()
-    value in ["true", "1", "yes"]
+    value in ["true", "1", "yes", "local"]
   end
 
   defp maybe_add_neon(children, true), do: [Hudson.Repo | children]

@@ -1,6 +1,13 @@
 #!/bin/bash
 # Hudson Native App Launcher
 # Starts the Tauri-wrapped Hudson desktop app
+#
+# Usage:
+#   ./run_native.sh                              # Local Postgres mode (default)
+#   HUDSON_ENABLE_NEON=true ./run_native.sh      # Neon cloud mode (requires DATABASE_URL)
+#   HUDSON_ENABLE_NEON=false ./run_native.sh     # Offline mode (SQLite only)
+#
+# Or just double-click Hudson.app for local mode
 
 set -e
 
@@ -16,8 +23,8 @@ APP_FALLBACK="$SCRIPT_DIR/src-tauri/target/release/Hudson"
 # Set the backend binary path (Tauri also looks in app resources via externalBin)
 export HUDSON_BACKEND_BIN="${HUDSON_BACKEND_BIN:-$SCRIPT_DIR/burrito_out/hudson_macos_arm}"
 
-# Disable Neon for offline-first desktop mode (uses SQLite LocalRepo only)
-export HUDSON_ENABLE_NEON="${HUDSON_ENABLE_NEON:-false}"
+# Default to local Postgres for development (matches double-click behavior)
+export HUDSON_ENABLE_NEON="${HUDSON_ENABLE_NEON:-local}"
 
 # Prepare the expected external bin name for Tauri bundling
 if [ -f "$SCRIPT_DIR/burrito_out/hudson_macos_arm" ] && [ ! -e "$SCRIPT_DIR/burrito_out/hudson_macos_arm-aarch64-apple-darwin" ]; then

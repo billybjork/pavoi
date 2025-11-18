@@ -10,39 +10,109 @@ Ship Hudson as a cross‑platform desktop app using **Tauri** as the shell, whil
 ./run_native.sh
 ```
 
-This launches a native macOS window with the full Hudson LiveView UI, backed by a 17MB single-binary BEAM release with SQLite local cache.
+This launches a native macOS window with the full Hudson LiveView UI, backed by a 25MB single-binary BEAM release with SQLite local cache.
 
-## 📌 Latest Progress (2025-02-18)
-- ✅ Added a minimal **local sync operations queue** on SQLite with helpers + tests (`priv/local_repo/migrations/20250218120000_create_sync_operations.exs`, `lib/hudson/sync/operation.ex`, `lib/hudson/sync/queue.ex`, `test/hudson/sync/queue_test.exs`). Supports enqueue/pending/done/failed. Sync worker/backoff to Neon is still pending.
+### Database Modes
+
+The app supports three database modes via `HUDSON_ENABLE_NEON`:
+
+```bash
+# Local Postgres (default for development)
+./run_native.sh                              # or double-click Hudson.app
+
+# Neon cloud database (production)
+HUDSON_ENABLE_NEON=true DATABASE_URL=... ./run_native.sh
+
+# Offline mode (SQLite only)
+HUDSON_ENABLE_NEON=false ./run_native.sh
+```
+
+## 🔧 Troubleshooting
+
+### App Hangs on "Starting Hudson..." (Dock Launch)
+
+**Symptom**: App works when launched from terminal but hangs when launched from Finder/dock.
+
+**Cause**: Missing network entitlements or missing platform-specific binary symlink.
+
+**Fix**:
+1. Ensure `src-tauri/entitlements.plist` exists with network permissions
+2. Create symlink in app bundle:
+   ```bash
+   cd src-tauri/target/release/bundle/macos/Hudson.app/Contents/MacOS
+   ln -sf hudson_macos_arm hudson_macos_arm-aarch64-apple-darwin
+   ```
+3. Remove dock bookmark and re-add it
+
+### Backend Code Changes Not Reflected
+
+**Symptom**: Rebuilt the burrito binary but app still uses old code.
+
+**Cause**: Burrito caches the extracted runtime in `~/Library/Application Support/.burrito/`.
+
+**Fix**:
+```bash
+# Clear burrito cache
+rm -rf ~/Library/Application\ Support/.burrito/hudson_erts-*
+
+# Rebuild
+MIX_ENV=prod mix release --overwrite
+cargo tauri build
+
+# Create symlink (if needed for dock)
+cd src-tauri/target/release/bundle/macos/Hudson.app/Contents/MacOS
+ln -sf hudson_macos_arm hudson_macos_arm-aarch64-apple-darwin
+```
+
+### Pages Show "Internal Server Error"
+
+**Symptom**: App starts but pages like `/products` crash.
+
+**Cause**: Page tries to query `Hudson.Repo` (Postgres) which isn't running in offline mode.
+
+**Fix**: Either:
+- Use `HUDSON_ENABLE_NEON=local` to connect to local Postgres (recommended for development)
+- Or update the page to gracefully handle offline mode (check if Repo is started)
+
+## 📌 Latest Progress (2025-11-17)
+- ✅ **Database mode configuration complete**: Added three-mode `HUDSON_ENABLE_NEON` support:
+  - `true` - Neon cloud database (production)
+  - `local` - Local PostgreSQL (development, now the default)
+  - `false` - Offline mode (SQLite only)
+- ✅ **macOS entitlements added**: Created `src-tauri/entitlements.plist` with network permissions to fix `:eperm` errors when launching app via dock
+- ✅ **Burrito cache location documented**: `~/Library/Application Support/.burrito/hudson_erts-*/` - must be cleared when updating backend code
+- ✅ **App bundle symlink fix**: Added `hudson_macos_arm-aarch64-apple-darwin` symlink in app bundle for dock launches
+- ✅ **Default mode changed to local**: Both Tauri app and `run_native.sh` now default to local Postgres for easier development
+- ✅ Added a minimal **local sync operations queue** on SQLite with helpers + tests. Supports enqueue/pending/done/failed. Sync worker/backoff to Neon is still pending.
 - ✅ Burrito targets are now configurable via `HUDSON_BURRITO_TARGETS`. Default: macOS ARM. `all` adds macOS Intel + Windows targets (see `mix.exs` release config).
-- ✅ **Tauri automated bundling now working!** Fixed by adding `"active": true` to bundle config in `tauri.conf.json` (defaults to `false` in Tauri v1). Generated proper 1024x1024 icon with `cargo tauri icon`. Bundle created at `src-tauri/target/release/bundle/macos/Hudson.app` and verified working with `./run_native.sh`.
+- ✅ **Tauri automated bundling now working!** Bundle created at `src-tauri/target/release/bundle/macos/Hudson.app` and verified working with `./run_native.sh`.
 
 ## ⚠️ Current State vs Future State
 
-**This document describes the TARGET architecture.** Most components described here **do not exist yet** and need to be built. See the [Migration Checklist](#migration-checklist) section for concrete changes to existing code.
+**This document describes the TARGET architecture for production-ready desktop deployment.**
 
-### What Exists Today (2025-01-18)
-- ✅ Phoenix LiveView app running locally on PostgreSQL
+### ✅ Completed (Pilot - macOS ARM only)
+- ✅ Phoenix LiveView app running in desktop mode with three database modes (Neon/local/offline)
 - ✅ Shopify & OpenAI API integrations
 - ✅ esbuild asset pipeline (no npm)
 - ✅ Oban background jobs
-- ✅ **Tauri desktop shell (pilot working)** - spawns BEAM, reads handshake, loads WebView
-- ✅ **Burrito single-binary packaging (macOS ARM)** - 17MB binary with all NIFs validated
+- ✅ **Tauri desktop shell** - spawns BEAM, reads handshake, loads WebView, handles lifecycle
+- ✅ **Burrito single-binary packaging (macOS ARM)** - 25MB binary with all NIFs validated
 - ✅ **Health check endpoint** (`/healthz`)
 - ✅ **Port handshake mechanism** (`/tmp/hudson_port.json`)
 - ✅ **SQLite local cache structure** (schema + auto-migrations on startup)
 - ✅ **Secure storage pattern** (file-based for pilot, OS keychain ready for production)
+- ✅ **macOS entitlements** for network access (dock launches working)
+- ✅ **Three-mode database config** (`HUDSON_ENABLE_NEON`: true/local/false)
 
-### What This Plan Adds
-- 🔄 Expand Tauri to multi-platform (Windows, macOS Intel) - pilot is macOS ARM only
-- 🔄 Sync worker/backoff to push local SQLite queue to Neon (queue + schema now exist)
-- ❌ Full OS keychain/DPAPI integration (currently file-based for pilot)
+### 🔄 Next Phase: Production-Ready Desktop
+- ❌ Multi-platform support (Windows, macOS Intel) - pilot is macOS ARM only
+- ❌ Sync worker/backoff to push local SQLite queue to Neon (queue + schema exist, worker pending)
+- ❌ Full OS keychain/DPAPI integration (currently file-based)
 - ❌ First-run wizard UI (bootstrap code exists, needs UI)
 - ❌ Media cache system (not implemented)
 - ❌ Auto-update mechanism (not implemented)
 - ❌ CI/CD pipeline with code signing (not configured)
-
-**Before following this guide:** Complete the [Migration Checklist](#migration-checklist) to update existing code, then proceed with implementation phases.
 
 ## Goals
 - Preserve current LiveView UI; avoid template rewrites.
@@ -170,219 +240,96 @@ This launches a native macOS window with the full Hudson LiveView UI, backed by 
 - macOS ARM only (cross-compilation disabled due to spaces in path breaking lazy_html Makefile)
 - File-based secret storage (OS keychain integration planned for production)
 
-## Migration Checklist
+## Next Steps for Production
 
-**These changes must be made to existing files BEFORE starting the implementation phases.**
+The pilot is complete and working on macOS ARM. The following items are needed for production deployment:
 
-### 1. Modify `config/runtime.exs` for Desktop Bootstrap
+### Priority 1: Core Functionality
 
-**Current Issues:**
-- Lines 45-50: Raises on missing `DATABASE_URL` (blocks first run)
-- Lines 66-71: Raises on missing `SECRET_KEY_BASE` (blocks first run)
-- Lines 94-100: Binds to `0.0.0.0` (exposes port publicly)
-- Line 40-42: Requires `PHX_SERVER=true` env var
+**1. Sync Worker** - Background process to sync SQLite queue to Neon
+- **Status:** Schema + queue exist in `lib/hudson/sync/`, worker pending
+- **What's needed:**
+  - GenServer worker with exponential backoff for Neon connectivity
+  - Circuit breaker pattern to handle extended offline periods
+  - Conflict resolution rules (see [Data Layer](#3-data-layer-sqlite--neon) section)
+  - Periodic polling + event-driven sync triggers
+- **Files to create:** `lib/hudson/sync/worker.ex`, `lib/hudson/sync/circuit_breaker.ex`
 
-**Required Changes:**
+**2. First-Run Wizard UI** - LiveView flow for initial setup
+- **Status:** Bootstrap code exists in `lib/hudson/desktop/bootstrap.ex`, needs UI
+- **What's needed:**
+  - Multi-step LiveView form at `/setup/welcome`
+  - Steps: welcome → Neon URL → Shopify creds → OpenAI key → initial sync → success
+  - Credential validation with "Test Connection" buttons
+  - Progress indicator during initial sync from Neon/Shopify
+- **Files to create:** `lib/hudson_web/live/setup_live/` (welcome.ex, credentials.ex, sync.ex)
 
-```diff
-# config/runtime.exs
+**3. OS Keychain Integration** - Replace file-based secure storage
+- **Status:** File-based working, OS keychain planned
+- **What's needed:**
+  - macOS: Keychain Access via Rust NIF/port (or `:keychainx` if pure Elixir)
+  - Windows: DPAPI/WinCred via Rust bridge
+  - Keep file-based as fallback for unsupported platforms
+  - Unified `Hudson.SecureStorage` API (get/put/delete)
+- **Files to modify:** `lib/hudson/desktop/bootstrap.ex` or create new adapter module
 
-if config_env() == :prod do
-+  # First-run friendly: load from secure storage or use defaults
-+  database_url = Hudson.SecureStorage.get("neon_url") ||
-+    System.get_env("DATABASE_URL") ||
-+    nil  # Will be set via first-run wizard
-+
--  database_url =
--    System.get_env("DATABASE_URL") ||
--      raise """
--      environment variable DATABASE_URL is missing.
--      For example: ecto://USER:PASS@HOST/DATABASE
--      """
+### Priority 2: Multi-Platform
 
-+  # Generate and persist secret_key_base on first run
-+  secret_key_base = Hudson.SecureStorage.get("secret_key_base") ||
-+    System.get_env("SECRET_KEY_BASE") ||
-+    generate_and_store_secret()
-+
--  secret_key_base =
--    System.get_env("SECRET_KEY_BASE") ||
--      raise """
--      environment variable SECRET_KEY_BASE is missing.
--      You can generate one by calling: mix phx.gen.secret
--      """
+**4. Cross-Platform Builds** - Expand from macOS ARM to full matrix
+- **Current:** macOS ARM only via Burrito (`HUDSON_BURRITO_TARGETS=macos_arm`)
+- **Targets needed:**
+  - macOS Intel (x86_64-apple-darwin)
+  - Windows (x86_64-pc-windows-msvc)
+- **Blockers:**
+  - lazy_html NIF Makefile breaks with spaces in path during cross-compilation
+  - Need to test Zig cross-compilation workflow for each target
+- **Files to modify:** `mix.exs` (Burrito config), CI/CD scripts
 
-+  # Desktop mode: always enable server, bind to loopback, random port
-+  config :hudson, HudsonWeb.Endpoint, server: true
-+
--  if System.get_env("PHX_SERVER") do
--    config :hudson, HudsonWeb.Endpoint, server: true
--  end
+**5. CI/CD Pipeline** - Automated builds with code signing
+- **Status:** Template exists in this doc, not configured
+- **What's needed:**
+  - GitHub Actions workflow (see [CI/CD Pipeline](#cicd-pipeline-github-actions) below)
+  - macOS: code signing + notarization (requires Apple Developer certs in secrets)
+  - Windows: Authenticode signing (requires certificate)
+  - Smoke tests for each platform (NIF loading, health check, window launch)
+- **Files to create:** `.github/workflows/release.yml`
 
-+  # Pick random available port, write to handshake file for Tauri
-+  port = pick_available_port()
-+  write_port_handshake(port)
-+
--  port = String.to_integer(System.get_env("PORT") || "4000")
+### Priority 3: Production Polish
 
-  config :hudson, HudsonWeb.Endpoint,
-    url: [host: host, port: port],
-    http: [
--      ip: {0, 0, 0, 0, 0, 0, 0, 0},
-+      ip: {127, 0, 0, 1},  # Localhost only for desktop
-      port: port
-    ],
-    secret_key_base: secret_key_base
-end
+**6. Media Cache** - Req-based disk cache for product images
+- **Status:** Not implemented
+- **What's needed:** See [Media Cache](#4-media-cache) section for full spec
+- **Files to create:** `lib/hudson/cache/media_cache.ex`, `lib/hudson/cache/lru_store.ex`
 
-+# Helper functions
-+defp generate_and_store_secret do
-+  secret = :crypto.strong_rand_bytes(64) |> Base.encode64()
-+  Hudson.SecureStorage.put("secret_key_base", secret)
-+  secret
-+end
-+
-+defp pick_available_port do
-+  {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
-+  {:ok, port} = :inet.port(socket)
-+  :gen_tcp.close(socket)
-+  port
-+end
-+
-+defp write_port_handshake(port) do
-+  handshake_path = case :os.type() do
-+    {:unix, :darwin} -> "/tmp/hudson_port.json"
-+    {:win32, _} -> Path.join(System.get_env("APPDATA"), "Hudson/port.json")
-+  end
-+  File.mkdir_p!(Path.dirname(handshake_path))
-+  File.write!(handshake_path, Jason.encode!(%{port: port}))
-+end
-```
+**7. Auto-Updater** - Tauri updater with signature verification
+- **Status:** Not implemented
+- **What's needed:** See [Updates](#6-updates) section for full spec
+- **Files to modify:** `src-tauri/tauri.conf.json` (enable updater), add update endpoint
 
-### ✅ 2. Add Missing Dependencies to `mix.exs` (COMPLETE)
-
-**Desktop deployment dependencies added:**
-- ✅ `{:burrito, "~> 1.5", runtime: false}` - Single-binary packaging
-- ✅ `{:ecto_sqlite3, "~> 0.9"}` - SQLite local cache
-- ✅ Burrito release configuration (macOS ARM only for pilot, cross-compilation disabled)
-- ✅ `HUDSON_BURRITO_TARGETS` env var controls Burrito targets; default is macOS ARM, `all` adds macOS Intel + Windows sidecars.
-
-**Secure storage:** Using file-based approach for pilot (see `lib/hudson/desktop/bootstrap.ex`). OS keychain integration planned for production.
-
-### ✅ 3. Add Health Check Endpoint (COMPLETE)
-
-**Controller implemented at `lib/hudson_web/controllers/health_controller.ex`**
-
-Returns JSON response for Tauri readiness checks. Route added at `/healthz` with no authentication required.
-
-### 4. Create Placeholder Scripts
-
-**These scripts are referenced in CI/CD but don't exist yet:**
-
-```bash
-# scripts/build_sidecar.sh
-#!/bin/bash
-set -e
-echo "Building BEAM sidecar with Burrito..."
-MIX_ENV=prod mix deps.get --only prod
-MIX_ENV=prod mix assets.deploy
-MIX_ENV=prod mix release
-echo "Sidecar built: burrito_out/"
-ls -lh burrito_out/
-
-# scripts/link_binaries.sh
-#!/bin/bash
-TARGET=$1
-if [ -z "$TARGET" ]; then
-  echo "Usage: $0 <target-triple>"
-  exit 1
-fi
-
-BURRITO_BIN="burrito_out/hudson_${TARGET//-/_}"
-if [[ "$TARGET" == *"windows"* ]]; then
-  BURRITO_BIN="${BURRITO_BIN}.exe"
-fi
-
-TAURI_SIDECAR="src-tauri/binaries/hudson_backend-${TARGET}"
-if [[ "$TARGET" == *"windows"* ]]; then
-  TAURI_SIDECAR="${TAURI_SIDECAR}.exe"
-fi
-
-mkdir -p $(dirname "$TAURI_SIDECAR")
-ln -sf "../../${BURRITO_BIN}" "$TAURI_SIDECAR"
-echo "Linked: $BURRITO_BIN -> $TAURI_SIDECAR"
-```
-
-**Make them executable:**
-```bash
-chmod +x scripts/*.sh
-```
-
-### 5. Add `.gitignore` Entries
-
-```gitignore
-# Desktop build artifacts
-/burrito_out/
-/src-tauri/target/
-/src-tauri/binaries/
-*.dmg
-*.msi
-*.pkg
-```
-
-### ✅ 6. Create Tauri Workspace (COMPLETE)
-
-**Tauri workspace created at `src-tauri/`**
-
-**Key files:**
-- `src-tauri/src/main.rs` - Window management, BEAM lifecycle, handshake reading
-- `src-tauri/tauri.conf.json` - Configuration with `"active": true` for automated bundling
-- `src-tauri/Cargo.toml` - Rust dependencies (Tauri 1.5, tokio, reqwest)
-- `src-tauri/icons/` - Full icon set generated by `cargo tauri icon`
-
-**Current Configuration:**
-- Window created programmatically with `WindowUrl::App("index.html")`
-- BEAM backend bundled as external binary sidecar
-- Health check polling with 10-second timeout
-- Clean shutdown on window close
-- Automated `.app` bundling working via `cargo tauri build`
-
-## Action Items
-
-### ✅ Pilot Phase (Complete)
-- ✅ Add Tauri workspace + Rust bootstrap to spawn BEAM and load LiveView URL
-- ✅ Implement health endpoint and port handshake mechanism
-- ✅ Add SQLite local cache schema with auto-migrations
-- ✅ Implement secure storage pattern (file-based for pilot)
-- ✅ Validate bcrypt/lazy_html NIF loading on macOS ARM with Burrito build
-- ✅ Configure Burrito single-binary packaging
-
-### 🔄 Next Phase (Production-Ready Desktop)
-- ❌ Expand to multi-platform (Windows, macOS Intel) - resolve cross-compilation issues
-- ❌ Implement sync processing/backoff to push the SQLite operations queue to Neon (queue/tests exist)
-- ❌ Add OS keychain/DPAPI integration (replace file-based storage)
-- ❌ Build first-run wizard UI
-- ❌ Implement Req-based media cache with TTL/LRU
-- ❌ Wire Tauri updater with signature verification and rollback
-- ❌ Add diagnostics UI + offline/online indicators
-- ❌ Set up CI/CD pipeline with code signing and notarization
+**8. Diagnostics UI** - Health dashboard
+- **Status:** Not implemented
+- **What's needed:**
+  - LiveView page showing: Neon connectivity, Shopify/OpenAI reachability, sync queue depth, cache stats
+  - Online/offline indicator in navbar
+  - Manual "Sync Now" button
+- **Files to create:** `lib/hudson_web/live/diagnostics_live.ex`
 
 ## Timeline & Effort Estimation
 
-**Total Estimated Duration:** 18-20 working days
+**Remaining Estimated Duration:** 16-18 working days (Phase 1 complete)
 
-| Phase | Tasks | Duration | Dependencies |
-|-------|-------|----------|--------------|
-| **Phase 1: Foundation** | Tauri setup, Burrito config, health endpoint, port handshake | 2 days | — |
-| **Phase 2: Data Layer** | SQLite Repo, sync queue, conflict resolution, schema versioning | 4 days | Phase 1 |
-| **Phase 3: Credentials** | OS keychain/DPAPI integration, secure storage module | 2 days | Phase 1 |
-| **Phase 4: Media Cache** | Req-based cache, LRU/TTL logic, prefetch | 1 day | Phase 2 |
-| **Phase 5: Updates** | Tauri updater, signature verification, rollback | 2 days | Phase 1 |
-| **Phase 6: UX & Diagnostics** | Settings UI, health indicators, conflict viewer, first-run wizard | 3 days | Phase 2, 3 |
-| **Phase 7: Build & CI/CD** | GitHub Actions, code signing, notarization, installers | 2 days | All above |
-| **Phase 8: Testing** | Multi-platform testing, offline scenarios, NIF validation | 2-3 days | All above |
+| Phase | Tasks | Duration | Dependencies | Status |
+|-------|-------|----------|--------------|--------|
+| **Phase 1: Foundation** | Tauri setup, Burrito config, health endpoint, port handshake | 2 days | — | ✅ Complete |
+| **Phase 2: Data Layer** | Sync worker, conflict resolution, schema versioning | 4 days | Phase 1 | SQLite Repo ✅, Sync worker ❌ |
+| **Phase 3: Credentials** | OS keychain/DPAPI integration, secure storage module | 2 days | Phase 1 | File-based ✅, OS keychain ❌ |
+| **Phase 4: Media Cache** | Req-based cache, LRU/TTL logic, prefetch | 1 day | Phase 2 | ❌ Not started |
+| **Phase 5: Updates** | Tauri updater, signature verification, rollback | 2 days | Phase 1 | ❌ Not started |
+| **Phase 6: UX & Diagnostics** | Settings UI, health indicators, conflict viewer, first-run wizard | 3 days | Phase 2, 3 | ❌ Not started |
+| **Phase 7: Build & CI/CD** | GitHub Actions, code signing, notarization, installers | 2 days | All above | ❌ Not started |
+| **Phase 8: Testing** | Multi-platform testing, offline scenarios, NIF validation | 2-3 days | All above | macOS ARM ✅, others ❌ |
 
-**Critical Path:** Phase 1 → Phase 2 → Phase 6 → Phase 7 → Phase 8
+**Critical Path:** Phase 2 (sync worker) → Phase 6 (first-run wizard) → Phase 7 (CI/CD) → Phase 8 (multi-platform testing)
 
 ## Dependencies & Tooling Requirements
 
@@ -430,8 +377,6 @@ defp deps do
   ]
 end
 ```
-
-See [Migration Checklist #2](#2-add-missing-dependencies-to-mixexs) for full changes.
 
 ### Rust Dependencies (Cargo.toml in src-tauri/)
 
@@ -488,7 +433,7 @@ hudson/
 │   ├── tauri.conf.json                       ✅
 │   └── Cargo.toml                            ✅
 ├── config/                                   ✅
-│   └── runtime.exs                           🔄 First-run friendly (see Migration Checklist #1)
+│   └── runtime.exs                           ✅ Three-mode database config (true/local/false)
 ├── .github/                                  ✅
 │   └── workflows/
 │       └── release.yml                       ❌ CI/CD pipeline

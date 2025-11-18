@@ -75,7 +75,15 @@ if config_env() == :prod do
         chosen
     end
 
-  database_url = Hudson.Desktop.Bootstrap.database_url()
+  neon_mode = System.get_env("HUDSON_ENABLE_NEON", "true")
+
+  database_url =
+    case neon_mode do
+      "local" -> Hudson.Desktop.Bootstrap.default_database_url()
+      "false" -> nil
+      _ -> Hudson.Desktop.Bootstrap.database_url()
+    end
+
   secret_key_base = Hudson.Desktop.Bootstrap.ensure_secret_key_base()
 
   config :hudson, Hudson.Repo,
@@ -94,7 +102,7 @@ if config_env() == :prod do
 
   # Shopify configuration
   config :hudson,
-    neon_enabled: System.get_env("HUDSON_ENABLE_NEON", "true") in ["true", "1", "yes"],
+    neon_enabled: neon_mode in ["true", "local"],
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY")

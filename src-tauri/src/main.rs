@@ -118,8 +118,9 @@ fn spawn_backend(resource_dir: Option<PathBuf>) -> Result<Child> {
         command.args(args);
     }
 
-    // Desktop apps default to offline mode (SQLite only) unless explicitly enabled
-    let enable_neon = std::env::var("HUDSON_ENABLE_NEON").unwrap_or_else(|_| "false".to_string());
+    // Desktop apps default to local mode for development
+    // Set HUDSON_ENABLE_NEON=false in production for true offline mode
+    let enable_neon = std::env::var("HUDSON_ENABLE_NEON").unwrap_or_else(|_| "local".to_string());
     command.env("HUDSON_ENABLE_NEON", enable_neon);
 
     command

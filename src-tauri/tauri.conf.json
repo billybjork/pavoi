@@ -28,7 +28,14 @@
       "icon": ["icons/icon.png"],
       "externalBin": ["../burrito_out/hudson_macos_arm"],
       "resources": [],
-      "targets": "all"
+      "targets": "all",
+      "macOS": {
+        "entitlements": "entitlements.plist",
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      }
     }
   }
 }
