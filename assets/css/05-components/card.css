@@ -474,6 +474,13 @@
   line-height: 1;
 }
 
+/* Ensure session card is above others when menu is open */
+.session-card:has(.session-menu:not([style*="display: none"])),
+.session-card:has(.session-menu.fade-in) {
+  position: relative;
+  z-index: 100;
+}
+
 /* Three-dots menu */
 .menu-container {
   position: relative;
