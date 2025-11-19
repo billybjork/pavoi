@@ -52,11 +52,37 @@
   transition: all var(--transition-base);
   border: 1px solid var(--color-border-secondary);
   cursor: pointer;
+
+  /* Fade in + slide up animation for initial load and infinite scroll */
+  animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-card:hover {
   border-color: var(--color-border-primary);
   box-shadow: var(--shadow-sm);
+}
+
+/* Staggered animation delays for top-to-bottom effect */
+.session-card:nth-child(1) { animation-delay: 0s; }
+.session-card:nth-child(2) { animation-delay: 0.08s; }
+.session-card:nth-child(3) { animation-delay: 0.16s; }
+.session-card:nth-child(4) { animation-delay: 0.24s; }
+.session-card:nth-child(5) { animation-delay: 0.32s; }
+.session-card:nth-child(6) { animation-delay: 0.4s; }
+.session-card:nth-child(7) { animation-delay: 0.48s; }
+.session-card:nth-child(8) { animation-delay: 0.56s; }
+.session-card:nth-child(9) { animation-delay: 0.64s; }
+.session-card:nth-child(10) { animation-delay: 0.72s; }
+.session-card:nth-child(11) { animation-delay: 0.8s; }
+.session-card:nth-child(12) { animation-delay: 0.88s; }
+
+/* Disable animation when searching for instant results */
+.sessions-list--searching .session-card {
+  animation: none;
+}
+
+.sessions-list--searching .session-card__thumbnail {
+  animation: none;
 }
 
 /* Empty state */
@@ -191,13 +217,15 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background-color: var(--color-bg-tertiary);
 
-  /* Default visible state */
+  /* Default visible state (animation will override on initial load) */
   opacity: 1;
   transform: translateY(0) scale(1);
 
-  /* Smooth transition for reappearing when closing - match container timing */
-  transition: opacity 0.25s ease-out, transform 0.25s ease-out, box-shadow var(--transition-base);
-  transition-delay: 0.12s;
+  /* Smooth transition for expand/collapse and hover effects */
+  transition: opacity 0.25s ease-out 0.12s, transform 0.25s ease-out, box-shadow var(--transition-base);
+
+  /* Fade in animation on initial load (has priority over opacity declaration) */
+  animation: fadeInThumbnail 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-card__thumbnail:hover {
@@ -205,6 +233,17 @@
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* Staggered thumbnail fade in - LEFT to RIGHT
+   Delayed to start during latter half of parent card's fade-in (0.35s)
+   Parent card takes 0.6s to fade in, thumbnails start at 0.35s when card is ~60% visible */
+.session-card__thumbnail:nth-child(1) { animation-delay: 0.35s; }
+.session-card__thumbnail:nth-child(2) { animation-delay: 0.4s; }
+.session-card__thumbnail:nth-child(3) { animation-delay: 0.45s; }
+.session-card__thumbnail:nth-child(4) { animation-delay: 0.5s; }
+.session-card__thumbnail:nth-child(5) { animation-delay: 0.55s; }
+.session-card__thumbnail:nth-child(6) { animation-delay: 0.6s; }
+.session-card__thumbnail:nth-child(n+7) { animation-delay: 0.65s; }
 
 /* Hide thumbnails when expanded - slide DOWN and fade */
 .session-card__content-switcher--expanded .session-card__thumbnail {
@@ -553,6 +592,26 @@
   to {
     opacity: 0;
     transform: translateY(-8px);
+  }
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInThumbnail {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

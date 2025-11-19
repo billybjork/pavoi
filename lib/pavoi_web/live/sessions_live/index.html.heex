@@ -11,9 +11,27 @@
   phx-window-keydown={JS.push("keydown") |> JS.hide(to: ".session-menu", transition: "fade-out")}
   phx-key="Escape"
 >
+  <%!-- Search Bar --%>
+  <div class="sessions-header">
+    <div class="sessions-search">
+      <form phx-change="search_sessions" phx-submit="search_sessions" phx-debounce="300">
+        <input
+          type="text"
+          name="value"
+          placeholder="Search by name or notes..."
+          value={@session_search_query}
+          class="input input--sm"
+        />
+      </form>
+    </div>
+  </div>
+
   <div
     id="sessions-list"
-    class="stack stack--lg"
+    class={[
+      "stack stack--lg",
+      @search_touched && "sessions-list--searching"
+    ]}
     phx-viewport-bottom={@sessions_has_more && !@loading_sessions && "load_more_sessions"}
   >
     <%= for session <- @sessions do %>
@@ -23,226 +41,226 @@
         phx-click="toggle_expand"
         phx-value-session-id={session.id}
       >
-          <div class="session-card__header">
-            <div class="session-card__title-group">
-              <div class="session-card__title-row">
-                <h2 class="session-card__title">{session.name}</h2>
+        <div class="session-card__header">
+          <div class="session-card__title-group">
+            <div class="session-card__title-row">
+              <h2 class="session-card__title">{session.name}</h2>
+            </div>
+
+            <div class="session-card__meta">
+              <div class="session-card__meta-item">
+                <.icon name="hero-building-office" class="size-4" />
+                <span class="font-semibold">{session.brand.name}</span>
               </div>
 
-              <div class="session-card__meta">
-                <div class="session-card__meta-item">
-                  <.icon name="hero-building-office" class="size-4" />
-                  <span class="font-semibold">{session.brand.name}</span>
-                </div>
-
-                <div class="session-card__meta-item">
-                  <.icon name="hero-cube" class="size-4" />
-                  {length(session.session_products)} products
-                </div>
-
-                <div class="session-card__meta-item">
-                  <.icon name="hero-clock" class="size-4" />
-                  Modified: {format_relative_time(session.updated_at)}
-                </div>
+              <div class="session-card__meta-item">
+                <.icon name="hero-cube" class="size-4" />
+                {length(session.session_products)} products
               </div>
 
-              <%= if session.notes do %>
-                <p class="session-card__notes">{session.notes}</p>
+              <div class="session-card__meta-item">
+                <.icon name="hero-clock" class="size-4" />
+                Modified: {format_relative_time(session.updated_at)}
+              </div>
+            </div>
+
+            <%= if session.notes do %>
+              <p class="session-card__notes">{session.notes}</p>
+            <% end %>
+          </div>
+
+          <%!-- Collapse button - shown when expanded --%>
+          <%= if @expanded_session_id == session.id do %>
+            <div class="session-card__collapse-btn-wrapper">
+              <button
+                class="session-card__collapse-btn"
+                phx-click="toggle_expand"
+                phx-value-session-id={session.id}
+                aria-label="Collapse"
+              >
+                ▼
+              </button>
+            </div>
+          <% end %>
+
+          <div class="session-card__actions" phx-click="stop_propagation">
+            <a
+              href={~p"/sessions/#{session.id}/producer"}
+              target="_blank"
+              class="button button--primary button--sm"
+            >
+              Producer View
+            </a>
+
+            <a
+              href={~p"/sessions/#{session.id}/host"}
+              target="_blank"
+              class="button button--primary button--sm"
+            >
+              Host View
+            </a>
+
+            <div class="menu-container">
+              <button
+                class="menu-trigger"
+                aria-label="Session actions"
+                aria-haspopup="true"
+                phx-click={
+                  JS.toggle(to: "#session-menu-#{session.id}", in: "fade-in", out: "fade-out")
+                }
+              >
+                ⋮
+              </button>
+
+              <nav
+                id={"session-menu-#{session.id}"}
+                class="session-menu"
+                style="display: none;"
+                phx-click-away={
+                  JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                }
+                role="menu"
+              >
+                <button
+                  class="session-menu__item"
+                  role="menuitem"
+                  phx-click={
+                    JS.push("show_edit_session_modal")
+                    |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                  }
+                  phx-value-session-id={session.id}
+                >
+                  <.icon name="hero-pencil" class="size-4" /> Edit
+                </button>
+
+                <button
+                  class="session-menu__item"
+                  role="menuitem"
+                  phx-click={
+                    JS.push("duplicate_session")
+                    |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                  }
+                  phx-value-session-id={session.id}
+                >
+                  <.icon name="hero-document-duplicate" class="size-4" /> Duplicate
+                </button>
+
+                <button
+                  class="session-menu__item"
+                  role="menuitem"
+                  phx-click={
+                    JS.push("generate_session_talking_points")
+                    |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                  }
+                  phx-value-session-id={session.id}
+                >
+                  <.icon name="hero-sparkles" class="size-4" /> Generate Talking Points
+                </button>
+
+                <div class="session-menu__divider"></div>
+
+                <button
+                  class="session-menu__item session-menu__item--danger"
+                  role="menuitem"
+                  phx-click={
+                    JS.push("delete_session")
+                    |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                  }
+                  phx-value-session-id={session.id}
+                  data-confirm="Are you sure you want to delete this session? This action cannot be undone."
+                >
+                  <.icon name="hero-trash" class="size-4" /> Delete
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Content switcher: thumbnails and products --%>
+        <%= if length(session.session_products) > 0 do %>
+          <div class={[
+            "session-card__content-switcher",
+            @expanded_session_id == session.id && "session-card__content-switcher--expanded"
+          ]}>
+            <%!-- Product thumbnails preview (visible when collapsed) --%>
+            <div class="session-card__thumbnails">
+              <%= for {product, image} <- session_top_products(session) do %>
+                <img
+                  src={shopify_thumbnail_url(image.path, "80x80")}
+                  alt={image.alt_text || product.name}
+                  class="session-card__thumbnail"
+                  title={product.name}
+                  loading="lazy"
+                />
               <% end %>
             </div>
 
-            <%!-- Collapse button - shown when expanded --%>
-            <%= if @expanded_session_id == session.id do %>
-              <div class="session-card__collapse-btn-wrapper">
-                <button
-                  class="session-card__collapse-btn"
-                  phx-click="toggle_expand"
-                  phx-value-session-id={session.id}
-                  aria-label="Collapse"
+            <%!-- Product details (visible when expanded) --%>
+            <div class="session-card__products-wrapper">
+              <div class="session-card__products-inner">
+                <%!-- Product list --%>
+                <div
+                  id={"session-#{session.id}-products"}
+                  phx-hook="ProductSortable"
+                  data-session-id={session.id}
+                  class="session-card__product-list"
                 >
-                  ▼
-                </button>
-              </div>
-            <% end %>
-
-            <div class="session-card__actions" phx-click="stop_propagation">
-              <a
-                href={~p"/sessions/#{session.id}/producer"}
-                target="_blank"
-                class="button button--primary button--sm"
-              >
-                Producer View
-              </a>
-
-              <a
-                href={~p"/sessions/#{session.id}/host"}
-                target="_blank"
-                class="button button--primary button--sm"
-              >
-                Host View
-              </a>
-
-              <div class="menu-container">
-                <button
-                  class="menu-trigger"
-                  aria-label="Session actions"
-                  aria-haspopup="true"
-                  phx-click={
-                    JS.toggle(to: "#session-menu-#{session.id}", in: "fade-in", out: "fade-out")
-                  }
-                >
-                  ⋮
-                </button>
-
-                <nav
-                  id={"session-menu-#{session.id}"}
-                  class="session-menu"
-                  style="display: none;"
-                  phx-click-away={
-                    JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
-                  }
-                  role="menu"
-                >
-                  <button
-                    class="session-menu__item"
-                    role="menuitem"
-                    phx-click={
-                      JS.push("show_edit_session_modal")
-                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
-                    }
-                    phx-value-session-id={session.id}
-                  >
-                    <.icon name="hero-pencil" class="size-4" /> Edit
-                  </button>
-
-                  <button
-                    class="session-menu__item"
-                    role="menuitem"
-                    phx-click={
-                      JS.push("duplicate_session")
-                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
-                    }
-                    phx-value-session-id={session.id}
-                  >
-                    <.icon name="hero-document-duplicate" class="size-4" /> Duplicate
-                  </button>
-
-                  <button
-                    class="session-menu__item"
-                    role="menuitem"
-                    phx-click={
-                      JS.push("generate_session_talking_points")
-                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
-                    }
-                    phx-value-session-id={session.id}
-                  >
-                    <.icon name="hero-sparkles" class="size-4" /> Generate Talking Points
-                  </button>
-
-                  <div class="session-menu__divider"></div>
-
-                  <button
-                    class="session-menu__item session-menu__item--danger"
-                    role="menuitem"
-                    phx-click={
-                      JS.push("delete_session")
-                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
-                    }
-                    phx-value-session-id={session.id}
-                    data-confirm="Are you sure you want to delete this session? This action cannot be undone."
-                  >
-                    <.icon name="hero-trash" class="size-4" /> Delete
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-
-          <%!-- Content switcher: thumbnails and products --%>
-          <%= if length(session.session_products) > 0 do %>
-            <div class={[
-              "session-card__content-switcher",
-              @expanded_session_id == session.id && "session-card__content-switcher--expanded"
-            ]}>
-              <%!-- Product thumbnails preview (visible when collapsed) --%>
-              <div class="session-card__thumbnails">
-                <%= for {product, image} <- session_top_products(session) do %>
-                  <img
-                    src={shopify_thumbnail_url(image.path, "80x80")}
-                    alt={image.alt_text || product.name}
-                    class="session-card__thumbnail"
-                    title={product.name}
-                    loading="lazy"
-                  />
-                <% end %>
-              </div>
-
-              <%!-- Product details (visible when expanded) --%>
-              <div class="session-card__products-wrapper">
-                <div class="session-card__products-inner">
-                  <%!-- Product list --%>
-                  <div
-                    id={"session-#{session.id}-products"}
-                    phx-hook="ProductSortable"
-                    data-session-id={session.id}
-                    class="session-card__product-list"
-                  >
-                    <%= for sp <- session.session_products do %>
-                      <div
-                        id={"session-product-#{sp.id}"}
-                        class="session-card__product-item"
-                        data-id={sp.id}
-                        data-product-id={sp.product_id}
-                      >
-                        <div class="session-card__product-link">
-                          <div class="session-card__product-position">
-                            {sp.position}
-                          </div>
-
-                          <%= if image = primary_image(sp.product) do %>
-                            <img
-                              src={public_image_url(image.thumbnail_path || image.path)}
-                              alt={image.alt_text}
-                              class="session-card__product-image"
-                            />
-                          <% end %>
-
-                          <p class="session-card__product-name">
-                            {sp.featured_name || sp.product.name}
-                          </p>
-                        </div>
-
-                        <div class="session-card__product-actions">
-                          <.button
-                            size="xs"
-                            variant="ghost"
-                            circle
-                            phx-click="remove_product"
-                            phx-value-session-product-id={sp.id}
-                            aria-label="Remove product"
-                            class="text-error"
-                          >
-                            ×
-                          </.button>
-                        </div>
-                      </div>
-                    <% end %>
-                    <.button
-                      size="sm"
-                      variant="ghost"
-                      phx-click="load_products_for_session"
-                      phx-value-session-id={session.id}
-                      class="session-card__add-product-btn"
+                  <%= for sp <- session.session_products do %>
+                    <div
+                      id={"session-product-#{sp.id}"}
+                      class="session-card__product-item"
+                      data-id={sp.id}
+                      data-product-id={sp.product_id}
                     >
-                      +
-                    </.button>
-                  </div>
+                      <div class="session-card__product-link">
+                        <div class="session-card__product-position">
+                          {sp.position}
+                        </div>
+
+                        <%= if image = primary_image(sp.product) do %>
+                          <img
+                            src={public_image_url(image.thumbnail_path || image.path)}
+                            alt={image.alt_text}
+                            class="session-card__product-image"
+                          />
+                        <% end %>
+
+                        <p class="session-card__product-name">
+                          {sp.featured_name || sp.product.name}
+                        </p>
+                      </div>
+
+                      <div class="session-card__product-actions">
+                        <.button
+                          size="xs"
+                          variant="ghost"
+                          circle
+                          phx-click="remove_product"
+                          phx-value-session-product-id={sp.id}
+                          aria-label="Remove product"
+                          class="text-error"
+                        >
+                          ×
+                        </.button>
+                      </div>
+                    </div>
+                  <% end %>
+                  <.button
+                    size="sm"
+                    variant="ghost"
+                    phx-click="load_products_for_session"
+                    phx-value-session-id={session.id}
+                    class="session-card__add-product-btn"
+                  >
+                    +
+                  </.button>
                 </div>
               </div>
             </div>
-          <% end %>
-        </article>
-      <% end %>
+          </div>
+        <% end %>
+      </article>
+    <% end %>
 
     <%!-- Loading indicator --%>
     <%= if @loading_sessions do %>

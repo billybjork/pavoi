@@ -88,7 +88,8 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:sessions_has_more, false)
       |> assign(:loading_sessions, false)
       |> assign(:sessions, [])
-      |> assign(:previous_sessions, [])
+      |> assign(:session_search_query, "")
+      |> assign(:search_touched, false)
       |> assign(:brands, brands)
       |> load_sessions()
       |> assign(:expanded_session_id, nil)
@@ -328,6 +329,38 @@ defmodule PavoiWeb.SessionsLive.Index do
   def handle_event("stop_propagation", _params, socket) do
     # No-op handler to prevent event bubbling to parent elements
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("search_sessions", %{"value" => query}, socket) do
+    # Mark search as touched (animations will be disabled from now on)
+    socket = assign(socket, :search_touched, true)
+
+    # Build query params, preserving expanded session and modal state
+    query_params = %{}
+
+    query_params =
+      if query != "" do
+        Map.put(query_params, :q, query)
+      else
+        query_params
+      end
+
+    query_params =
+      if socket.assigns.expanded_session_id do
+        Map.put(query_params, :s, socket.assigns.expanded_session_id)
+      else
+        query_params
+      end
+
+    query_params =
+      if socket.assigns.show_new_session_modal do
+        Map.put(query_params, :new, true)
+      else
+        query_params
+      end
+
+    {:noreply, push_patch(socket, to: ~p"/sessions?#{query_params}")}
   end
 
   @impl true
@@ -988,10 +1021,7 @@ defmodule PavoiWeb.SessionsLive.Index do
         # Replace the session in the list
         updated_sessions = List.replace_at(sessions, index, updated_session)
 
-        # Update both sessions and previous_sessions
-        socket
-        |> assign(:sessions, updated_sessions)
-        |> assign(:previous_sessions, updated_sessions)
+        assign(socket, :sessions, updated_sessions)
     end
   end
 
@@ -1084,8 +1114,24 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   defp apply_url_params(socket, params) do
     socket
+    |> apply_search_params(params)
     |> maybe_expand_session(params["s"])
     |> maybe_show_new_session_modal(params["new"])
+  end
+
+  defp apply_search_params(socket, params) do
+    search_query = params["q"] || ""
+
+    # Only reload if search query changed
+    if socket.assigns.session_search_query != search_query do
+      socket
+      |> assign(:session_search_query, search_query)
+      |> assign(:session_page, 1)
+      |> assign(:loading_sessions, true)
+      |> load_sessions()
+    else
+      socket
+    end
   end
 
   defp maybe_expand_session(socket, nil), do: assign(socket, :expanded_session_id, nil)
@@ -1228,8 +1274,14 @@ defmodule PavoiWeb.SessionsLive.Index do
   defp load_sessions(socket, opts \\ []) do
     append = Keyword.get(opts, :append, false)
     page = if append, do: socket.assigns.session_page + 1, else: 1
+    search_query = socket.assigns.session_search_query
 
-    result = Sessions.list_sessions_with_details_paginated(page: page, per_page: 20)
+    result =
+      Sessions.list_sessions_with_details_paginated(
+        page: page,
+        per_page: 20,
+        search_query: search_query
+      )
 
     # When appending, concatenate with existing sessions
     sessions =
@@ -1242,7 +1294,6 @@ defmodule PavoiWeb.SessionsLive.Index do
     socket
     |> assign(:loading_sessions, false)
     |> assign(:sessions, sessions)
-    |> assign(:previous_sessions, sessions)
     |> assign(:session_page, result.page)
     |> assign(:sessions_has_more, result.has_more)
   end
@@ -1252,106 +1303,5 @@ defmodule PavoiWeb.SessionsLive.Index do
     socket
     |> assign(:session_page, 1)
     |> load_sessions()
-  end
-
-  # Sorts sessions while preserving the display position of the expanded session.
-  #
-  # This prevents the jarring experience of a session jumping to the top when modified
-  # while its accordion is expanded. The expanded session stays in place until collapsed.
-  #
-  # Algorithm:
-  # 1. If no session is expanded, return the new list as-is (sorted by updated_at)
-  # 2. If a session is expanded:
-  #    - Keep expanded session in its previous position
-  #    - Fill remaining positions with collapsed sessions sorted by updated_at
-  #    - This maintains a stable view while editing
-  defp sort_sessions_preserving_expanded(new_sessions, nil, _previous_sessions) do
-    # No expanded session - use database sort order
-    new_sessions
-  end
-
-  defp sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions) do
-    new_sessions_map = Map.new(new_sessions, &{&1.id, &1})
-    expanded_position = Enum.find_index(previous_sessions, &(&1.id == expanded_id))
-
-    # If expanded session no longer exists or wasn't found, just return new sessions
-    if is_nil(expanded_position) or is_nil(Map.get(new_sessions_map, expanded_id)) do
-      new_sessions
-    else
-      non_expanded_sessions = Enum.reject(new_sessions, &(&1.id == expanded_id))
-
-      build_sorted_session_list(
-        previous_sessions,
-        expanded_position,
-        expanded_id,
-        new_sessions_map,
-        non_expanded_sessions
-      )
-    end
-  end
-
-  # Builds a sorted session list while preserving the expanded session's position.
-  #
-  # This function maintains visual stability when reloading sessions by keeping
-  # the expanded session at its previous position in the list. Other sessions
-  # fill in around it based on their natural sort order.
-  #
-  # Parameters:
-  # - previous_sessions: The old session list (for position reference)
-  # - expanded_position: Index where the expanded session should be placed
-  # - expanded_id: ID of the currently expanded session
-  # - new_sessions_map: Map of session_id -> session struct for quick lookup
-  # - non_expanded_sessions: All other sessions in sort order
-  #
-  # Returns a list with the expanded session at its preserved position and
-  # other sessions filling in sequentially, with any new sessions appended.
-  defp build_sorted_session_list(
-         previous_sessions,
-         expanded_position,
-         expanded_id,
-         new_sessions_map,
-         non_expanded_sessions
-       ) do
-    {result, remaining} =
-      Enum.reduce(0..(length(previous_sessions) - 1), {[], non_expanded_sessions}, fn idx,
-                                                                                      {acc,
-                                                                                       remaining} ->
-        place_session_at_position(
-          idx,
-          expanded_position,
-          expanded_id,
-          new_sessions_map,
-          acc,
-          remaining
-        )
-      end)
-
-    # Append any remaining sessions (handles case where new sessions were added)
-    result ++ remaining
-  end
-
-  # Place the expanded session at its preserved position
-  defp place_session_at_position(idx, idx, expanded_id, new_sessions_map, acc, remaining) do
-    session = Map.get(new_sessions_map, expanded_id)
-    {acc ++ [session], remaining}
-  end
-
-  # Place the next non-expanded session
-  defp place_session_at_position(_idx, _expanded_position, _expanded_id, _new_sessions_map, acc, [
-         next_session | rest
-       ]) do
-    {acc ++ [next_session], rest}
-  end
-
-  # Handle case where no more sessions are available
-  defp place_session_at_position(
-         _idx,
-         _expanded_position,
-         _expanded_id,
-         _new_sessions_map,
-         acc,
-         []
-       ) do
-    {acc, []}
   end
 end

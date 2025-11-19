@@ -45,6 +45,7 @@ defmodule Pavoi.Sessions do
   ## Options
     * `:page` - The page number to fetch (default: 1)
     * `:per_page` - Number of sessions per page (default: 20)
+    * `:search_query` - Optional search query to filter by name or notes (default: "")
 
   ## Returns
   A map with the following keys:
@@ -57,6 +58,7 @@ defmodule Pavoi.Sessions do
   def list_sessions_with_details_paginated(opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
+    search_query = Keyword.get(opts, :search_query, "")
 
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
@@ -64,6 +66,20 @@ defmodule Pavoi.Sessions do
     base_query =
       Session
       |> order_by([s], desc: s.updated_at)
+
+    # Apply search filter if provided
+    base_query =
+      if search_query != "" do
+        search_pattern = "%#{search_query}%"
+
+        where(
+          base_query,
+          [s],
+          ilike(s.name, ^search_pattern) or ilike(s.notes, ^search_pattern)
+        )
+      else
+        base_query
+      end
 
     total = Repo.aggregate(base_query, :count)
 
