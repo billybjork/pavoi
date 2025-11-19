@@ -409,7 +409,7 @@
 }
 
 .btn-primary:hover {
-  background-color: #2563eb;
+  background-color: var(--color-accent-blue-hover);
 }
 
 .btn-primary:active {

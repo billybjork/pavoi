@@ -16,7 +16,7 @@
 /* Status Variants */
 .badge--draft {
   background-color: var(--color-status-draft);
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 .badge--live {
@@ -26,13 +26,13 @@
 
 .badge--complete {
   background-color: var(--color-status-complete);
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 /* Color Variants */
 .badge--primary {
   background-color: var(--color-accent-blue);
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 .badge--success {
@@ -42,7 +42,7 @@
 
 .badge--error {
   background-color: var(--color-accent-red);
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 .badge--warning {
