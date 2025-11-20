@@ -22,6 +22,13 @@ defmodule PavoiWeb.SessionProducerLive do
     session = Sessions.get_session!(session_id)
     message_presets = Sessions.list_message_presets()
 
+    voice_assets = %{
+      vad_worklet: PavoiWeb.Endpoint.static_path("/assets/vad/vad.worklet.bundle.min.js"),
+      vad_model: PavoiWeb.Endpoint.static_path("/assets/vad/silero_vad.onnx"),
+      ort_wasm: PavoiWeb.Endpoint.static_path("/assets/js/ort-wasm-simd-threaded.wasm"),
+      ort_wasm_jsep: PavoiWeb.Endpoint.static_path("/assets/js/ort-wasm-simd-threaded.jsep.wasm")
+    }
+
     socket =
       assign(socket,
         session: session,
@@ -38,7 +45,8 @@ defmodule PavoiWeb.SessionProducerLive do
         view_mode: :split_screen,
         message_draft: "",
         message_presets: message_presets,
-        show_preset_modal: false
+        show_preset_modal: false,
+        voice_assets: voice_assets
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection

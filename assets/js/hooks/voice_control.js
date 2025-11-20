@@ -90,6 +90,7 @@ export default {
 
     // State
     this.isActive = false;
+    this.isStarting = false;
     this.totalProducts = parseInt(this.el.dataset.totalProducts);
     this.vad = null;
     this.worker = null;
@@ -107,6 +108,10 @@ export default {
     this.setupUI();
     this.loadMicrophones();
     this.preloadAssets();
+
+    // Disable Start until the model is ready
+    this.updateStatus('loading', 'Loading model...');
+    this.toggleBtn.disabled = true;
   },
 
   /**
@@ -127,13 +132,18 @@ export default {
 
       switch (type) {
         case 'model_loading':
+        case 'progress':
           this.updateStatus('loading', `Loading model: ${data.progress}%`);
+          this.toggleBtn.disabled = true;
           break;
 
         case 'model_ready':
           console.log('[VoiceControl] Model ready on device:', data.device);
           this.updateStatus('ready', `Ready (${data.device})`);
           this.modelReady = true;
+          this.toggleBtn.disabled = false;
+          this.toggleBtn.querySelector('.text').textContent = 'Start';
+          this.waveformContainer.style.display = '';
           break;
 
         case 'transcript':
@@ -197,7 +207,7 @@ export default {
           <div class="voice-control-actions">
             <button id="voice-toggle" class="voice-toggle-btn" disabled>
               <span class="icon">🎤</span>
-              <span class="text">Start</span>
+              <span class="text">Loading model...</span>
             </button>
           </div>
         </div>
@@ -215,7 +225,7 @@ export default {
           <div id="voice-status" class="voice-status status-loading">
             <div class="status-dot"></div>
             <div class="status-text">Initializing...</div>
-            <div class="voice-waveform">
+            <div class="voice-waveform" style="display: none;">
               <canvas id="waveform-canvas"></canvas>
             </div>
           </div>
@@ -230,8 +240,13 @@ export default {
     this.toggleBtn = this.el.querySelector('#voice-toggle');
     this.micSelect = this.el.querySelector('#mic-select');
     this.statusEl = this.el.querySelector('#voice-status');
+    this.waveformContainer = this.el.querySelector('.voice-waveform');
     this.waveformCanvas = this.el.querySelector('#waveform-canvas');
     this.waveformCtx = this.waveformCanvas.getContext('2d');
+    this.vadWorkletUrl = this.el.dataset.vadWorkletUrl || '/assets/vad/vad.worklet.bundle.min.js';
+    this.vadModelUrl = this.el.dataset.vadModelUrl || '/assets/vad/silero_vad.onnx';
+    this.ortWasmUrl = this.el.dataset.ortWasmUrl || '/assets/js/ort-wasm-simd-threaded.wasm';
+    this.ortJsepUrl = this.el.dataset.ortJsepUrl || '/assets/js/ort-wasm-simd-threaded.jsep.wasm';
 
     // Setup canvas for HiDPI (defer to next frame to ensure DOM is rendered)
     requestAnimationFrame(() => this.setupCanvas());
@@ -371,12 +386,19 @@ export default {
    */
   async start() {
     if (!this.modelReady) {
-      this.updateStatus('error', 'Model not ready - please wait');
+      this.updateStatus('loading', 'Model not ready yet...');
+      return;
+    }
+
+    if (this.isStarting) {
       return;
     }
 
     try {
       console.log('[VoiceControl] Starting voice control...');
+      this.isStarting = true;
+      this.toggleBtn.disabled = true;
+      this.updateStatus('loading', 'Starting...');
 
       // Setup audio context and analyser for waveform (do this BEFORE VAD starts)
       await this.setupAudioAnalysis();
@@ -384,12 +406,13 @@ export default {
       // Initialize VAD with custom paths for worklet and model
       this.vad = await MicVAD.new({
         // Specify paths to VAD assets (served from priv/static/assets/vad/)
-        workletURL: '/assets/vad/vad.worklet.bundle.min.js',
-        modelURL: '/assets/vad/silero_vad.onnx',
+        workletURL: this.vadWorkletUrl,
+        modelURL: this.vadModelUrl,
 
         // Configure ONNX Runtime paths for WASM files
         ortConfig: (ort) => {
-          ort.env.wasm.wasmPaths = '/assets/js/';
+          const wasmBase = this.ortWasmUrl.replace(/[^/]+$/, '');
+          ort.env.wasm.wasmPaths = wasmBase || '/assets/js/';
         },
 
         // Use selected microphone (or default if not specified)
@@ -419,8 +442,10 @@ export default {
       await this.vad.start();
 
       this.isActive = true;
+      this.isStarting = false;
       this.toggleBtn.classList.add('active');
       this.toggleBtn.querySelector('.text').textContent = 'Stop';
+      this.toggleBtn.disabled = false;
 
       // Start waveform visualization immediately
       this.startWaveformAnimation();
@@ -430,6 +455,8 @@ export default {
     } catch (error) {
       console.error('[VoiceControl] Failed to start:', error);
       this.handleError(`Failed to start: ${error.message}`);
+      this.isStarting = false;
+      this.toggleBtn.disabled = false;
     }
   },
 
@@ -837,6 +864,9 @@ export default {
     if (this.isActive) {
       this.stop({ keepStatus: true });
     }
+
+    this.isStarting = false;
+    this.toggleBtn.disabled = false;
   },
 
   /**
@@ -844,10 +874,10 @@ export default {
    */
   async preloadAssets() {
     const assets = [
-      '/assets/js/ort-wasm-simd-threaded.jsep.wasm',
-      '/assets/js/ort-wasm-simd-threaded.wasm',
-      '/assets/vad/silero_vad.onnx',
-      '/assets/vad/vad.worklet.bundle.min.js'
+      this.ortJsepUrl,
+      this.ortWasmUrl,
+      this.vadModelUrl,
+      this.vadWorkletUrl
     ];
 
     try {

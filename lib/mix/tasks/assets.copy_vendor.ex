@@ -33,8 +33,9 @@ defmodule Mix.Tasks.Assets.CopyVendor do
        "assets/js/ort-wasm-simd-threaded.mjs"},
       {"onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
        "assets/js/ort-wasm-simd-threaded.wasm"},
-      # VAD model file
-      {"@ricky0123/vad-web/dist/silero_vad.onnx", "assets/vad/silero_vad.onnx"}
+      # VAD model + worklet
+      {"@ricky0123/vad-web/dist/silero_vad.onnx", "assets/vad/silero_vad.onnx"},
+      {"@ricky0123/vad-web/dist/vad.worklet.bundle.min.js", "assets/vad/vad.worklet.bundle.min.js"}
     ]
 
     Mix.shell().info("Copying vendor files to static assets...")
