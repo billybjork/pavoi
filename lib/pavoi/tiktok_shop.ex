@@ -159,11 +159,10 @@ defmodule Pavoi.TiktokShop do
 
         timestamp = :os.system_time(:second)
 
-        # Build common parameters
+        # Build common parameters (WITHOUT access_token - it goes in header)
         common_params = %{
           app_key: app_key(),
-          timestamp: timestamp,
-          access_token: auth.access_token
+          timestamp: timestamp
         }
 
         # Add shop_cipher if available and not already in params
@@ -181,12 +180,15 @@ defmodule Pavoi.TiktokShop do
         sign = generate_signature(path, all_params, body)
         all_params = Map.put(all_params, :sign, sign)
 
+        # Build headers with access token
+        headers = [{"x-tts-access-token", auth.access_token}]
+
         # Make the request
         url = "#{api_base()}#{path}"
 
         case method do
           :get ->
-            case Req.get(url, params: all_params) do
+            case Req.get(url, params: all_params, headers: headers) do
               {:ok, %Req.Response{status: 200, body: response_body}} ->
                 {:ok, response_body}
 
@@ -198,7 +200,7 @@ defmodule Pavoi.TiktokShop do
             end
 
           :post ->
-            case Req.post(url, json: body, params: all_params) do
+            case Req.post(url, json: body, params: all_params, headers: headers) do
               {:ok, %Req.Response{status: 200, body: response_body}} ->
                 {:ok, response_body}
 
