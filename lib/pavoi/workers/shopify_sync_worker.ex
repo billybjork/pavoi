@@ -2,7 +2,7 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   @moduledoc """
   Oban worker that syncs Shopify product catalog to Pavoi database.
 
-  Runs hourly via cron to keep product data in sync.
+  Runs daily via cron to keep product data in sync.
 
   ## Field Ownership Strategy
 

@@ -38,10 +38,10 @@ config :pavoi, Oban,
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     {Oban.Plugins.Cron,
      crontab: [
-       # Sync products every hour
-       {"0 * * * *", Pavoi.Workers.ShopifySyncWorker},
-       # Sync TikTok Shop products every hour
-       {"0 * * * *", Pavoi.Workers.TiktokSyncWorker}
+       # Sync products every 24 hours (at midnight UTC)
+       {"0 0 * * *", Pavoi.Workers.ShopifySyncWorker},
+       # Sync TikTok Shop products every 24 hours (at midnight UTC)
+       {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker}
      ]}
   ],
   queues: [default: 10, shopify: 5, tiktok: 5]

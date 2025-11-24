@@ -2,7 +2,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   @moduledoc """
   Oban worker that syncs TikTok Shop product catalog to Pavoi database.
 
-  Runs hourly via cron to keep product data in sync with TikTok Shop.
+  Runs daily via cron to keep product data in sync with TikTok Shop.
 
   ## Sync Strategy
 
@@ -195,20 +195,33 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       # Try to find matching product by matching any SKU
       {matching_product, _matching_variant, is_matched} = find_matching_product(tiktok_skus)
 
-      # Sync product and variant data
-      {product, result} =
-        if matching_product do
-          # Update existing product with TikTok data
-          result =
-            update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+      # Also check for existing product by tiktok_product_id (prevents duplicates)
+      existing_tiktok_product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
 
-          {matching_product, result}
-        else
-          # Create new TikTok-only product
-          result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
-          # Fetch the newly created product
-          product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
-          {product, result}
+      # Sync product and variant data
+      # Priority: SKU match > existing TikTok product > create new
+      {product, result} =
+        cond do
+          matching_product ->
+            # SKU match found - update with TikTok data
+            result =
+              update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+
+            {matching_product, result}
+
+          existing_tiktok_product ->
+            # No SKU match, but product already exists by TikTok ID - update it
+            result =
+              update_existing_product(existing_tiktok_product, tiktok_product_id, tiktok_skus, false)
+
+            {existing_tiktok_product, result}
+
+          true ->
+            # No existing product found - create new TikTok-only product
+            result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
+            # Fetch the newly created product
+            product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
+            {product, result}
         end
 
       # Fetch product details to get images

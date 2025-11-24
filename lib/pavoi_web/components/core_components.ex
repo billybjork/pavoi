@@ -443,11 +443,9 @@ defmodule PavoiWeb.CoreComponents do
           New Session
         </.button>
         <%= if @current_page == :products do %>
-          <%= if @last_sync_at do %>
-            <div class="navbar__sync-meta">
-              Shopify synced: {format_relative_time(@last_sync_at)}
-            </div>
-          <% end %>
+          <div class="navbar__sync-meta">
+            Shopify synced: {if @last_sync_at, do: format_relative_time(@last_sync_at), else: "Never"}
+          </div>
           <.button
             variant="primary"
             size="sm"
@@ -457,11 +455,9 @@ defmodule PavoiWeb.CoreComponents do
           >
             {if @syncing, do: "Syncing Shopify...", else: "Sync Shopify"}
           </.button>
-          <%= if @tiktok_last_sync_at do %>
-            <div class="navbar__sync-meta">
-              TikTok synced: {format_relative_time(@tiktok_last_sync_at)}
-            </div>
-          <% end %>
+          <div class="navbar__sync-meta">
+            TikTok synced: {if @tiktok_last_sync_at, do: format_relative_time(@tiktok_last_sync_at), else: "Never"}
+          </div>
           <.button
             variant="primary"
             size="sm"

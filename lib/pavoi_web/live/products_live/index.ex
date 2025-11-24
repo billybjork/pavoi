@@ -26,13 +26,17 @@ defmodule PavoiWeb.ProductsLive.Index do
     last_sync_at = Settings.get_shopify_last_sync_at()
     tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
 
+    # Check if syncs are currently in progress (survives page reload)
+    shopify_syncing = sync_job_active?(ShopifySyncWorker)
+    tiktok_syncing = sync_job_active?(TiktokSyncWorker)
+
     socket =
       socket
       |> assign(:brands, brands)
       |> assign(:last_sync_at, last_sync_at)
-      |> assign(:syncing, false)
+      |> assign(:syncing, shopify_syncing)
       |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
-      |> assign(:tiktok_syncing, false)
+      |> assign(:tiktok_syncing, tiktok_syncing)
       |> assign(:platform_filter, "")
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
@@ -533,4 +537,19 @@ defmodule PavoiWeb.ProductsLive.Index do
   # Helper to build query params, only including non-empty values
   defp maybe_add_param(params, _key, ""), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
+
+  # Check if a sync job is currently active (executing or available)
+  defp sync_job_active?(worker_module) do
+    import Ecto.Query
+
+    # Oban stores worker names without the "Elixir." prefix
+    worker_name = inspect(worker_module)
+
+    Pavoi.Repo.exists?(
+      from(j in Oban.Job,
+        where: j.worker == ^worker_name,
+        where: j.state in ["executing", "available", "scheduled"]
+      )
+    )
+  end
 end
