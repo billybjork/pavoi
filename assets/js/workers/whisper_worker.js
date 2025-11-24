@@ -13,14 +13,13 @@ env.allowRemoteModels = true; // Allow initial download from HF hub
 let transcriber = null;
 let modelLoaded = false;
 let currentDevice = null;
-
-console.log('[Whisper Worker] Worker initialized');
+// Track ONNX file progress for cumulative download calculation
+let fileProgress = {};
+let lastReportedPercent = 0;
 
 // Listen for messages from main thread
 self.onmessage = async (e) => {
   const { type, data } = e.data;
-
-  console.log('[Whisper Worker] Received message:', type);
 
   try {
     switch (type) {
@@ -44,10 +43,10 @@ self.onmessage = async (e) => {
         break;
 
       default:
-        console.warn('[Whisper Worker] Unknown message type:', type);
+        break;
     }
   } catch (error) {
-    console.error('[Whisper Worker] Error handling message:', error);
+    console.error('[Whisper Worker] Error:', error);
     self.postMessage({
       type: 'error',
       data: { message: error.message, stack: error.stack }
@@ -62,7 +61,9 @@ self.onmessage = async (e) => {
  */
 async function loadModel(modelName, device) {
   try {
-    console.log(`[Whisper Worker] Loading model: ${modelName} on device: ${device}`);
+    // Reset progress tracking for fresh load
+    fileProgress = {};
+    lastReportedPercent = 0;
 
     // Report initial loading state
     self.postMessage({
@@ -78,8 +79,6 @@ async function loadModel(modelName, device) {
     const detectedDevice = await detectDevice(device);
     currentDevice = detectedDevice;
 
-    console.log(`[Whisper Worker] Using device: ${detectedDevice}`);
-
     // Create the pipeline with progress callback
     transcriber = await pipeline(
       'automatic-speech-recognition',
@@ -89,43 +88,76 @@ async function loadModel(modelName, device) {
         // Use fp16 for WebGPU (faster), fp32 for CPU/WASM (more compatible)
         dtype: detectedDevice === 'webgpu' ? 'fp16' : 'fp32',
 
-        // Progress callback for model download/loading
+        // Progress callback - only tracks .onnx files (99%+ of download)
+        // JSON config files complete instantly and cause false 100% reports
         progress_callback: (progress) => {
-          console.log('[Whisper Worker] Progress:', progress);
+          const file = progress.file || '';
+          const isOnnxFile = file.endsWith('.onnx');
 
-          // Calculate percentage if we have loaded/total
-          let percent = 0;
-          let status = 'Loading...';
-
-          if (progress.status === 'progress' && progress.total) {
-            percent = Math.round((progress.loaded / progress.total) * 100);
-            status = `Downloading ${progress.file || 'model'}...`;
-          } else if (progress.status === 'done') {
-            percent = 100;
-            status = `Loaded ${progress.file || 'model'}`;
-          } else if (progress.status === 'ready') {
-            percent = 100;
-            status = 'Model ready';
+          if (progress.status === 'initiate' && isOnnxFile) {
+            // Only track ONNX files
+            fileProgress[file] = { loaded: 0, total: 0 };
           }
-
-          self.postMessage({
-            type: 'model_loading',
-            data: {
-              progress: percent,
-              status,
-              file: progress.file,
-              loaded: progress.loaded,
-              total: progress.total
+          else if (progress.status === 'progress' && isOnnxFile) {
+            // Update this ONNX file's progress
+            const loaded = progress.loaded || 0;
+            let total = progress.total;
+            if (!total && progress.progress > 0 && loaded > 0) {
+              total = Math.round(loaded / (progress.progress / 100));
             }
-          });
+
+            if (total > 0) {
+              fileProgress[file] = { loaded, total };
+            }
+
+            // Calculate cumulative progress across ONNX files only
+            let totalLoaded = 0;
+            let totalSize = 0;
+            for (const f in fileProgress) {
+              totalLoaded += fileProgress[f].loaded;
+              totalSize += fileProgress[f].total;
+            }
+
+            if (totalSize > 0) {
+              const percent = Math.round((totalLoaded / totalSize) * 100);
+
+              // Only report if progress increased (monotonic)
+              if (percent > lastReportedPercent) {
+                lastReportedPercent = percent;
+                self.postMessage({
+                  type: 'model_loading',
+                  data: {
+                    progress: percent,
+                    status: `Downloading model...`,
+                    file: file,
+                    loaded: totalLoaded,
+                    total: totalSize
+                  }
+                });
+              }
+            }
+          }
+          else if (progress.status === 'done' && isOnnxFile) {
+            // Mark ONNX file as complete
+            if (fileProgress[file] && fileProgress[file].total > 0) {
+              fileProgress[file].loaded = fileProgress[file].total;
+            }
+          }
+          else if (progress.status === 'ready') {
+            lastReportedPercent = 100;
+            self.postMessage({
+              type: 'model_loading',
+              data: {
+                progress: 100,
+                status: 'Model ready'
+              }
+            });
+          }
         }
       }
     );
 
     modelLoaded = true;
-
-    console.log('[Whisper Worker] Model loaded successfully');
-
     self.postMessage({
       type: 'model_ready',
       data: {
@@ -135,12 +167,8 @@ async function loadModel(modelName, device) {
     });
 
   } catch (error) {
-    console.error('[Whisper Worker] Failed to load model:', error);
-
     // If WebGPU fails, try falling back to WASM
     if (device === 'webgpu' && !modelLoaded) {
-      console.log('[Whisper Worker] WebGPU failed, falling back to WASM...');
-
       self.postMessage({
         type: 'model_loading',
         data: {
@@ -170,38 +198,23 @@ async function loadModel(modelName, device) {
  * @returns {Promise<string>} - Actual device to use
  */
 async function detectDevice(requestedDevice) {
-  // If WASM is requested, use it directly
   if (requestedDevice === 'wasm') {
     return 'wasm';
   }
 
-  // Check for WebGPU support
   if (requestedDevice === 'webgpu') {
-    // Check if navigator.gpu exists (WebGPU API)
     if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
       try {
-        // Try to request a GPU adapter to verify WebGPU actually works
         const adapter = await navigator.gpu.requestAdapter();
-
         if (adapter) {
-          console.log('[Whisper Worker] WebGPU is supported and available');
           return 'webgpu';
-        } else {
-          console.warn('[Whisper Worker] WebGPU API exists but no adapter available, falling back to WASM');
-          return 'wasm';
         }
-      } catch (error) {
-        console.warn('[Whisper Worker] WebGPU detection failed:', error);
-        return 'wasm';
+      } catch (_) {
+        // WebGPU detection failed
       }
-    } else {
-      console.log('[Whisper Worker] WebGPU not supported in this browser, using WASM');
-      return 'wasm';
     }
   }
 
-  // Default to WASM
-  console.log('[Whisper Worker] Unknown device requested, defaulting to WASM');
   return 'wasm';
 }
 
@@ -219,12 +232,7 @@ async function transcribe(audioArray) {
   }
 
   try {
-    console.log(`[Whisper Worker] Transcribing audio chunk (${audioArray.length} samples)`);
-
-    // Convert array back to Float32Array
     const audioData = new Float32Array(audioArray);
-
-    // Validate audio data
     if (audioData.length === 0) {
       self.postMessage({
         type: 'error',
@@ -233,34 +241,22 @@ async function transcribe(audioArray) {
       return;
     }
 
-    // Run inference
-    // Note: For English-only models (.en), don't specify language/task parameters
     const result = await transcriber(audioData, {
-      // Return timestamps is optional - we mainly care about the text
       return_timestamps: false,
-      // Chunk length in seconds (for long audio)
       chunk_length_s: 30,
-      // Stride length for overlapping chunks
       stride_length_s: 5
     });
 
-    console.log('[Whisper Worker] Transcription result:', result);
-
-    // Extract text from result
     const text = typeof result === 'string' ? result : result.text || '';
-
     self.postMessage({
       type: 'transcript',
       data: {
         text: text.trim(),
-        // Include any additional metadata if available
         chunks: result.chunks || null
       }
     });
-
   } catch (error) {
     console.error('[Whisper Worker] Transcription failed:', error);
-
     self.postMessage({
       type: 'error',
       data: {
@@ -273,7 +269,6 @@ async function transcribe(audioArray) {
 
 // Error handler for uncaught errors in worker
 self.onerror = (error) => {
-  console.error('[Whisper Worker] Uncaught error:', error);
   self.postMessage({
     type: 'error',
     data: {
@@ -282,5 +277,3 @@ self.onerror = (error) => {
     }
   });
 };
-
-console.log('[Whisper Worker] Ready to receive messages');
