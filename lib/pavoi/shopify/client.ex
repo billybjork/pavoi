@@ -6,6 +6,7 @@ defmodule Pavoi.Shopify.Client do
   """
 
   require Logger
+  alias Pavoi.Shopify.Auth
 
   @doc """
   Fetches products from Shopify GraphQL API with pagination support.
@@ -69,17 +70,46 @@ defmodule Pavoi.Shopify.Client do
     end
   end
 
-  defp execute_graphql(query, variables) do
+  defp execute_graphql(query, variables, retry \\ true) do
     url = graphql_url()
-    headers = build_headers()
     body = Jason.encode!(%{query: query, variables: variables})
 
+    case build_headers() do
+      {:ok, headers} ->
+        make_graphql_request(url, headers, body, query, variables, retry)
+
+      {:error, reason} ->
+        Logger.error("Failed to build headers: #{inspect(reason)}")
+        {:error, {:auth_error, reason}}
+    end
+  end
+
+  defp make_graphql_request(url, headers, body, query, variables, retry) do
     case Req.post(url, headers: headers, body: body) do
       {:ok, %{status: 200, body: body}} ->
         case body do
           %{"data" => data} -> {:ok, data}
           %{"errors" => errors} -> {:error, {:graphql_errors, errors}}
         end
+
+      {:ok, %{status: 401}} when retry ->
+        Logger.warning("Shopify API returned 401 Unauthorized - refreshing token and retrying")
+        Auth.clear_token()
+
+        case Auth.refresh_access_token() do
+          {:ok, _token} ->
+            Logger.info("Token refreshed, retrying request...")
+            # Retry once with new token (retry=false to prevent infinite loop)
+            execute_graphql(query, variables, false)
+
+          {:error, reason} ->
+            Logger.error("Failed to refresh token: #{inspect(reason)}")
+            {:error, {:auth_error, reason}}
+        end
+
+      {:ok, %{status: 401}} ->
+        Logger.error("Shopify API returned 401 after token refresh - check app credentials")
+        {:error, :unauthorized}
 
       {:ok, %{status: 429}} ->
         Logger.warning("Shopify API rate limit hit")
@@ -153,12 +183,17 @@ defmodule Pavoi.Shopify.Client do
   end
 
   defp build_headers do
-    token = Application.fetch_env!(:pavoi, :shopify_access_token)
+    case Auth.get_access_token() do
+      {:ok, token} ->
+        {:ok,
+         [
+           {"Content-Type", "application/json"},
+           {"X-Shopify-Access-Token", token}
+         ]}
 
-    [
-      {"Content-Type", "application/json"},
-      {"X-Shopify-Access-Token", token}
-    ]
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp graphql_url do

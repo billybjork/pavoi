@@ -17,7 +17,6 @@ if config_env() == :dev do
   config :pavoi,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
-    shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY")
 
@@ -79,7 +78,6 @@ if config_env() == :prod do
   config :pavoi,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
-    shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
     openai_api_key: System.get_env("OPENAI_API_KEY")
 

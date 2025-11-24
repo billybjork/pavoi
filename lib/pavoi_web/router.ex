@@ -28,13 +28,6 @@ defmodule PavoiWeb.Router do
     get "/logout", AuthController, :logout
   end
 
-  # Shopify OAuth routes (not protected to allow callbacks)
-  scope "/shopify", PavoiWeb do
-    pipe_through :browser
-
-    get "/callback", ShopifyOAuthController, :callback
-  end
-
   # TikTok Shop OAuth routes (not protected to allow callbacks)
   scope "/tiktok", PavoiWeb do
     pipe_through :browser
