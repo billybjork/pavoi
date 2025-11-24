@@ -9,43 +9,43 @@
 
 :root {
   /* ========================================================================
-     BACKGROUND COLORS
+     BACKGROUND COLORS (Warm Grays)
      ======================================================================== */
 
-  --color-bg-primary: #FAFAFA;          /* Very light grey main background */
-  --color-bg-secondary: #F5F5F5;        /* Light grey for subtle contrast */
+  --color-bg-primary: #F5F4F1;          /* Warm cream main background */
+  --color-bg-secondary: #EAE8E3;        /* Contrast areas, labels */
   --color-bg-tertiary: transparent;     /* Transparent for image backgrounds - blends with card */
-  --color-bg-elevated: #FFFFFF;         /* White elevated surfaces */
-  --color-bg-hover: #E8E8E8;            /* Clear hover indication */
-  --color-bg-active: #D8D8D8;           /* Clear active state */
+  --color-bg-elevated: #FEFDFB;         /* Warm white elevated surfaces */
+  --color-bg-hover: #DDD9D2;            /* Clear hover indication */
+  --color-bg-active: #D0CCC4;           /* Clear active state */
 
   /* ========================================================================
      SURFACE COLORS (Cards, Modals, Panels)
      ======================================================================== */
 
-  --color-surface-primary: #FFFFFF;     /* Pure white cards - maximum contrast */
-  --color-surface-secondary: #FFFFFF;   /* White for inputs/nested surfaces */
-  --color-surface-tertiary: #FFFFFF;    /* White for all surfaces */
-  --color-surface: #FFFFFF;             /* Alias */
-  --color-background: #FAFAFA;          /* Alias */
+  --color-surface-primary: #FEFDFB;     /* Warm white cards - cohesive with warm palette */
+  --color-surface-secondary: #F7F6F3;   /* Subtle warmth for inputs/nested surfaces */
+  --color-surface-tertiary: #E5E3DC;    /* Darker warm gray for label bars, footers */
+  --color-surface: #FEFDFB;             /* Alias */
+  --color-background: #F5F4F1;          /* Alias */
 
   /* ========================================================================
-     TEXT COLORS
+     TEXT COLORS (Warm Undertones)
      ======================================================================== */
 
-  --color-text-primary: #000000;        /* Pure black - maximum contrast (21:1) */
-  --color-text-secondary: #666666;      /* Medium grey for secondary info */
-  --color-text-tertiary: #999999;       /* Light grey for tertiary/muted text */
+  --color-text-primary: #1C1B19;        /* Near-black with warm undertone */
+  --color-text-secondary: #5A5854;      /* Darker for better readability */
+  --color-text-tertiary: #868379;       /* Muted but still visible */
   --color-text-inverse: #FFFFFF;        /* White on dark backgrounds */
 
   /* ========================================================================
-     BORDER COLORS
+     BORDER COLORS (Stronger, Warmer)
      ======================================================================== */
 
-  --color-border-primary: #D0D0D0;      /* Main borders - clear and visible */
-  --color-border-secondary: #E8E8E8;    /* Subtle dividers */
+  --color-border-primary: #C2BEB5;      /* Main borders - more visible, warm */
+  --color-border-secondary: #D5D1C9;    /* Subtle dividers - still visible */
   --color-border-focus: #3b82f6;        /* Blue focus ring - universal standard */
-  --color-border: #D0D0D0;              /* Alias */
+  --color-border: #C2BEB5;              /* Alias */
 
   /* ========================================================================
      FUNCTIONAL COLORS
