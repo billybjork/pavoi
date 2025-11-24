@@ -75,7 +75,14 @@ defmodule PavoiWeb.SessionProducerLive do
           socket
       end
 
-    {:noreply, socket}
+    # Handle view mode from URL
+    view_mode =
+      case params["view"] do
+        "preview" -> :fullscreen_host
+        _ -> :split_screen
+      end
+
+    {:noreply, assign(socket, :view_mode, view_mode)}
   end
 
   ## Event Handlers
@@ -84,7 +91,7 @@ defmodule PavoiWeb.SessionProducerLive do
   @impl true
   def handle_event("set_view_mode", %{"mode" => mode}, socket) do
     view_mode = String.to_atom(mode)
-    {:noreply, assign(socket, :view_mode, view_mode)}
+    {:noreply, push_patch(socket, to: build_producer_url(socket, view_mode))}
   end
 
   # PRIMARY NAVIGATION: Direct jump to product by number
@@ -94,13 +101,15 @@ defmodule PavoiWeb.SessionProducerLive do
 
     case Sessions.jump_to_product(socket.assigns.session_id, position) do
       {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              ~p"/sessions/#{socket.assigns.session_id}/producer?sp=#{new_state.current_session_product_id}&img=0"
+        url =
+          build_producer_url(
+            socket,
+            socket.assigns.view_mode,
+            new_state.current_session_product_id,
+            0
           )
 
-        {:noreply, socket}
+        {:noreply, push_patch(socket, to: url)}
 
       {:error, :invalid_position} ->
         {:noreply, put_flash(socket, :error, "Invalid product number")}
@@ -112,13 +121,15 @@ defmodule PavoiWeb.SessionProducerLive do
   def handle_event("next_product", _params, socket) do
     case Sessions.advance_to_next_product(socket.assigns.session_id) do
       {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              ~p"/sessions/#{socket.assigns.session_id}/producer?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+        url =
+          build_producer_url(
+            socket,
+            socket.assigns.view_mode,
+            new_state.current_session_product_id,
+            new_state.current_image_index
           )
 
-        {:noreply, socket}
+        {:noreply, push_patch(socket, to: url)}
 
       {:error, :end_of_session} ->
         {:noreply, put_flash(socket, :info, "End of session reached")}
@@ -129,13 +140,15 @@ defmodule PavoiWeb.SessionProducerLive do
   def handle_event("previous_product", _params, socket) do
     case Sessions.go_to_previous_product(socket.assigns.session_id) do
       {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              ~p"/sessions/#{socket.assigns.session_id}/producer?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+        url =
+          build_producer_url(
+            socket,
+            socket.assigns.view_mode,
+            new_state.current_session_product_id,
+            new_state.current_image_index
           )
 
-        {:noreply, socket}
+        {:noreply, push_patch(socket, to: url)}
 
       {:error, :start_of_session} ->
         {:noreply, put_flash(socket, :info, "Already at first product")}
@@ -159,17 +172,29 @@ defmodule PavoiWeb.SessionProducerLive do
   end
 
   @impl true
+  def handle_event("goto_image", %{"index" => index_str}, socket) do
+    index = String.to_integer(index_str)
+
+    case Sessions.set_image_index(socket.assigns.session_id, index) do
+      {:ok, _state} -> {:noreply, socket}
+      {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("jump_to_first", _params, socket) do
     # Jump to position 1 (first product)
     case Sessions.jump_to_product(socket.assigns.session_id, 1) do
       {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              ~p"/sessions/#{socket.assigns.session_id}/producer?sp=#{new_state.current_session_product_id}&img=0"
+        url =
+          build_producer_url(
+            socket,
+            socket.assigns.view_mode,
+            new_state.current_session_product_id,
+            0
           )
 
-        {:noreply, socket}
+        {:noreply, push_patch(socket, to: url)}
 
       {:error, _} ->
         {:noreply, socket}
@@ -183,13 +208,15 @@ defmodule PavoiWeb.SessionProducerLive do
 
     case Sessions.jump_to_product(socket.assigns.session_id, last_position) do
       {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              ~p"/sessions/#{socket.assigns.session_id}/producer?sp=#{new_state.current_session_product_id}&img=0"
+        url =
+          build_producer_url(
+            socket,
+            socket.assigns.view_mode,
+            new_state.current_session_product_id,
+            0
           )
 
-        {:noreply, socket}
+        {:noreply, push_patch(socket, to: url)}
 
       {:error, _} ->
         {:noreply, socket}
@@ -439,6 +466,38 @@ defmodule PavoiWeb.SessionProducerLive do
     case Earmark.as_html(markdown) do
       {:ok, html, _} -> Phoenix.HTML.raw(html)
       _ -> nil
+    end
+  end
+
+  defp build_producer_url(socket, view_mode, sp_id \\ nil, img_idx \\ nil) do
+    session_id = socket.assigns.session_id
+
+    sp_id =
+      sp_id ||
+        (socket.assigns.current_session_product && socket.assigns.current_session_product.id)
+
+    img_idx = img_idx || socket.assigns.current_image_index || 0
+
+    base_path = "/sessions/#{session_id}/producer"
+
+    params =
+      if sp_id do
+        [sp: sp_id, img: img_idx]
+      else
+        []
+      end
+
+    params =
+      if view_mode == :fullscreen_host do
+        params ++ [view: "preview"]
+      else
+        params
+      end
+
+    if params == [] do
+      base_path
+    else
+      base_path <> "?" <> URI.encode_query(params)
     end
   end
 

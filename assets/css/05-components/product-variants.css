@@ -154,3 +154,34 @@
   color: var(--color-text-secondary);
   margin-left: var(--space-1);
 }
+
+/* ===========================================================================
+   COMPACT MODE - Grid Layout with Chips
+   Used in host view for space-efficient variant display
+   =========================================================================== */
+
+.product-variants--compact .product-variants__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.product-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.product-variant-chip__title {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.product-variant-chip__price {
+  color: var(--color-accent-gold);
+}

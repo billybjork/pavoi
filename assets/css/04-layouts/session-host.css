@@ -4,29 +4,35 @@
    ============================================================================ */
 
 .session-container {
-  min-height: 100vh;
+  /* Fixed viewport height - content must fit without scrolling */
+  height: 100vh;                                      /* Fallback for older browsers */
+  height: 100dvh;                                     /* Dynamic viewport height (modern) */
   display: flex;
   flex-direction: column;
   background-color: var(--color-bg-primary);
-  padding: var(--space-6);
-  gap: var(--space-6);
+  padding: clamp(var(--space-4), 2vw, var(--space-6));
+  gap: clamp(var(--space-4), 1.5vw, var(--space-6));
+  overflow: hidden;                                   /* Prevent any scrolling on container */
 }
 
 .session-main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
-  align-items: start;
+  grid-template-columns: minmax(250px, 1fr) minmax(250px, 1fr);
+  gap: clamp(var(--space-4), 2vw, var(--space-8));
   flex: 1;
+  min-height: 0;                                      /* Critical: allows grid to shrink below content size */
+  overflow: hidden;
 }
 
-/* Product Count & Connection Status */
-.product-count {
-  font-size: var(--text-lg);
-  font-weight: var(--font-medium);
-  color: var(--color-text-secondary);
+.session-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow: hidden;
 }
 
+/* Connection Status */
 .connection-status {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
@@ -44,22 +50,105 @@
 }
 
 /* ===========================================================================
-   PRODUCT IMAGE SECTION
+   PRODUCT IMAGE SECTION - Multi-Image Gallery
    =========================================================================== */
 
 .product-image-container {
   position: relative;
   background-color: var(--color-surface-primary);
   border-radius: var(--radius-xl);
-  padding: var(--space-6);
+  padding: clamp(var(--space-4), 1.5vw, var(--space-6));
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  flex: 1;                                            /* Fill remaining space in column */
+  min-height: 0;                                      /* Allow shrinking */
+  overflow: hidden;
 }
 
-.image-wrapper {
-  width: 100%;
+/* Hero Image (Key Image) */
+.hero-image-wrapper {
+  flex: 1;
+  min-height: 100px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Thumbnail Gallery */
+.thumbnail-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: var(--space-2);
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-1);
+  flex-shrink: 0;
+}
+
+.thumbnail-item {
   aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  background-color: var(--color-bg-tertiary);
+  padding: 0;
+  transition: all var(--transition-fast);
+}
+
+.thumbnail-item:hover {
+  border-color: var(--color-border-focus);
+  transform: scale(1.05);
+}
+
+.thumbnail-item--active {
+  border-color: var(--color-accent-blue);
+  box-shadow: 0 0 0 2px var(--color-accent-blue);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Scrollbar styling for thumbnail gallery */
+.thumbnail-gallery::-webkit-scrollbar {
+  width: 6px;
+}
+
+.thumbnail-gallery::-webkit-scrollbar-track {
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-full);
+}
+
+.thumbnail-gallery::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: var(--radius-full);
+}
+
+.thumbnail-gallery::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Legacy classes for backwards compatibility */
+.image-wrapper {
+  flex: 1;
+  min-height: 150px;
+  max-height: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background-color: var(--color-bg-tertiary);
@@ -69,8 +158,10 @@
 }
 
 .product-image {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
 }
 
@@ -85,7 +176,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  flex: 1;
+  min-height: 100px;
   color: var(--color-text-tertiary);
   font-size: var(--text-lg);
   font-style: italic;
@@ -98,23 +190,39 @@
 .product-details {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: clamp(var(--space-4), 1.5vw, var(--space-6));
+  min-height: 0;                                      /* Critical for flex shrinking */
+  overflow: hidden;
 }
 
 .product-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding-bottom: var(--space-4);
+  gap: clamp(var(--space-2), 1vw, var(--space-4));
+  padding-bottom: clamp(var(--space-2), 1vw, var(--space-4));
   border-bottom: 1px solid var(--color-border-secondary);
+  flex-shrink: 0;                                     /* Header never shrinks */
+}
+
+.product-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
 }
 
 .product-name {
-  font-size: var(--text-4xl);
+  font-size: clamp(var(--text-2xl), 3vw, var(--text-4xl));
   font-weight: var(--font-bold);
   color: var(--color-text-primary);
   line-height: var(--leading-tight);
   margin: 0;
+}
+
+.product-name-row .product-count {
+  font-size: clamp(var(--text-sm), 1.2vw, var(--text-base));
+  font-weight: var(--font-medium);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }
 
 .product-pricing {
@@ -124,19 +232,19 @@
 }
 
 .price {
-  font-size: var(--text-3xl);
+  font-size: clamp(var(--text-xl), 2.5vw, var(--text-3xl));
   font-weight: var(--font-bold);
   color: var(--color-accent-gold);
 }
 
 .sale-price {
-  font-size: var(--text-3xl);
+  font-size: clamp(var(--text-xl), 2.5vw, var(--text-3xl));
   font-weight: var(--font-bold);
   color: var(--color-accent-green);
 }
 
 .original-price {
-  font-size: var(--text-xl);
+  font-size: clamp(var(--text-base), 1.5vw, var(--text-xl));
   color: var(--color-text-tertiary);
   text-decoration: line-through;
 }
@@ -157,16 +265,81 @@
 }
 
 /* ===========================================================================
+   PRODUCT DESCRIPTION
+   =========================================================================== */
+
+.product-description {
+  font-size: clamp(var(--text-sm), 1.2vw, var(--text-base));
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-secondary);
+  max-height: 20vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* ===========================================================================
    TALKING POINTS
    =========================================================================== */
 
+.talking-points-wrapper {
+  position: relative;
+  flex: 1;                                            /* Take remaining space */
+  min-height: 0;                                      /* Allow shrinking */
+  display: flex;
+  flex-direction: column;
+}
+
 .talking-points {
-  background-color: var(--color-surface-primary);
-  padding: var(--space-6);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-xl);
+  font-size: clamp(var(--text-base), 1.5vw, var(--text-xl));
   line-height: var(--leading-relaxed);
   color: var(--color-text-primary);
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;                                 /* Always show scrollbar */
+  padding-right: var(--space-6);                      /* Space for scrollbar */
+  padding-bottom: var(--space-8);                     /* Space for fade gradient */
+  /* Firefox scrollbar - more visible */
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-text-tertiary) var(--color-surface-secondary);
+}
+
+/* Gradient fade at bottom - indicates more content */
+.talking-points-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: var(--space-6);                              /* Don't cover scrollbar */
+  height: 60px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--color-bg-primary) 100%
+  );
+  pointer-events: none;                               /* Allow clicking through */
+}
+
+/* Persistent scrollbar styling (WebKit) - more visible */
+.talking-points::-webkit-scrollbar {
+  width: 10px;
+}
+
+.talking-points::-webkit-scrollbar-track {
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-secondary);
+}
+
+.talking-points::-webkit-scrollbar-thumb {
+  background: var(--color-text-tertiary);
+  border-radius: var(--radius-full);
+  min-height: 50px;
+  border: 2px solid var(--color-surface-secondary);
+}
+
+.talking-points::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
 
 .talking-points h1,
@@ -192,8 +365,8 @@
 
 .talking-points ul,
 .talking-points ol {
-  padding-left: var(--space-8);
-  margin: var(--space-4) 0;
+  padding-left: var(--space-4);
+  margin: var(--space-3) 0;
 }
 
 .talking-points li {
@@ -223,10 +396,13 @@
   position: relative;
   background-color: var(--color-accent-amber);
   color: var(--color-text-inverse);
-  padding: var(--space-6) var(--space-8);
+  padding: clamp(var(--space-4), 1.5vw, var(--space-6)) clamp(var(--space-4), 2vw, var(--space-8));
   animation: slideDownPulse 0.5s ease-out;
   box-shadow: var(--shadow-xl);
-  margin-bottom: var(--space-4);
+  margin-bottom: clamp(var(--space-2), 1vw, var(--space-4));
+  flex-shrink: 0;                                     /* Don't shrink the banner */
+  max-height: 15vh;                                   /* Cap maximum height */
+  overflow: hidden;
 }
 
 /* Color variants */
@@ -254,36 +430,13 @@
   background-color: var(--color-text-secondary);
 }
 
-/* When inside preview, use normal flow (not absolute) */
-.host-preview .host-message-banner {
-  position: relative;
-  padding: var(--space-4);
-  animation: none;
-}
-
-/* Make host-preview position relative for absolute children */
-.host-preview {
-  position: relative;
-  background-color: var(--color-bg-secondary);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
 .host-message-content {
-  font-size: var(--text-2xl);
+  font-size: clamp(var(--text-lg), 2vw, var(--text-2xl));
   font-weight: var(--font-bold);
   text-align: center;
   max-width: 1200px;
   margin: 0 auto;
   line-height: var(--leading-normal);
-}
-
-/* Smaller text in preview */
-.host-preview .host-message-content {
-  font-size: var(--text-base);
-  max-width: 100%;
 }
 
 @keyframes slideDown {
@@ -322,70 +475,30 @@
 }
 
 /* ===========================================================================
-   SESSION DESCRIPTION
-   Displays session notes at the top of the host/producer view
+   SESSION HEADER
+   Compact header in left column - title/count row, optional notes below
    =========================================================================== */
 
-.session-description {
-  background-color: var(--color-surface-secondary);
-  padding: var(--space-6);
-  border-radius: var(--radius-lg);
-  margin: var(--space-6) var(--space-4) var(--space-4) var(--space-4);
-  border: 2px solid var(--color-border-primary);
-  box-shadow: var(--shadow-md);
-  max-width: 1400px;
+.session-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  max-height: 50%;                                    /* Never more than half the column */
+  font-size: clamp(var(--text-xs), 1vw, var(--text-sm));
 }
 
-.session-description-header {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
+.session-title {
+  font-weight: var(--font-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 var(--space-4) 0;
-  text-align: center;
 }
 
-.session-description-content {
-  font-size: var(--text-xl);
+.session-notes {
+  color: var(--color-text-tertiary);
   line-height: var(--leading-relaxed);
-  color: var(--color-text-primary);
-  text-align: center;
-}
-
-/* When inside preview, make it more compact */
-.host-preview .session-description {
-  padding: var(--space-4);
-  margin: var(--space-3);
-}
-
-.host-preview .session-description-header {
-  font-size: var(--text-lg);
-  margin-bottom: var(--space-2);
-}
-
-.host-preview .session-description-content {
-  font-size: var(--text-base);
-}
-
-/* When in fullscreen, maintain good sizing */
-.producer-fullscreen-host .session-description {
-  max-width: 1200px;
-  margin: var(--space-6) auto var(--space-4) auto;
-}
-
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .session-description {
-    padding: var(--space-4);
-    margin: var(--space-4) var(--space-3);
-  }
-
-  .session-description-header {
-    font-size: var(--text-xl);
-  }
-
-  .session-description-content {
-    font-size: var(--text-lg);
-  }
+  white-space: pre-line;
+  overflow-y: auto;
+  min-height: 0;                                      /* Allow shrinking */
 }
 
 /* ===========================================================================
@@ -397,7 +510,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
   gap: var(--space-4);
   color: var(--color-text-secondary);
 }
@@ -419,58 +533,98 @@
 
 /* ===========================================================================
    RESPONSIVE DESIGN - Host View
+   Supports both landscape and portrait orientations
+   All elements always visible - scale down, never hide
    =========================================================================== */
 
-/* Tablet adjustments */
+/* Tablet/narrow landscape - stack vertically */
 @media (max-width: 1024px) {
   .session-main {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
-  }
-
-  .host-preview {
-    min-height: 600px;
+    grid-template-rows: minmax(150px, 1fr) minmax(150px, 1fr);
+    gap: clamp(var(--space-3), 1.5vw, var(--space-6));
   }
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .session-container {
-    padding: var(--space-4);
-    gap: var(--space-4);
-  }
-
-  .session-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-3);
-  }
-
-  .session-info {
-    width: 100%;
-    justify-content: space-between;
+/* Portrait orientation - optimize for vertical layout */
+@media (orientation: portrait) {
+  .session-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(25vh, 1fr) minmax(25vh, 1fr);
   }
 
   .product-name {
-    font-size: var(--text-3xl);
+    font-size: clamp(var(--text-xl), 4vw, var(--text-3xl));
+  }
+
+  .talking-points {
+    font-size: clamp(var(--text-sm), 2.5vw, var(--text-lg));
   }
 
   .price,
   .sale-price {
-    font-size: var(--text-2xl);
-  }
-
-  .original-price {
-    font-size: var(--text-lg);
-  }
-
-  .talking-points {
-    font-size: var(--text-lg);
-    padding: var(--space-4);
+    font-size: clamp(var(--text-lg), 3vw, var(--text-2xl));
   }
 
   .host-message-content {
-    font-size: var(--text-xl);
-    padding: var(--space-4);
+    font-size: clamp(var(--text-base), 2.5vw, var(--text-xl));
+  }
+
+  .thumbnail-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    max-height: 120px;
+  }
+}
+
+/* Small viewport height - compact mode but all elements visible */
+@media (max-height: 700px) {
+  .session-container {
+    padding: clamp(var(--space-2), 1vw, var(--space-4));
+    gap: clamp(var(--space-2), 1vw, var(--space-4));
+  }
+
+  .product-name {
+    font-size: clamp(var(--text-lg), 2.5vw, var(--text-2xl));
+  }
+
+  .price,
+  .sale-price {
+    font-size: clamp(var(--text-base), 2vw, var(--text-xl));
+  }
+
+  .session-header {
+    font-size: var(--text-xs);
+    gap: var(--space-2);
+  }
+
+  .host-message-banner {
+    max-height: 12vh;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .thumbnail-gallery {
+    max-height: 100px;
+    gap: var(--space-1);
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  }
+}
+
+/* Mobile width adjustments */
+@media (max-width: 768px) {
+  .product-image-container {
+    padding: var(--space-3);
+  }
+
+  .image-wrapper {
+    min-height: 100px;
+  }
+
+  .hero-image-wrapper {
+    min-height: 80px;
+  }
+
+  .thumbnail-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    max-height: 80px;
   }
 }

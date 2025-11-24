@@ -142,14 +142,19 @@
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* ===========================================================================
+   HOST PREVIEW (Split-screen)
+   Scaled-down preview that matches actual host view exactly
+   =========================================================================== */
+
 .host-preview {
-  background-color: var(--color-surface-primary);
+  background-color: var(--color-bg-primary);
   border-radius: var(--radius-lg);
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 100%;
+  flex: 1;
 }
 
 .host-preview-label {
@@ -163,58 +168,35 @@
   flex-shrink: 0;
 }
 
-.host-preview .session-main {
-  padding: var(--space-4);
+/* Scale down the entire session container to fit in split-screen */
+.host-preview .session-container {
+  zoom: 0.55;
+  transform-origin: top left;
   flex: 1;
   min-height: 0;
 }
 
-/* Scale down content in split-screen preview */
-.host-preview .product-name {
-  font-size: var(--text-2xl);
-}
-
-.host-preview .product-pricing .price,
-.host-preview .product-pricing .sale-price {
-  font-size: var(--text-xl);
-}
-
-.host-preview .product-pricing .original-price {
-  font-size: var(--text-base);
-}
-
-.host-preview .talking-points {
-  font-size: var(--text-base);
-  padding: var(--space-4);
-}
-
 /* ===========================================================================
    PRODUCER FULLSCREEN HOST MODE
-   Full preview of host view for quality check
+   Full preview of host view - no scaling, matches actual host view
    =========================================================================== */
 
 .producer-fullscreen-host {
   flex: 1;
-  padding: var(--space-4);
-  overflow-y: auto;
-  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: var(--color-bg-primary);
 }
 
-/* In fullscreen preview mode, position banner below the control bar */
-.producer-fullscreen-host .host-message-banner {
-  position: relative;
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
-
-.producer-fullscreen-host .host-message-content {
-  font-size: var(--text-xl);
-  max-width: 100%;
-}
-
-.producer-fullscreen-host .session-main {
+/* Session container in fullscreen - full size, centered */
+.producer-fullscreen-host .session-container {
+  flex: 1;
+  min-height: 0;
   max-width: 1600px;
   margin: 0 auto;
+  width: 100%;
 }
 
 /* ===========================================================================

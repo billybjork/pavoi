@@ -28,7 +28,15 @@ defmodule Pavoi.Catalog.ProductImage do
   @doc false
   def changeset(image, attrs) do
     image
-    |> cast(attrs, [:product_id, :position, :path, :thumbnail_path, :alt_text, :is_primary, :tiktok_uri])
+    |> cast(attrs, [
+      :product_id,
+      :position,
+      :path,
+      :thumbnail_path,
+      :alt_text,
+      :is_primary,
+      :tiktok_uri
+    ])
     |> validate_required([:product_id, :path])
     |> foreign_key_constraint(:product_id)
   end

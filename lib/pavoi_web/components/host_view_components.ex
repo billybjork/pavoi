@@ -9,6 +9,7 @@ defmodule PavoiWeb.HostViewComponents do
   """
   use Phoenix.Component
 
+  import Phoenix.HTML, only: [raw: 1]
   import PavoiWeb.ViewHelpers
 
   alias Pavoi.Sessions
@@ -52,32 +53,35 @@ defmodule PavoiWeb.HostViewComponents do
       <.host_message_banner message={@host_message} />
     <% end %>
 
-    <%= if @session.notes && String.trim(@session.notes) != "" do %>
-      <.session_description session={@session} />
-    <% end %>
-
-    <%= if @show_header do %>
-      <.session_header
-        session={@session}
-        current_position={@current_position}
-        total_products={@total_products}
-      />
-    <% end %>
-
     <%= if @current_session_product && @current_product do %>
       <div class="session-main">
-        <.product_image_display
-          product_images={@product_images}
-          current_image_index={@current_image_index}
-          current_product={@current_product}
-          id_prefix={@id_prefix}
-        />
+        <div class="session-left-column">
+          <%= if @show_header do %>
+            <.session_header
+              session={@session}
+              current_position={@current_position}
+              total_products={@total_products}
+            />
+          <% end %>
+          <.product_image_display
+            product_images={@product_images}
+            current_image_index={@current_image_index}
+            current_product={@current_product}
+            id_prefix={@id_prefix}
+          />
+        </div>
 
         <div class="product-details">
           <.product_header
             session_product={@current_session_product}
             product={@current_product}
+            current_position={@current_position}
+            total_products={@total_products}
           />
+
+          <%= if @current_product.description && String.trim(@current_product.description) != "" do %>
+            <div class="product-description">{raw(@current_product.description)}</div>
+          <% end %>
 
           <.talking_points_section talking_points_html={@talking_points_html} />
 
@@ -115,24 +119,7 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
-  Session description box component.
-  Displays the session notes in a rounded box with session name as header.
-  """
-  attr :session, :map, required: true
-
-  def session_description(assigns) do
-    ~H"""
-    <div class="session-description">
-      <h2 class="session-description-header">{@session.name}</h2>
-      <div class="session-description-content">
-        {@session.notes}
-      </div>
-    </div>
-    """
-  end
-
-  @doc """
-  Session header with title and product count.
+  Unified session header with title, product count, and optional notes.
   """
   attr :session, :map, required: true
   attr :current_position, :integer, default: nil
@@ -141,20 +128,19 @@ defmodule PavoiWeb.HostViewComponents do
   def session_header(assigns) do
     ~H"""
     <header class="session-header">
-      <div class="session-title">{@session.name}</div>
-      <div class="session-info">
-        <%= if @current_position do %>
-          <div class="product-count">
-            Product {@current_position} / {@total_products}
-          </div>
-        <% end %>
-      </div>
+      <span class="session-title">{@session.name}</span>
+      <%= if @session.notes && String.trim(@session.notes) != "" do %>
+        <div class="session-notes">{@session.notes}</div>
+      <% end %>
     </header>
     """
   end
 
   @doc """
-  Product image display with carousel indicator.
+  Product image display with hero image and thumbnail gallery.
+
+  Shows a large hero image at the top with a scrollable grid of thumbnails below.
+  Clicking a thumbnail or using arrow keys changes the hero image.
   """
   attr :product_images, :list, required: true
   attr :current_image_index, :integer, required: true
@@ -166,18 +152,38 @@ defmodule PavoiWeb.HostViewComponents do
     <div class="product-image-container">
       <%= if @product_images && length(@product_images) > 0 do %>
         <% current_image = Enum.at(@product_images, @current_image_index) %>
+
+        <%!-- Hero Image (Key Image) --%>
         <%= if current_image do %>
-          <div class="image-wrapper">
+          <div class="hero-image-wrapper">
             <img
-              id={"#{@id_prefix}-img-#{@current_product.id}-#{@current_image_index}"}
+              id={"#{@id_prefix}-hero-img"}
               src={current_image.path}
               alt={current_image.alt_text || @current_product.name}
-              class="product-image"
+              class="hero-image"
               loading="lazy"
             />
           </div>
-          <div class="image-indicator">
-            {@current_image_index + 1} / {length(@product_images)}
+        <% end %>
+
+        <%!-- Thumbnail Gallery (only show if more than 1 image) --%>
+        <%= if length(@product_images) > 1 do %>
+          <div class="thumbnail-gallery">
+            <%= for {image, index} <- Enum.with_index(@product_images) do %>
+              <button
+                type="button"
+                class={["thumbnail-item", @current_image_index == index && "thumbnail-item--active"]}
+                phx-click="goto_image"
+                phx-value-index={index}
+              >
+                <img
+                  src={image.thumbnail_path || image.path}
+                  alt={image.alt_text || "Image #{index + 1}"}
+                  class="thumbnail-image"
+                  loading="lazy"
+                />
+              </button>
+            <% end %>
           </div>
         <% end %>
       <% else %>
@@ -192,13 +198,20 @@ defmodule PavoiWeb.HostViewComponents do
   """
   attr :session_product, :map, required: true
   attr :product, :map, required: true
+  attr :current_position, :integer, default: nil
+  attr :total_products, :integer, default: nil
 
   def product_header(assigns) do
     ~H"""
     <div class="product-header">
-      <h1 class="product-name">
-        {get_effective_name(@session_product)}
-      </h1>
+      <div class="product-name-row">
+        <h1 class="product-name">
+          {get_effective_name(@session_product)}
+        </h1>
+        <%= if @current_position && @total_products do %>
+          <span class="product-count">{@current_position} / {@total_products}</span>
+        <% end %>
+      </div>
 
       <div class="product-pricing">
         <% prices = get_effective_prices(@session_product) %>
@@ -227,8 +240,11 @@ defmodule PavoiWeb.HostViewComponents do
   def talking_points_section(assigns) do
     ~H"""
     <%= if @talking_points_html do %>
-      <div class="talking-points">
-        {@talking_points_html}
+      <div class="talking-points-wrapper">
+        <div class="talking-points">
+          {@talking_points_html}
+        </div>
+        <div class="talking-points-fade"></div>
       </div>
     <% end %>
     """

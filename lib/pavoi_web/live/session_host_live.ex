@@ -143,6 +143,16 @@ defmodule PavoiWeb.SessionHostLive do
   end
 
   @impl true
+  def handle_event("goto_image", %{"index" => index_str}, socket) do
+    index = String.to_integer(index_str)
+
+    case Sessions.set_image_index(socket.assigns.session_id, index) do
+      {:ok, _state} -> {:noreply, socket}
+      {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("jump_to_first", _params, socket) do
     # Jump to position 1 (first product)
     case Sessions.jump_to_product(socket.assigns.session_id, 1) do

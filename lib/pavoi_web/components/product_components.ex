@@ -100,77 +100,90 @@ defmodule PavoiWeb.ProductComponents do
         <h3 class="product-variants__title">
           Variants ({length(@variants)})
         </h3>
-        <div class="product-variants__list">
-          <%!-- Always show first 5 variants --%>
-          <%= for variant <- @initial_variants do %>
-            <div class="product-variant">
-              <div class="product-variant__header">
-                <div class="product-variant__info">
-                  <span class="product-variant__title">{variant.title}</span>
-                  <%= if !@compact && variant.sku do %>
-                    <span class="product-variant__sku">SKU: {variant.sku}</span>
-                  <% end %>
-                </div>
-                <span class="product-variant__price">
-                  <%= if variant.compare_at_price_cents do %>
-                    <span class="product-variant__price-sale">
-                      ${format_price_cents(variant.price_cents)}
-                    </span>
-                    <span class="product-variant__price-original">
-                      ${format_price_cents(variant.compare_at_price_cents)}
-                    </span>
-                  <% else %>
-                    ${format_price_cents(variant.price_cents)}
-                  <% end %>
+        <%= if @compact do %>
+          <%!-- Compact mode: grid of chips --%>
+          <div class="product-variants__grid">
+            <%= for variant <- @variants do %>
+              <div class="product-variant-chip">
+                <span class="product-variant-chip__title">{variant.title}</span>
+                <span class="product-variant-chip__price">
+                  ${format_price_cents(variant.price_cents)}
                 </span>
               </div>
-            </div>
-          <% end %>
-
-          <%!-- Show remaining variants when expanded --%>
-          <%= if @has_more do %>
-            <div id={"#{@variant_id}-more"} class="product-variants__more" style="display: none;">
-              <%= for variant <- @remaining_variants do %>
-                <div class="product-variant">
-                  <div class="product-variant__header">
-                    <div class="product-variant__info">
-                      <span class="product-variant__title">{variant.title}</span>
-                      <%= if !@compact && variant.sku do %>
-                        <span class="product-variant__sku">SKU: {variant.sku}</span>
-                      <% end %>
-                    </div>
-                    <span class="product-variant__price">
-                      <%= if variant.compare_at_price_cents do %>
-                        <span class="product-variant__price-sale">
-                          ${format_price_cents(variant.price_cents)}
-                        </span>
-                        <span class="product-variant__price-original">
-                          ${format_price_cents(variant.compare_at_price_cents)}
-                        </span>
-                      <% else %>
-                        ${format_price_cents(variant.price_cents)}
-                      <% end %>
-                    </span>
+            <% end %>
+          </div>
+        <% else %>
+          <%!-- Full mode: detailed list with expand/collapse --%>
+          <div class="product-variants__list">
+            <%= for variant <- @initial_variants do %>
+              <div class="product-variant">
+                <div class="product-variant__header">
+                  <div class="product-variant__info">
+                    <span class="product-variant__title">{variant.title}</span>
+                    <%= if variant.sku do %>
+                      <span class="product-variant__sku">SKU: {variant.sku}</span>
+                    <% end %>
                   </div>
+                  <span class="product-variant__price">
+                    <%= if variant.compare_at_price_cents do %>
+                      <span class="product-variant__price-sale">
+                        ${format_price_cents(variant.price_cents)}
+                      </span>
+                      <span class="product-variant__price-original">
+                        ${format_price_cents(variant.compare_at_price_cents)}
+                      </span>
+                    <% else %>
+                      ${format_price_cents(variant.price_cents)}
+                    <% end %>
+                  </span>
                 </div>
-              <% end %>
-            </div>
+              </div>
+            <% end %>
 
-            <button
-              type="button"
-              id={"#{@variant_id}-toggle"}
-              class="product-variants__toggle"
-              phx-click={
-                JS.toggle(to: "##{@variant_id}-more")
-                |> JS.toggle_class("product-variants__toggle--expanded",
-                  to: "##{@variant_id}-toggle"
-                )
-              }
-            >
-              Show all {@remaining_count} more variants
-            </button>
-          <% end %>
-        </div>
+            <%= if @has_more do %>
+              <div id={"#{@variant_id}-more"} class="product-variants__more" style="display: none;">
+                <%= for variant <- @remaining_variants do %>
+                  <div class="product-variant">
+                    <div class="product-variant__header">
+                      <div class="product-variant__info">
+                        <span class="product-variant__title">{variant.title}</span>
+                        <%= if variant.sku do %>
+                          <span class="product-variant__sku">SKU: {variant.sku}</span>
+                        <% end %>
+                      </div>
+                      <span class="product-variant__price">
+                        <%= if variant.compare_at_price_cents do %>
+                          <span class="product-variant__price-sale">
+                            ${format_price_cents(variant.price_cents)}
+                          </span>
+                          <span class="product-variant__price-original">
+                            ${format_price_cents(variant.compare_at_price_cents)}
+                          </span>
+                        <% else %>
+                          ${format_price_cents(variant.price_cents)}
+                        <% end %>
+                      </span>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <button
+                type="button"
+                id={"#{@variant_id}-toggle"}
+                class="product-variants__toggle"
+                phx-click={
+                  JS.toggle(to: "##{@variant_id}-more")
+                  |> JS.toggle_class("product-variants__toggle--expanded",
+                    to: "##{@variant_id}-toggle"
+                  )
+                }
+              >
+                Show all {@remaining_count} more variants
+              </button>
+            <% end %>
+          </div>
+        <% end %>
       </div>
     <% end %>
     """
@@ -262,7 +275,9 @@ defmodule PavoiWeb.ProductComponents do
                   <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
                     Shopify Product ID:
                   </strong>
-                  <span style="font-family: monospace;">{Pavoi.Shopify.GID.display_id(@editing_product.pid)}</span>
+                  <span style="font-family: monospace;">
+                    {Pavoi.Shopify.GID.display_id(@editing_product.pid)}
+                  </span>
                 </div>
               <% end %>
               <%= if @editing_product.tiktok_product_id do %>

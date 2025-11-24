@@ -123,7 +123,7 @@ defmodule Pavoi.Sessions do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
     Session
-    |> preload(session_products: [product: [:brand, product_images: ^ordered_images]])
+    |> preload([:brand, session_products: [product: [:brand, product_images: ^ordered_images]]])
     |> Repo.get!(id)
   end
 
@@ -630,6 +630,24 @@ defmodule Pavoi.Sessions do
       update_session_state(session_id, %{current_image_index: new_index})
     else
       0 -> {:error, :no_images}
+      error -> error
+    end
+  end
+
+  @doc """
+  Sets the current image index directly for the session.
+  Used when clicking on a thumbnail to jump to a specific image.
+  """
+  def set_image_index(session_id, index) when is_integer(index) and index >= 0 do
+    with {:ok, state} <- get_session_state(session_id),
+         {:ok, sp} <- get_current_session_product(state),
+         product <- Repo.preload(sp.product, :product_images),
+         image_count when image_count > 0 <- length(product.product_images),
+         true <- index < image_count do
+      update_session_state(session_id, %{current_image_index: index})
+    else
+      0 -> {:error, :no_images}
+      false -> {:error, :invalid_index}
       error -> error
     end
   end

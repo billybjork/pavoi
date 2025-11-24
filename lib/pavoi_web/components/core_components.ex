@@ -456,7 +456,9 @@ defmodule PavoiWeb.CoreComponents do
             {if @syncing, do: "Syncing Shopify...", else: "Sync Shopify"}
           </.button>
           <div class="navbar__sync-meta">
-            TikTok synced: {if @tiktok_last_sync_at, do: format_relative_time(@tiktok_last_sync_at), else: "Never"}
+            TikTok synced: {if @tiktok_last_sync_at,
+              do: format_relative_time(@tiktok_last_sync_at),
+              else: "Never"}
           </div>
           <.button
             variant="primary"

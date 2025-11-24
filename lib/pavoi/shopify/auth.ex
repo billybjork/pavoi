@@ -110,7 +110,11 @@ defmodule Pavoi.Shopify.Auth do
       {:ok, %{status: status, body: body}} ->
         Logger.error("Failed to acquire Shopify access token: HTTP #{status}")
         Logger.error("Response body: #{inspect(body)}")
-        Logger.error("Hint: Ensure the app is installed on the store via Dev Dashboard > Install app")
+
+        Logger.error(
+          "Hint: Ensure the app is installed on the store via Dev Dashboard > Install app"
+        )
+
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->

@@ -120,8 +120,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp fetch_all_products_with_pagination(page_token \\ nil, accumulated_products \\ []) do
-    # Build query parameters with pagination
-    params = %{page_size: 10}
+    # Build query parameters with pagination (50 is a good balance for TikTok API)
+    params = %{page_size: 50}
     params = if page_token, do: Map.put(params, :page_token, page_token), else: params
 
     case TiktokShop.make_api_request(:post, "/product/202309/products/search", params, %{}) do
@@ -205,14 +205,24 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
           matching_product ->
             # SKU match found - update with TikTok data
             result =
-              update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+              update_existing_product(
+                matching_product,
+                tiktok_product_id,
+                tiktok_skus,
+                is_matched
+              )
 
             {matching_product, result}
 
           existing_tiktok_product ->
             # No SKU match, but product already exists by TikTok ID - update it
             result =
-              update_existing_product(existing_tiktok_product, tiktok_product_id, tiktok_skus, false)
+              update_existing_product(
+                existing_tiktok_product,
+                tiktok_product_id,
+                tiktok_skus,
+                false
+              )
 
             {existing_tiktok_product, result}
 
@@ -224,16 +234,20 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
             {product, result}
         end
 
-      # Fetch product details to get images
-      case fetch_product_details(tiktok_product_id) do
-        {:ok, product_data} ->
-          # Sync product images
-          sync_product_images(product, product_data, is_matched)
+      # Only fetch product details if we need images (TikTok-only or no Shopify images)
+      # This avoids an HTTP call for every Shopify-matched product
+      if should_skip_tiktok_images?(product, is_matched) do
+        Logger.debug("Product #{product.id} has Shopify images, skipping TikTok image fetch")
+      else
+        case fetch_product_details(tiktok_product_id) do
+          {:ok, product_data} ->
+            replace_tiktok_images(product, product_data)
 
-        {:error, reason} ->
-          Logger.warning(
-            "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
-          )
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to fetch details for product #{tiktok_product_id}, skipping images: #{inspect(reason)}"
+            )
+        end
       end
 
       # Return the original result tuple
@@ -313,18 +327,8 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     end
   end
 
-  defp sync_product_images(product, tiktok_product_data, is_matched) do
-    if should_skip_tiktok_images?(product, is_matched) do
-      Logger.debug("Product #{product.id} has Shopify images, skipping TikTok images")
-      :ok
-    else
-      replace_tiktok_images(product, tiktok_product_data)
-    end
-  end
-
   defp should_skip_tiktok_images?(product, is_matched) do
-    return_val = is_matched && has_shopify_images?(product)
-    return_val
+    is_matched && has_shopify_images?(product)
   end
 
   defp has_shopify_images?(product) do
@@ -336,12 +340,21 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     delete_existing_tiktok_images(product.id)
 
     main_images = get_in(tiktok_product_data, ["main_images"]) || []
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    main_images
-    |> Enum.with_index()
-    |> Enum.each(fn {image_data, index} ->
-      create_product_image_from_tiktok(product.id, image_data, index)
-    end)
+    # Build image records for batch insert
+    image_records =
+      main_images
+      |> Enum.with_index()
+      |> Enum.map(fn {image_data, index} ->
+        build_tiktok_image_attrs(product.id, image_data, index, now)
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    if Enum.any?(image_records) do
+      {count, _} = Repo.insert_all(Pavoi.Catalog.ProductImage, image_records)
+      Logger.debug("Batch inserted #{count} images for product #{product.id}")
+    end
 
     :ok
   end
@@ -353,32 +366,24 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     |> Repo.delete_all()
   end
 
-  defp create_product_image_from_tiktok(product_id, image_data, index) do
+  defp build_tiktok_image_attrs(product_id, image_data, index, now) do
     urls = image_data["urls"] || []
     thumb_urls = image_data["thumb_urls"] || []
     tiktok_uri = image_data["uri"]
 
     if Enum.empty?(urls) do
-      :skip
+      nil
     else
-      image_attrs = %{
+      %{
         product_id: product_id,
         path: List.first(urls),
         thumbnail_path: List.first(thumb_urls),
         tiktok_uri: tiktok_uri,
         is_primary: index == 0,
-        position: index
+        position: index,
+        inserted_at: now,
+        updated_at: now
       }
-
-      case Catalog.create_product_image(image_attrs) do
-        {:ok, _image} ->
-          Logger.debug("Created image for product #{product_id}, position #{index}")
-
-        {:error, changeset} ->
-          Logger.error(
-            "Failed to create image for product #{product_id}: #{inspect(changeset.errors)}"
-          )
-      end
     end
   end
 
