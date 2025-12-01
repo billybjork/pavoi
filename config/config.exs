@@ -12,8 +12,7 @@ config :pavoi,
   generators: [timestamp_type: :utc_datetime]
 
 # Feature flags (defaults - can be overridden via env vars in runtime.exs)
-config :pavoi, :features,
-  voice_control_enabled: true
+config :pavoi, :features, voice_control_enabled: true
 
 # Configures the endpoint
 config :pavoi, PavoiWeb.Endpoint,
@@ -45,7 +44,9 @@ config :pavoi, Oban,
        # Sync products every 24 hours (at midnight UTC)
        {"0 0 * * *", Pavoi.Workers.ShopifySyncWorker},
        # Sync TikTok Shop products every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker}
+       {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker},
+       # Refresh TikTok access token every 30 minutes (prevents token expiration)
+       {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker}
      ]}
   ],
   queues: [default: 10, shopify: 5, tiktok: 5]

@@ -144,18 +144,88 @@ defmodule Pavoi.TiktokShop do
   end
 
   @doc """
+  Proactively refreshes the access token if it's expiring within 1 hour.
+
+  Called by TiktokTokenRefreshWorker on a cron schedule to prevent token expiration.
+  Returns:
+    - `{:ok, :no_refresh_needed}` - Token is still valid
+    - `{:ok, :refreshed}` - Token was refreshed successfully
+    - `{:error, reason}` - Refresh failed or no auth record exists
+  """
+  def maybe_refresh_token_if_expiring do
+    case get_auth() do
+      nil -> {:error, :no_auth_record}
+      auth -> maybe_refresh_token(auth)
+    end
+  end
+
+  defp maybe_refresh_token(auth) do
+    if token_expiring_within?(auth, 60 * 60) do
+      do_refresh_token()
+    else
+      {:ok, :no_refresh_needed}
+    end
+  end
+
+  defp token_expiring_within?(auth, seconds) do
+    now = DateTime.utc_now()
+    threshold = DateTime.add(now, seconds, :second)
+    DateTime.compare(auth.access_token_expires_at, threshold) == :lt
+  end
+
+  defp do_refresh_token do
+    case refresh_access_token() do
+      {:ok, _updated_auth} -> {:ok, :refreshed}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
   Makes an authenticated API request to TikTok Shop.
 
   Automatically handles signature generation and token refresh if needed.
+  Will retry once on 401 expired credentials errors.
   """
   def make_api_request(method, path, params \\ %{}, body \\ %{}) do
-    with {:ok, auth} <- get_auth_or_error(),
-         auth <- ensure_valid_token(auth),
-         {all_params, body_string, headers} <- build_request_params(auth, path, params, body),
-         url <- "#{api_base()}#{path}" do
-      execute_request(method, url, all_params, body_string, headers)
+    do_make_api_request(method, path, params, body, _retry_count = 0)
+  end
+
+  defp do_make_api_request(method, path, params, body, retry_count) do
+    result =
+      with {:ok, auth} <- get_auth_or_error(),
+           {:ok, auth} <- ensure_valid_token(auth),
+           {all_params, body_string, headers} <- build_request_params(auth, path, params, body),
+           url <- "#{api_base()}#{path}" do
+        execute_request(method, url, all_params, body_string, headers)
+      end
+
+    maybe_retry_on_token_error(result, method, path, params, body, retry_count)
+  end
+
+  defp maybe_retry_on_token_error({:error, reason} = result, method, path, params, body, 0)
+       when is_binary(reason) do
+    if token_expired_error?(reason) do
+      retry_with_fresh_token(method, path, params, body, result)
+    else
+      result
     end
   end
+
+  defp maybe_retry_on_token_error(result, _method, _path, _params, _body, _retry_count),
+    do: result
+
+  defp retry_with_fresh_token(method, path, params, body, original_result) do
+    case refresh_access_token() do
+      {:ok, _} -> do_make_api_request(method, path, params, body, 1)
+      {:error, _} -> original_result
+    end
+  end
+
+  defp token_expired_error?(reason) when is_binary(reason) do
+    String.contains?(reason, "105002") or String.contains?(reason, "Expired credentials")
+  end
+
+  defp token_expired_error?(_), do: false
 
   @doc """
   Generates HMAC-SHA256 signature for TikTok Shop API requests.
@@ -279,16 +349,14 @@ defmodule Pavoi.TiktokShop do
   end
 
   defp store_tokens(token_data) do
-    # Calculate expiration times
-    now = DateTime.utc_now()
     access_expires_in = Map.get(token_data, "access_token_expire_in", 0)
     refresh_expires_in = Map.get(token_data, "refresh_token_expire_in", 0)
 
     attrs = %{
       access_token: token_data["access_token"],
       refresh_token: token_data["refresh_token"],
-      access_token_expires_at: DateTime.add(now, access_expires_in, :second),
-      refresh_token_expires_at: DateTime.add(now, refresh_expires_in, :second)
+      access_token_expires_at: parse_expiration_time(access_expires_in),
+      refresh_token_expires_at: parse_expiration_time(refresh_expires_in)
     }
 
     # Upsert: if record exists, update it; otherwise create new one
@@ -306,21 +374,42 @@ defmodule Pavoi.TiktokShop do
   end
 
   defp update_tokens(auth, token_data) do
-    now = DateTime.utc_now()
     access_expires_in = Map.get(token_data, "access_token_expire_in", 0)
     refresh_expires_in = Map.get(token_data, "refresh_token_expire_in", 0)
 
     attrs = %{
       access_token: token_data["access_token"],
       refresh_token: token_data["refresh_token"],
-      access_token_expires_at: DateTime.add(now, access_expires_in, :second),
-      refresh_token_expires_at: DateTime.add(now, refresh_expires_in, :second)
+      access_token_expires_at: parse_expiration_time(access_expires_in),
+      refresh_token_expires_at: parse_expiration_time(refresh_expires_in)
     }
 
     auth
     |> Auth.changeset(attrs)
     |> Repo.update()
   end
+
+  # TikTok API can return expiration as either:
+  # 1. Unix timestamp (e.g., 1765987200) - the actual expiration time
+  # 2. Seconds until expiry (e.g., 86400) - duration to add to current time
+  # We detect which by checking if the value is close to current Unix time
+  defp parse_expiration_time(expires_value) when is_integer(expires_value) do
+    now = DateTime.utc_now()
+    now_unix = DateTime.to_unix(now)
+
+    # 10 years in seconds - if value is within this range of current time, it's a timestamp
+    ten_years = 315_360_000
+
+    if expires_value > now_unix - ten_years and expires_value < now_unix + ten_years do
+      # It's a Unix timestamp - convert directly
+      DateTime.from_unix!(expires_value)
+    else
+      # It's seconds-until-expiry - add to current time
+      DateTime.add(now, expires_value, :second)
+    end
+  end
+
+  defp parse_expiration_time(_), do: DateTime.utc_now()
 
   defp update_auth(auth, attrs) do
     auth
@@ -340,12 +429,11 @@ defmodule Pavoi.TiktokShop do
     if DateTime.compare(auth.access_token_expires_at, expires_soon) == :lt do
       # Token expired or expiring soon, refresh it
       case refresh_access_token() do
-        {:ok, updated_auth} -> updated_auth
-        # Return original if refresh fails
-        {:error, _} -> auth
+        {:ok, updated_auth} -> {:ok, updated_auth}
+        {:error, reason} -> {:error, {:token_refresh_failed, reason}}
       end
     else
-      auth
+      {:ok, auth}
     end
   end
 end
