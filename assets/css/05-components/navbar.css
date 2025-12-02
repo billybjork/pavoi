@@ -36,7 +36,8 @@
 
 .navbar__logo {
   height: 36px;
-  width: auto;
+  width: 36px;
+  flex-shrink: 0;
 }
 
 .navbar__logo--light {
@@ -104,6 +105,7 @@
 
   .navbar__logo {
     height: 24px;
+    width: 24px;
   }
 
   .navbar__nav {

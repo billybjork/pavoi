@@ -6,7 +6,40 @@
   tiktok_last_sync_at={@tiktok_last_sync_at}
 />
 
-<div class="products-index">
+<div class="container container--xl region">
+  <div class="page-header">
+    <div class="page-header__search">
+      <.search_input
+        value={@product_search_query}
+        on_change="search_products"
+        placeholder="Search products..."
+      />
+    </div>
+
+    <div class="page-header__filters">
+      <form phx-change="platform_filter_changed">
+        <select name="platform" class="input input--sm" value={@platform_filter}>
+          <option value="">All Products</option>
+          <option value="shopify" selected={@platform_filter == "shopify"}>Shopify</option>
+          <option value="tiktok" selected={@platform_filter == "tiktok"}>TikTok Shop</option>
+        </select>
+      </form>
+
+      <form phx-change="sort_changed">
+        <select name="sort" class="input input--sm" value={@product_sort_by}>
+          <option value="">-- Sort by --</option>
+          <option value="name" selected={@product_sort_by == "name"}>Name (A-Z)</option>
+          <option value="price_asc" selected={@product_sort_by == "price_asc"}>
+            Price: Low to High
+          </option>
+          <option value="price_desc" selected={@product_sort_by == "price_desc"}>
+            Price: High to Low
+          </option>
+        </select>
+      </form>
+    </div>
+  </div>
+
   <.product_grid
     products={@streams.products}
     mode={:browse}
@@ -18,8 +51,8 @@
     on_search="search_products"
     on_load_more="load_more_products"
     show_prices={true}
-    show_search={true}
-    show_sort={true}
+    show_search={false}
+    show_sort={false}
     sort_by={@product_sort_by}
     on_sort_change="sort_changed"
     platform_filter={@platform_filter}

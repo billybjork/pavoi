@@ -3,26 +3,6 @@
  * Page layout for the creator CRM list view
  */
 
-/* Header - search and filters */
-.creators-header {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.creators-header__search {
-  flex: 1;
-  min-width: 250px;
-  max-width: 400px;
-}
-
-.creators-header__filters {
-  display: flex;
-  gap: var(--space-2);
-}
-
 /* Table header with count */
 .creators-table-header {
   display: flex;

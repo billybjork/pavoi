@@ -1,8 +1,8 @@
 <.nav_tabs current_page={@current_page} />
 
 <div class="container container--xl region">
-  <div class="creators-header">
-    <div class="creators-header__search">
+  <div class="page-header">
+    <div class="page-header__search">
       <.search_input
         value={@search_query}
         on_change="search"
@@ -10,18 +10,7 @@
       />
     </div>
 
-    <div class="creators-header__filters">
-      <form phx-change="filter_badge">
-        <select name="badge" class="input input--sm" value={@badge_filter}>
-          <option value="">All Badges</option>
-          <%= for level <- Pavoi.Creators.Creator.badge_levels() do %>
-            <option value={level} selected={@badge_filter == level}>
-              {String.capitalize(level)}
-            </option>
-          <% end %>
-        </select>
-      </form>
-
+    <div class="page-header__filters">
       <form phx-change="filter_brand">
         <select name="brand" class="input input--sm" value={@brand_filter}>
           <option value="">All Brands</option>
@@ -65,3 +54,10 @@
     <% end %>
   <% end %>
 </div>
+
+<.creator_detail_modal
+  creator={@selected_creator}
+  active_tab={@active_tab}
+  editing_contact={@editing_contact}
+  contact_form={@contact_form}
+/>

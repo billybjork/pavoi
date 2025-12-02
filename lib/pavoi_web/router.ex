@@ -59,7 +59,6 @@ defmodule PavoiWeb.Router do
 
     # Creator CRM
     live "/creators", CreatorsLive.Index
-    live "/creators/:id", CreatorsLive.Show
   end
 
   # Other scopes may use custom stacks.

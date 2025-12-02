@@ -412,32 +412,32 @@ defmodule PavoiWeb.CoreComponents do
 
   def nav_tabs(assigns) do
     ~H"""
-    <nav id="global-nav" class="navbar" phx-hook="GlobalNavigation">
+    <nav id="global-nav" class="navbar">
       <div class="navbar__start">
         <.link href={~p"/sessions"} class="navbar__brand">
           <img src={~p"/images/logo-light.svg"} class="navbar__logo navbar__logo--light" alt="Pavoi" />
           <img src={~p"/images/logo-dark.svg"} class="navbar__logo navbar__logo--dark" alt="Pavoi" />
         </.link>
-      </div>
-      <div class="navbar__nav">
-        <.link
-          href={~p"/sessions"}
-          class={["navbar__link", @current_page == :sessions && "navbar__link--active"]}
-        >
-          Sessions
-        </.link>
-        <.link
-          href={~p"/products"}
-          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
-        >
-          Products
-        </.link>
-        <.link
-          href={~p"/creators"}
-          class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
-        >
-          Creators
-        </.link>
+        <div class="navbar__nav">
+          <.link
+            href={~p"/sessions"}
+            class={["navbar__link", @current_page == :sessions && "navbar__link--active"]}
+          >
+            Sessions
+          </.link>
+          <.link
+            href={~p"/products"}
+            class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+          >
+            Products
+          </.link>
+          <.link
+            href={~p"/creators"}
+            class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
+          >
+            Creators
+          </.link>
+        </div>
       </div>
       <div class="navbar__end">
         <.button

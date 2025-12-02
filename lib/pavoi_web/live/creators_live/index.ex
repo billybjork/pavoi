@@ -3,19 +3,20 @@ defmodule PavoiWeb.CreatorsLive.Index do
   LiveView for the creator CRM list view.
 
   Displays a paginated, searchable, filterable table of creators.
+  Modal overlay for creator details with tabbed interface.
   """
   use PavoiWeb, :live_view
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
-  alias Pavoi.Catalog
   alias Pavoi.Creators
+  alias Pavoi.Creators.Creator
 
   import PavoiWeb.CreatorComponents
 
   @impl true
   def mount(_params, _session, socket) do
-    brands = Catalog.list_brands()
+    brands = Creators.list_brands_with_creators()
 
     socket =
       socket
@@ -29,8 +30,12 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:per_page, 50)
       |> assign(:total, 0)
       |> assign(:has_more, false)
-      |> assign(:loading, false)
       |> assign(:brands, brands)
+      # Modal state
+      |> assign(:selected_creator, nil)
+      |> assign(:active_tab, "contact")
+      |> assign(:editing_contact, false)
+      |> assign(:contact_form, nil)
 
     {:ok, socket}
   end
@@ -41,6 +46,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
       |> apply_params(params)
       |> load_creators()
+      |> maybe_load_selected_creator(params)
 
     {:noreply, socket}
   end
@@ -77,7 +83,85 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("navigate_to_creator", %{"id" => id}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/creators/#{id}")}
+    params = build_query_params(socket, creator_id: id)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
+  def handle_event("close_creator_modal", _params, socket) do
+    params = build_query_params(socket, creator_id: nil, tab: nil)
+
+    socket =
+      socket
+      |> assign(:selected_creator, nil)
+      |> assign(:active_tab, "contact")
+      |> assign(:editing_contact, false)
+      |> assign(:contact_form, nil)
+      |> push_patch(to: ~p"/creators?#{params}")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("change_tab", %{"tab" => tab}, socket) do
+    params = build_query_params(socket, tab: tab)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
+  def handle_event("edit_contact", _params, socket) do
+    form =
+      socket.assigns.selected_creator
+      |> Creator.changeset(%{})
+      |> to_form()
+
+    socket =
+      socket
+      |> assign(:editing_contact, true)
+      |> assign(:contact_form, form)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("cancel_edit", _params, socket) do
+    socket =
+      socket
+      |> assign(:editing_contact, false)
+      |> assign(:contact_form, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_contact", %{"creator" => params}, socket) do
+    changeset =
+      socket.assigns.selected_creator
+      |> Creator.changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :contact_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("save_contact", %{"creator" => params}, socket) do
+    case Creators.update_creator(socket.assigns.selected_creator, params) do
+      {:ok, creator} ->
+        # Reload with associations
+        creator = Creators.get_creator_with_details!(creator.id)
+
+        socket =
+          socket
+          |> assign(:selected_creator, creator)
+          |> assign(:editing_contact, false)
+          |> assign(:contact_form, nil)
+          |> put_flash(:info, "Contact info updated")
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :contact_form, to_form(changeset))}
+    end
   end
 
   @impl true
@@ -139,7 +223,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:creators, creators)
     |> assign(:total, result.total)
     |> assign(:has_more, result.has_more)
-    |> assign(:loading, false)
   end
 
   defp maybe_add_opt(opts, _key, nil), do: opts
@@ -151,6 +234,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp parse_brand_id(id) when is_binary(id), do: String.to_integer(id)
   defp parse_brand_id(id), do: id
 
+  @override_key_mapping %{
+    search_query: :q,
+    badge_filter: :badge,
+    brand_filter: :brand,
+    sort_by: :sort,
+    sort_dir: :dir,
+    page: :page,
+    creator_id: :c,
+    tab: :tab
+  }
+
   defp build_query_params(socket, overrides) do
     base = %{
       q: socket.assigns.search_query,
@@ -158,24 +252,50 @@ defmodule PavoiWeb.CreatorsLive.Index do
       brand: socket.assigns.brand_filter,
       sort: socket.assigns.sort_by,
       dir: socket.assigns.sort_dir,
-      page: socket.assigns.page
+      page: socket.assigns.page,
+      c: get_creator_id(socket.assigns.selected_creator),
+      tab: socket.assigns.active_tab
     }
 
-    merged =
-      Enum.reduce(overrides, base, fn
-        {:search_query, v}, acc -> Map.put(acc, :q, v)
-        {:badge_filter, v}, acc -> Map.put(acc, :badge, v)
-        {:brand_filter, v}, acc -> Map.put(acc, :brand, v)
-        {:sort_by, v}, acc -> Map.put(acc, :sort, v)
-        {:sort_dir, v}, acc -> Map.put(acc, :dir, v)
-        {:page, v}, acc -> Map.put(acc, :page, v)
-      end)
-
-    # Remove empty/default values and page=1
-    merged
-    |> Enum.reject(fn {k, v} ->
-      v == "" || v == nil || (k == :page && v == 1) || (k == :dir && v == "asc")
+    overrides
+    |> Enum.reduce(base, fn {key, value}, acc ->
+      Map.put(acc, Map.fetch!(@override_key_mapping, key), value)
     end)
+    |> reject_default_values()
+  end
+
+  defp get_creator_id(nil), do: nil
+  defp get_creator_id(creator), do: creator.id
+
+  defp reject_default_values(params) do
+    params
+    |> Enum.reject(&default_value?/1)
     |> Map.new()
+  end
+
+  defp default_value?({_k, ""}), do: true
+  defp default_value?({_k, nil}), do: true
+  defp default_value?({:page, 1}), do: true
+  defp default_value?({:dir, "asc"}), do: true
+  defp default_value?({:tab, "contact"}), do: true
+  defp default_value?(_), do: false
+
+  defp maybe_load_selected_creator(socket, params) do
+    case params["c"] do
+      nil ->
+        socket
+        |> assign(:selected_creator, nil)
+        |> assign(:active_tab, "contact")
+        |> assign(:editing_contact, false)
+        |> assign(:contact_form, nil)
+
+      creator_id ->
+        creator = Creators.get_creator_with_details!(creator_id)
+        tab = params["tab"] || "contact"
+
+        socket
+        |> assign(:selected_creator, creator)
+        |> assign(:active_tab, tab)
+    end
   end
 end

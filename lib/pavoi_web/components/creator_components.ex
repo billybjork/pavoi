@@ -7,6 +7,7 @@ defmodule PavoiWeb.CreatorComponents do
   import PavoiWeb.CoreComponents
 
   alias Pavoi.Creators.Creator
+  alias Phoenix.LiveView.JS
 
   use Phoenix.VerifiedRoutes,
     endpoint: PavoiWeb.Endpoint,
@@ -83,32 +84,43 @@ defmodule PavoiWeb.CreatorComponents do
       <span class={["creator-badge", @badge_class]}>
         {@level}
       </span>
-    <% else %>
-      <span class="text-secondary">-</span>
     <% end %>
     """
   end
 
   @doc """
-  Masks a phone number showing only last 4 digits.
+  Formats a phone number for display.
 
   ## Examples
 
-      mask_phone("+15551234567") # => "***-***-4567"
-      mask_phone(nil) # => "-"
+      format_phone("+15551234567") # => "(555) 123-4567"
+      format_phone("5551234567") # => "(555) 123-4567"
+      format_phone(nil) # => "-"
   """
-  def mask_phone(nil), do: "-"
-  def mask_phone(""), do: "-"
+  def format_phone(nil), do: "-"
+  def format_phone(""), do: "-"
 
-  def mask_phone(phone) do
-    # Remove non-digits for processing
+  def format_phone(phone) do
+    # Remove non-digits
     digits = String.replace(phone, ~r/[^\d]/, "")
 
-    if String.length(digits) >= 4 do
-      last_four = String.slice(digits, -4..-1)
-      "***-***-#{last_four}"
-    else
-      phone
+    case String.length(digits) do
+      # 10 digit US number
+      10 ->
+        "(#{String.slice(digits, 0, 3)}) #{String.slice(digits, 3, 3)}-#{String.slice(digits, 6, 4)}"
+
+      # 11 digit with country code (1 for US)
+      11 ->
+        if String.starts_with?(digits, "1") do
+          rest = String.slice(digits, 1, 10)
+          "(#{String.slice(rest, 0, 3)}) #{String.slice(rest, 3, 3)}-#{String.slice(rest, 6, 4)}"
+        else
+          phone
+        end
+
+      # Other formats - return as-is
+      _ ->
+        phone
     end
   end
 
@@ -241,7 +253,7 @@ defmodule PavoiWeb.CreatorComponents do
               </td>
               <td>{display_name(creator)}</td>
               <td class="text-secondary">{creator.email || "-"}</td>
-              <td class="text-secondary font-mono">{mask_phone(creator.phone)}</td>
+              <td class="text-secondary font-mono">{format_phone(creator.phone)}</td>
               <td class="text-right">{format_number(creator.follower_count)}</td>
               <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
               <td class="text-right">{creator.sample_count || 0}</td>
@@ -614,6 +626,241 @@ defmodule PavoiWeb.CreatorComponents do
         </tbody>
       </table>
     <% end %>
+    """
+  end
+
+  @doc """
+  Renders the creator detail modal with stats bar and tabbed content.
+
+  ## Attributes
+  - `creator` - The selected creator (nil to hide modal)
+  - `active_tab` - Current active tab ("contact", "samples", "videos", "performance")
+  - `editing_contact` - Whether contact form is in edit mode
+  - `contact_form` - The form for editing contact info
+  """
+  attr :creator, :any, default: nil
+  attr :active_tab, :string, default: "contact"
+  attr :editing_contact, :boolean, default: false
+  attr :contact_form, :any, default: nil
+
+  def creator_detail_modal(assigns) do
+    ~H"""
+    <%= if @creator do %>
+      <.modal
+        id="creator-detail-modal"
+        show={true}
+        on_cancel={JS.push("close_creator_modal")}
+        modal_class="modal__box--wide"
+      >
+        <div class="modal__header">
+          <div class="creator-modal-header">
+            <div class="creator-modal-header__title">
+              <h2 class="modal__title">@{@creator.tiktok_username}</h2>
+              <%= if @creator.tiktok_profile_url do %>
+                <a
+                  href={@creator.tiktok_profile_url}
+                  target="_blank"
+                  rel="noopener"
+                  class="link text-sm"
+                >
+                  View TikTok Profile →
+                </a>
+              <% end %>
+            </div>
+            <div class="creator-modal-header__badges">
+              <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
+              <.badge_pill level={@creator.tiktok_badge_level} />
+              <.tag_pills tags={@creator.tags} />
+            </div>
+          </div>
+        </div>
+
+        <div class="creator-modal-stats">
+          <div class="creator-modal-stat">
+            <span class="creator-modal-stat__label">Followers</span>
+            <span class="creator-modal-stat__value">{format_number(@creator.follower_count)}</span>
+          </div>
+          <div class="creator-modal-stat">
+            <span class="creator-modal-stat__label">GMV</span>
+            <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
+          </div>
+          <div class="creator-modal-stat">
+            <span class="creator-modal-stat__label">Videos</span>
+            <span class="creator-modal-stat__value">{@creator.total_videos || 0}</span>
+          </div>
+          <div class="creator-modal-stat">
+            <span class="creator-modal-stat__label">Brands</span>
+            <span class="creator-modal-stat__value">{length(@creator.brands)}</span>
+          </div>
+        </div>
+
+        <div class="creator-modal-tabs">
+          <button
+            type="button"
+            class={["tab", @active_tab == "contact" && "tab--active"]}
+            phx-click="change_tab"
+            phx-value-tab="contact"
+          >
+            Contact
+          </button>
+          <button
+            type="button"
+            class={["tab", @active_tab == "samples" && "tab--active"]}
+            phx-click="change_tab"
+            phx-value-tab="samples"
+          >
+            Samples ({length(@creator.creator_samples)})
+          </button>
+          <button
+            type="button"
+            class={["tab", @active_tab == "videos" && "tab--active"]}
+            phx-click="change_tab"
+            phx-value-tab="videos"
+          >
+            Videos ({length(@creator.creator_videos)})
+          </button>
+          <button
+            type="button"
+            class={["tab", @active_tab == "performance" && "tab--active"]}
+            phx-click="change_tab"
+            phx-value-tab="performance"
+          >
+            Performance ({length(@creator.performance_snapshots)})
+          </button>
+        </div>
+
+        <div class="modal__body">
+          <div class="creator-modal-content">
+            <%= case @active_tab do %>
+              <% "contact" -> %>
+                <.contact_tab
+                  creator={@creator}
+                  editing={@editing_contact}
+                  form={@contact_form}
+                />
+              <% "samples" -> %>
+                <.samples_table samples={@creator.creator_samples} />
+              <% "videos" -> %>
+                <.videos_table videos={@creator.creator_videos} username={@creator.tiktok_username} />
+              <% "performance" -> %>
+                <.performance_table snapshots={@creator.performance_snapshots} />
+            <% end %>
+          </div>
+        </div>
+
+      </.modal>
+    <% end %>
+    """
+  end
+
+  @doc """
+  Renders the contact tab content with inline editing.
+  """
+  attr :creator, :any, required: true
+  attr :editing, :boolean, default: false
+  attr :form, :any, default: nil
+
+  def contact_tab(assigns) do
+    ~H"""
+    <div class="contact-tab">
+      <div class="contact-tab__header">
+        <h3 class="contact-tab__title">Contact Information</h3>
+        <%= if !@editing do %>
+          <.button variant="ghost" size="sm" phx-click="edit_contact">
+            <.icon name="hero-pencil" class="size-4" /> Edit
+          </.button>
+        <% end %>
+      </div>
+
+      <%= if @editing && @form do %>
+        <.form for={@form} phx-submit="save_contact" phx-change="validate_contact" class="stack">
+          <div class="contact-form-grid">
+            <.input field={@form[:email]} type="email" label="Email" />
+            <.input field={@form[:phone]} type="tel" label="Phone" />
+          </div>
+          <div class="contact-form-grid">
+            <.input field={@form[:first_name]} type="text" label="First Name" />
+            <.input field={@form[:last_name]} type="text" label="Last Name" />
+          </div>
+          <.input field={@form[:address_line_1]} type="text" label="Address Line 1" />
+          <.input field={@form[:address_line_2]} type="text" label="Address Line 2" />
+          <div class="contact-form-grid contact-form-grid--3">
+            <.input field={@form[:city]} type="text" label="City" />
+            <.input field={@form[:state]} type="text" label="State" />
+            <.input field={@form[:zipcode]} type="text" label="ZIP" />
+          </div>
+          <.input field={@form[:notes]} type="textarea" label="Notes" rows={3} />
+          <.input field={@form[:is_whitelisted]} type="checkbox" label="Whitelisted Creator" />
+          <div class="flex gap-2 justify-end">
+            <.button type="button" variant="ghost" phx-click="cancel_edit">Cancel</.button>
+            <.button type="submit" variant="primary">Save</.button>
+          </div>
+        </.form>
+      <% else %>
+        <div class="contact-info-grid">
+          <div class="contact-info-row">
+            <div class="contact-info-item">
+              <dt>Email</dt>
+              <dd>{@creator.email || "-"}</dd>
+            </div>
+            <div class="contact-info-item">
+              <dt>Phone</dt>
+              <dd class="font-mono">{@creator.phone || "-"}</dd>
+            </div>
+          </div>
+          <div class="contact-info-row">
+            <div class="contact-info-item">
+              <dt>Name</dt>
+              <dd>{display_name(@creator)}</dd>
+            </div>
+            <div class="contact-info-item">
+              <dt>Address</dt>
+              <dd>
+                <%= if @creator.address_line_1 do %>
+                  <div>{@creator.address_line_1}</div>
+                  <%= if @creator.address_line_2 do %>
+                    <div>{@creator.address_line_2}</div>
+                  <% end %>
+                  <div>
+                    {[@creator.city, @creator.state, @creator.zipcode]
+                    |> Enum.filter(& &1)
+                    |> Enum.join(", ")}
+                  </div>
+                <% else %>
+                  -
+                <% end %>
+              </dd>
+            </div>
+          </div>
+          <div class="contact-info-row contact-info-row--full">
+            <div class="contact-info-item">
+              <dt>Notes</dt>
+              <dd>
+                <%= if @creator.notes && @creator.notes != "" do %>
+                  <div class="notes-content">{@creator.notes}</div>
+                <% else %>
+                  <span class="text-secondary">No notes</span>
+                <% end %>
+              </dd>
+            </div>
+          </div>
+          <%= if @creator.brands && length(@creator.brands) > 0 do %>
+            <div class="contact-info-row contact-info-row--full">
+              <div class="contact-info-item">
+                <dt>Brands</dt>
+                <dd>
+                  <div class="brands-list brands-list--inline">
+                    <%= for brand <- @creator.brands do %>
+                      <span class="brand-tag">{brand.name}</span>
+                    <% end %>
+                  </div>
+                </dd>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
     """
   end
 end

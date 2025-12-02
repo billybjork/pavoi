@@ -285,6 +285,20 @@ defmodule Pavoi.Creators do
   ## Brand-Creator Relationships
 
   @doc """
+  Lists brands that have at least one creator associated.
+  Returns Brand structs.
+  """
+  def list_brands_with_creators do
+    from(b in Pavoi.Catalog.Brand,
+      join: bc in BrandCreator,
+      on: bc.brand_id == b.id,
+      distinct: true,
+      order_by: [asc: b.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Associates a creator with a brand.
   """
   def add_creator_to_brand(creator_id, brand_id, attrs \\ %{}) do
