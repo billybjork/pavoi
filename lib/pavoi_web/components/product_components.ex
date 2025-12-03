@@ -101,16 +101,36 @@ defmodule PavoiWeb.ProductComponents do
           Variants ({length(@variants)})
         </h3>
         <%= if @compact do %>
-          <%!-- Compact mode: grid of chips --%>
-          <div class="product-variants__grid">
-            <%= for variant <- @variants do %>
-              <div class="product-variant-chip">
-                <span class="product-variant-chip__title">{variant.title}</span>
-                <span class="product-variant-chip__price">
-                  ${format_price_cents(variant.price_cents)}
-                </span>
+          <%!-- Compact mode: grid of chips with 1-line limit --%>
+          <div id={@variant_id} class="product-variants__compact-container" phx-hook="VariantOverflow">
+            <div class="product-variants__grid-wrapper">
+              <div class="product-variants__grid">
+                <%= for variant <- @variants do %>
+                  <div class="product-variant-chip">
+                    <span class="product-variant-chip__title">{variant.title}</span>
+                    <span class="product-variant-chip__price">
+                      ${format_price_cents(variant.price_cents)}
+                    </span>
+                  </div>
+                <% end %>
               </div>
-            <% end %>
+            </div>
+            <button
+              type="button"
+              id={"#{@variant_id}-expand"}
+              class="product-variants__expand"
+              style="display: none;"
+              phx-click={
+                JS.toggle_class("product-variants__grid-wrapper--expanded",
+                  to: "##{@variant_id} .product-variants__grid-wrapper"
+                )
+                |> JS.toggle_class("product-variants__expand--expanded",
+                  to: "##{@variant_id}-expand"
+                )
+              }
+            >
+              <span class="product-variants__expand-icon"></span>
+            </button>
           </div>
         <% else %>
           <%!-- Full mode: detailed list with expand/collapse --%>

@@ -231,9 +231,9 @@
   color: var(--color-text-secondary);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border-secondary);
-  max-height: 20vh;
+  flex: 1 1 auto;                                     /* Grow to fill available space */
+  min-height: 0;                                      /* Allow shrinking */
   overflow-y: auto;
-  flex-shrink: 0;
 }
 
 /* ===========================================================================
@@ -242,7 +242,7 @@
 
 .talking-points-wrapper {
   position: relative;
-  flex: 0 1 auto;                                     /* Size to content, can shrink, won't add gaps */
+  flex: 1 1 auto;                                     /* Grow to fill available space */
   min-height: 0;                                      /* Allow shrinking */
   display: flex;
   flex-direction: column;
@@ -252,7 +252,7 @@
   font-size: clamp(var(--text-base), 1.5vw, var(--text-xl));
   line-height: var(--leading-relaxed);
   color: var(--color-text-primary);
-  flex: 0 1 auto;                                     /* Size to content, can shrink */
+  flex: 1 1 auto;                                     /* Grow to fill available space */
   min-height: 0;
   overflow-y: auto;                                   /* Scroll only when content overflows */
   padding-right: var(--space-6);                      /* Space for scrollbar */

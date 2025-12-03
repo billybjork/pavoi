@@ -87,6 +87,7 @@
 .product-variants--compact {
   margin-top: var(--space-3);
   padding: var(--space-2);
+  flex-shrink: 0;                                     /* Stay anchored at bottom, don't shrink */
 }
 
 .product-variants--compact .product-variants__title {
@@ -160,6 +161,18 @@
    Used in host view for space-efficient variant display
    =========================================================================== */
 
+/* Grid wrapper - constrains to 1 row by default */
+.product-variants--compact .product-variants__grid-wrapper {
+  max-height: 2.2em;                                  /* Approximately 1 row of chips */
+  overflow: hidden;
+  position: relative;
+  transition: max-height var(--transition-base);
+}
+
+.product-variants--compact .product-variants__grid-wrapper--expanded {
+  max-height: none;
+}
+
 .product-variants--compact .product-variants__grid {
   display: flex;
   flex-wrap: wrap;
@@ -184,4 +197,48 @@
 
 .product-variant-chip__price {
   color: var(--color-accent-gold);
+}
+
+/* Expand Button for Compact Mode */
+.product-variants__expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-1) 0;
+  margin-top: var(--space-1);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.product-variants__expand:hover {
+  color: var(--color-text-secondary);
+}
+
+.product-variants__expand-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+/* Chevron down icon using CSS */
+.product-variants__expand-icon::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translate(-50%, -70%) rotate(45deg);
+  transition: transform var(--transition-fast);
+}
+
+.product-variants__expand--expanded .product-variants__expand-icon::before {
+  transform: translate(-50%, -30%) rotate(-135deg);
 }

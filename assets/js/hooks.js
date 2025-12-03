@@ -8,6 +8,7 @@ import ProductSortable from "./hooks/product_sortable"
 import ThemeToggle from "./hooks/theme_toggle"
 import MessageInput from "./hooks/message_input"
 import VoiceControl from "./hooks/voice_control"
+import VariantOverflow from "./hooks/variant_overflow"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -17,7 +18,8 @@ const Hooks = {
   ProductSortable,
   ThemeToggle,
   MessageInput,
-  VoiceControl
+  VoiceControl,
+  VariantOverflow
 }
 
 export default Hooks
