@@ -533,21 +533,28 @@ export default {
     // Support all two-digit numbers (1-99) to match keyboard shortcuts
     // Backend will validate against actual product count
     if (number !== null && number >= 1 && number <= 99) {
-      // Valid number! Jump to product
-      this.updateStatus('success', `Jumping to product ${number}`);
-      console.log(`[VoiceControl] Jumping to product ${number}`);
+      // Show pending status while we wait for server response
+      this.updateStatus('processing', `Jumping to product ${number}...`);
+      console.log(`[VoiceControl] Requesting jump to product ${number}`);
 
-      // Push event to LiveView
-      this.pushEvent("jump_to_product", {
-        position: number.toString()
-      });
-
-      // Restart waveform after brief success message
-      setTimeout(() => {
-        if (this.isActive) {
-          this.startWaveformAnimation();
+      // Push event to LiveView with reply callback
+      this.pushEvent("jump_to_product", { position: number.toString() }, (reply) => {
+        if (reply.success) {
+          this.updateStatus('success', `Jumped to product ${reply.position}`);
+          console.log(`[VoiceControl] Successfully jumped to product ${reply.position}`);
+        } else {
+          this.updateStatus('error', reply.error || `Product ${number} not found`);
+          console.warn(`[VoiceControl] Jump failed: ${reply.error}`);
         }
-      }, 1500);
+
+        // Restart waveform after brief message
+        setTimeout(() => {
+          if (this.isActive) {
+            this.updateStatus('listening', 'Listening...');
+            this.startWaveformAnimation();
+          }
+        }, 2000);
+      });
 
     } else {
       // Invalid or out of range
@@ -561,9 +568,10 @@ export default {
       // Restart waveform after brief error message
       setTimeout(() => {
         if (this.isActive) {
+          this.updateStatus('listening', 'Listening...');
           this.startWaveformAnimation();
         }
-      }, 1500);
+      }, 2000);
     }
   },
 

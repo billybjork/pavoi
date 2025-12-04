@@ -66,10 +66,10 @@ defmodule PavoiWeb.SessionControllerLive do
 
     case Sessions.jump_to_product(socket.assigns.session_id, position) do
       {:ok, _new_state} ->
-        {:noreply, socket}
+        {:reply, %{success: true, position: position}, socket}
 
       {:error, :invalid_position} ->
-        {:noreply, put_flash(socket, :error, "Invalid product number")}
+        {:reply, %{success: false, error: "Product #{position} not found"}, socket}
     end
   end
 
