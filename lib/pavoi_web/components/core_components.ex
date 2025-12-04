@@ -409,6 +409,8 @@ defmodule PavoiWeb.CoreComponents do
   attr :last_sync_at, :any, default: nil
   attr :tiktok_syncing, :boolean, default: false
   attr :tiktok_last_sync_at, :any, default: nil
+  attr :bigquery_syncing, :boolean, default: false
+  attr :bigquery_last_sync_at, :any, default: nil
 
   def nav_tabs(assigns) do
     ~H"""
@@ -474,6 +476,22 @@ defmodule PavoiWeb.CoreComponents do
             disabled={@tiktok_syncing}
           >
             {if @tiktok_syncing, do: "Syncing TikTok...", else: "Sync TikTok Shop"}
+          </.button>
+        <% end %>
+        <%= if @current_page == :creators do %>
+          <div class="navbar__sync-meta">
+            Orders synced: {if @bigquery_last_sync_at,
+              do: format_relative_time(@bigquery_last_sync_at),
+              else: "Never"}
+          </div>
+          <.button
+            variant="primary"
+            size="sm"
+            phx-click="trigger_bigquery_sync"
+            class={@bigquery_syncing && "button--disabled"}
+            disabled={@bigquery_syncing}
+          >
+            {if @bigquery_syncing, do: "Syncing Orders...", else: "Sync BigQuery Orders"}
           </.button>
         <% end %>
         <.theme_toggle />

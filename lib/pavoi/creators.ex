@@ -437,4 +437,105 @@ defmodule Pavoi.Creators do
     )
     |> Repo.all()
   end
+
+  ## BigQuery Sync Helpers
+
+  @doc """
+  Gets a creator by normalized phone number.
+  Returns nil if not found or phone is nil/empty.
+  """
+  def get_creator_by_phone(nil), do: nil
+  def get_creator_by_phone(""), do: nil
+
+  def get_creator_by_phone(phone) when is_binary(phone) do
+    normalized = normalize_phone(phone)
+
+    if normalized do
+      # Use limit 1 in case of duplicate phone numbers in DB
+      from(c in Creator, where: c.phone == ^normalized, limit: 1)
+      |> Repo.one()
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Gets a creator by first and last name (case-insensitive).
+  Returns nil if not found or names are empty.
+  """
+  def get_creator_by_name(nil, _), do: nil
+  def get_creator_by_name("", _), do: nil
+
+  def get_creator_by_name(first_name, last_name) do
+    first_normalized = String.downcase(String.trim(first_name))
+    last_normalized = if last_name, do: String.downcase(String.trim(last_name)), else: ""
+
+    query =
+      if last_normalized != "" do
+        from(c in Creator,
+          where:
+            fragment("LOWER(?)", c.first_name) == ^first_normalized and
+              fragment("LOWER(?)", c.last_name) == ^last_normalized,
+          limit: 1
+        )
+      else
+        from(c in Creator,
+          where: fragment("LOWER(?)", c.first_name) == ^first_normalized,
+          limit: 1
+        )
+      end
+
+    Repo.one(query)
+  end
+
+  @doc """
+  Gets all existing tiktok_order_ids for efficient filtering.
+  Returns a MapSet for O(1) lookups.
+  """
+  def list_existing_order_ids do
+    from(cs in CreatorSample,
+      where: not is_nil(cs.tiktok_order_id),
+      select: cs.tiktok_order_id,
+      distinct: true
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
+  Parses a full name into first and last name components.
+  Returns {first_name, last_name} tuple.
+  """
+  def parse_name(nil), do: {nil, nil}
+  def parse_name(""), do: {nil, nil}
+
+  def parse_name(full_name) when is_binary(full_name) do
+    parts = String.split(String.trim(full_name), " ", parts: 2)
+
+    case parts do
+      [first] -> {first, nil}
+      [first, last] -> {first, last}
+      _ -> {full_name, nil}
+    end
+  end
+
+  @doc """
+  Generates a placeholder TikTok username for creators without one.
+  Uses name + random suffix to ensure uniqueness.
+  """
+  def generate_placeholder_username(first_name, last_name) do
+    base =
+      [first_name, last_name]
+      |> Enum.filter(& &1)
+      |> Enum.join("_")
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9_]/, "")
+      |> case do
+        "" -> "unknown"
+        name -> name
+      end
+
+    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+    "#{base}_#{suffix}"
+  end
 end

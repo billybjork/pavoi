@@ -25,7 +25,11 @@ if config_env() == :dev do
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
-    openai_api_key: System.get_env("OPENAI_API_KEY")
+    openai_api_key: System.get_env("OPENAI_API_KEY"),
+    # BigQuery configuration for Creator CRM sync
+    bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
+    bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
+    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,
@@ -88,7 +92,11 @@ if config_env() == :prod do
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
-    openai_api_key: System.get_env("OPENAI_API_KEY")
+    openai_api_key: System.get_env("OPENAI_API_KEY"),
+    # BigQuery configuration for Creator CRM sync
+    bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
+    bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
+    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,

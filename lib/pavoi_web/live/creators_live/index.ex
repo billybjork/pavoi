@@ -7,16 +7,27 @@ defmodule PavoiWeb.CreatorsLive.Index do
   """
   use PavoiWeb, :live_view
 
+  import Ecto.Query
+
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
+  alias Pavoi.Settings
+  alias Pavoi.Workers.BigQueryOrderSyncWorker
 
   import PavoiWeb.CreatorComponents
 
   @impl true
   def mount(_params, _session, socket) do
+    # Subscribe to BigQuery sync events
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync")
+    end
+
     brands = Creators.list_brands_with_creators()
+    bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
+    bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
 
     socket =
       socket
@@ -36,6 +47,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:active_tab, "contact")
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      # Sync state
+      |> assign(:bigquery_syncing, bigquery_syncing)
+      |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
 
     {:ok, socket}
   end
@@ -167,6 +181,60 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("stop_propagation", _params, socket) do
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("trigger_bigquery_sync", _params, socket) do
+    %{}
+    |> BigQueryOrderSyncWorker.new()
+    |> Oban.insert()
+
+    socket =
+      socket
+      |> assign(:bigquery_syncing, true)
+      |> put_flash(:info, "BigQuery orders sync initiated...")
+
+    {:noreply, socket}
+  end
+
+  # BigQuery sync PubSub handlers
+  @impl true
+  def handle_info({:bigquery_sync_started}, socket) do
+    {:noreply, assign(socket, :bigquery_syncing, true)}
+  end
+
+  @impl true
+  def handle_info({:bigquery_sync_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(:bigquery_syncing, false)
+      |> assign(:bigquery_last_sync_at, Settings.get_bigquery_last_sync_at())
+      |> assign(:page, 1)
+      |> load_creators()
+      |> put_flash(
+        :info,
+        "Synced #{stats.samples_created} samples (#{stats.creators_created} new creators, #{stats.creators_matched} matched)"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:bigquery_sync_failed, reason}, socket) do
+    socket =
+      socket
+      |> assign(:bigquery_syncing, false)
+      |> put_flash(:error, "BigQuery sync failed: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
+  defp sync_job_active?(worker) do
+    from(j in Oban.Job,
+      where: j.worker == ^to_string(worker),
+      where: j.state in ["executing", "available", "scheduled"]
+    )
+    |> Pavoi.Repo.exists?()
   end
 
   defp apply_params(socket, params) do

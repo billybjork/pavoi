@@ -49,7 +49,7 @@ config :pavoi, Oban,
        {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker}
      ]}
   ],
-  queues: [default: 10, shopify: 5, tiktok: 5, creators: 5]
+  queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3]
 
 # Configure esbuild (the version is required)
 config :esbuild,
