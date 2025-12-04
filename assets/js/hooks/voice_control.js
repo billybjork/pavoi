@@ -5,26 +5,39 @@
  * Integrates Whisper (OpenAI's speech-to-text model) with Silero VAD
  * (Voice Activity Detection) for efficient, privacy-first voice control.
  *
+ * Designed for continuous 4+ hour recording sessions where numbers may be
+ * spoken at any time during natural conversation.
+ *
  * @module VoiceControl
  * @requires @ricky0123/vad-web - Voice Activity Detection library
  *
  * ## Architecture
  *
- * 1. **VAD Layer** - Detects speech vs silence, segments audio into chunks
- *    - Reduces processing by 80%+ (only processes speech)
+ * 1. **VAD Layer** - Real-time speech probability detection (~30x/sec)
+ *    - Uses onFrameProcessed for continuous frame-level access
  *    - Runs Silero VAD model locally (~1.7MB)
  *
- * 2. **Whisper Worker** - Transcribes audio to text in background thread
+ * 2. **Rolling Buffer** - Maintains last 5 seconds of audio
+ *    - Continuously collects frames regardless of speech boundaries
+ *    - Enables number detection within continuous speech
+ *
+ * 3. **Periodic Processing** - Transcribes buffer every 2.5 seconds during speech
+ *    - Starts when speech probability exceeds threshold
+ *    - Stops after extended silence (~1 second)
+ *    - Includes deduplication to prevent repeated jumps
+ *
+ * 4. **Whisper Worker** - Transcribes audio to text in background thread
  *    - Uses OpenAI Whisper Tiny English model (~40MB, cached)
  *    - WebGPU accelerated (2-4x faster than CPU)
  *    - Automatic CPU/WASM fallback for unsupported browsers
  *
- * 3. **Number Extraction** - Converts spoken numbers to integers
+ * 5. **Number Extraction** - Converts spoken numbers to integers
  *    - Handles words: "twenty three" → 23, "five" → 5
  *    - Handles digits: "23" → 23
  *    - Validates range: 1 to 99 (backend validates against actual product count)
+ *    - 5-second deduplication window prevents repeated jumps
  *
- * 4. **LiveView Integration** - Pushes events to trigger product navigation
+ * 6. **LiveView Integration** - Pushes events to trigger product navigation
  *    - Event: "jump_to_product" with {position: "23"}
  *    - Reuses existing event handler (no server changes needed)
  *
@@ -97,6 +110,21 @@ export default {
     this.modelReady = false;
     this.isProcessing = false; // Back-pressure: prevent overlapping transcriptions
     this.isCollapsed = localStorage.getItem('pavoi_voice_collapsed') === 'true';
+
+    // Rolling buffer for continuous speech processing
+    this.audioBuffer = [];              // Rolling buffer of audio samples
+    this.bufferMaxSamples = 80000;      // ~5 seconds at 16kHz
+    this.processInterval = null;        // Timer for periodic processing
+    this.processingIntervalMs = 2500;   // Process every 2.5 seconds
+    this.speechActive = false;          // Track if speech is currently detected
+    this.speechThreshold = 0.5;         // VAD probability threshold
+    this.silenceFrameCount = 0;         // Count consecutive silence frames
+    this.silenceFrameThreshold = 30;    // ~1 second of silence to stop (30 frames at ~30fps)
+
+    // Number deduplication
+    this.lastDetectedNumber = null;
+    this.lastDetectionTime = 0;
+    this.deduplicationWindowMs = 5000;  // Ignore same number within 5 seconds
 
     // Waveform visualization
     this.audioContext = null;
@@ -416,19 +444,26 @@ export default {
         // Use selected microphone (or default if not specified)
         ...(this.micSelect.value && { deviceId: this.micSelect.value }),
 
-        // Called when speech starts
-        onSpeechStart: () => {
-          console.log('[VoiceControl] Speech detected');
-          this.updateStatus('listening', 'Listening...');
-          this.startWaveformAnimation();
+        // Frame-level callback for continuous processing (called ~30x/sec)
+        // This is the primary mechanism for rolling buffer + periodic processing
+        onFrameProcessed: (probabilities, frame) => {
+          this.handleFrame(probabilities, frame);
         },
 
-        // Called when speech ends (with audio data)
+        // Called when VAD detects speech start (kept for logging)
+        onSpeechStart: () => {
+          console.log('[VoiceControl] VAD speech start event');
+          // Note: actual speech handling now done in handleFrame()
+        },
+
+        // Called when VAD detects speech end (backup processing)
         onSpeechEnd: (audio) => {
-          console.log('[VoiceControl] Speech ended, processing...');
-          this.stopWaveformAnimation();
-          this.updateStatus('processing', 'Processing...');
-          this.processAudio(audio);
+          console.log('[VoiceControl] VAD speech end event');
+          // Process the VAD-segmented audio as a backup
+          // (periodic processing should have already caught any numbers)
+          if (!this.isProcessing && audio.length > 8000) {
+            this.processAudio(audio);
+          }
         },
 
         // Called on false positives (ignored)
@@ -465,6 +500,9 @@ export default {
   stop({ keepStatus = false } = {}) {
     console.log('[VoiceControl] Stopping voice control...');
 
+    // Stop periodic processing
+    this.stopPeriodicProcessing();
+
     this.stopWaveformAnimation();
     this.cleanupAudioAnalysis();
 
@@ -474,8 +512,19 @@ export default {
       this.vad = null;
     }
 
+    // Reset state
     this.isActive = false;
     this.isProcessing = false;
+    this.speechActive = false;
+    this.silenceFrameCount = 0;
+
+    // Clear rolling buffer
+    this.audioBuffer = [];
+
+    // Reset deduplication (allow fresh detection on restart)
+    this.lastDetectedNumber = null;
+    this.lastDetectionTime = 0;
+
     this.toggleBtn.classList.remove('active');
     this.toggleBtn.querySelector('.text').textContent = 'Start';
 
@@ -495,7 +544,7 @@ export default {
   },
 
   /**
-   * Process audio chunk through Whisper
+   * Process audio chunk through Whisper (VAD fallback path)
    */
   processAudio(audioData) {
     // Back-pressure: don't send new audio if still processing
@@ -505,11 +554,12 @@ export default {
     }
 
     this.isProcessing = true;
+    // Keep showing waveform during background processing (don't show "Processing...")
 
     // Convert Float32Array to regular array for worker transfer
     const audioArray = Array.from(audioData);
 
-    console.log(`[VoiceControl] Sending ${audioArray.length} samples to worker`);
+    console.log(`[VoiceControl] Sending ${audioArray.length} samples to worker (VAD fallback)`);
 
     // Send to worker for transcription
     this.worker.postMessage({
@@ -519,12 +569,119 @@ export default {
   },
 
   /**
+   * Append audio frame to rolling buffer
+   * Maintains a fixed-size buffer of the last N samples
+   */
+  appendToBuffer(frame) {
+    // Append new samples
+    for (let i = 0; i < frame.length; i++) {
+      this.audioBuffer.push(frame[i]);
+    }
+
+    // Trim to max size (keep most recent samples)
+    if (this.audioBuffer.length > this.bufferMaxSamples) {
+      this.audioBuffer = this.audioBuffer.slice(-this.bufferMaxSamples);
+    }
+  },
+
+  /**
+   * Handle each audio frame from VAD (called ~30x/sec)
+   * Implements continuous speech detection with rolling buffer
+   */
+  handleFrame(probabilities, frame) {
+    // Always append to rolling buffer
+    this.appendToBuffer(frame);
+
+    const isSpeaking = probabilities.isSpeech > this.speechThreshold;
+
+    if (isSpeaking) {
+      // Reset silence counter when speech detected
+      this.silenceFrameCount = 0;
+
+      if (!this.speechActive) {
+        // Speech just started
+        console.log('[VoiceControl] Continuous speech started');
+        this.speechActive = true;
+        this.updateStatus('listening', 'Listening...');
+        this.startWaveformAnimation();
+        this.startPeriodicProcessing();
+      }
+    } else {
+      // Silence detected
+      if (this.speechActive) {
+        this.silenceFrameCount++;
+
+        // Check if silence has persisted long enough to stop processing
+        if (this.silenceFrameCount >= this.silenceFrameThreshold) {
+          console.log('[VoiceControl] Extended silence detected, pausing periodic processing');
+          this.speechActive = false;
+          this.stopPeriodicProcessing();
+
+          // Process any remaining buffer one final time
+          if (this.audioBuffer.length > 8000) {
+            this.processBufferedAudio();
+          }
+        }
+      }
+    }
+  },
+
+  /**
+   * Start periodic processing timer
+   * Processes audio buffer every N milliseconds during speech
+   */
+  startPeriodicProcessing() {
+    if (this.processInterval) return;
+
+    console.log(`[VoiceControl] Starting periodic processing every ${this.processingIntervalMs}ms`);
+
+    this.processInterval = setInterval(() => {
+      if (this.audioBuffer.length < 8000) {
+        // Skip if less than 0.5 seconds of audio
+        return;
+      }
+      this.processBufferedAudio();
+    }, this.processingIntervalMs);
+  },
+
+  /**
+   * Stop periodic processing timer
+   */
+  stopPeriodicProcessing() {
+    if (this.processInterval) {
+      console.log('[VoiceControl] Stopping periodic processing');
+      clearInterval(this.processInterval);
+      this.processInterval = null;
+    }
+  },
+
+  /**
+   * Process the current audio buffer through Whisper
+   */
+  processBufferedAudio() {
+    if (this.isProcessing) {
+      console.log('[VoiceControl] Already processing, skipping buffer');
+      return;
+    }
+
+    const audioData = new Float32Array(this.audioBuffer);
+    console.log(`[VoiceControl] Processing buffer: ${audioData.length} samples (~${(audioData.length / 16000).toFixed(1)}s)`);
+
+    this.isProcessing = true;
+    // Keep showing waveform during background processing (don't show "Processing...")
+
+    this.worker.postMessage({
+      type: 'transcribe',
+      data: { audio: Array.from(audioData) }
+    });
+  },
+
+  /**
    * Handle transcript from Whisper
+   * Includes deduplication to prevent repeated jumps during continuous speech
    */
   handleTranscript(text) {
     console.log('[VoiceControl] Transcript:', text);
-    // Transcript display removed from UI
-    // this.transcriptEl.textContent = `Heard: "${text}"`;
 
     // Extract number from transcript
     const number = this.extractNumber(text);
@@ -532,45 +689,59 @@ export default {
     // Support all two-digit numbers (1-99) to match keyboard shortcuts
     // Backend will validate against actual product count
     if (number !== null && number >= 1 && number <= 99) {
-      // Show pending status while we wait for server response
-      this.updateStatus('processing', `Jumping to product ${number}...`);
+      // Deduplication: check if this is the same number detected recently
+      const now = Date.now();
+      const isDuplicate = (
+        number === this.lastDetectedNumber &&
+        (now - this.lastDetectionTime) < this.deduplicationWindowMs
+      );
+
+      if (isDuplicate) {
+        console.log(`[VoiceControl] Ignoring duplicate: ${number} (within ${this.deduplicationWindowMs}ms window)`);
+        // Resume listening without showing error
+        if (this.isActive && this.speechActive) {
+          this.updateStatus('listening', 'Listening...');
+        }
+        return;
+      }
+
+      // Update deduplication tracking
+      this.lastDetectedNumber = number;
+      this.lastDetectionTime = now;
+
+      // Keep waveform showing while we send request
       console.log(`[VoiceControl] Requesting jump to product ${number}`);
 
       // Push event to LiveView with reply callback
       this.pushEvent("jump_to_product", { position: number.toString() }, (reply) => {
         if (reply.success) {
-          this.updateStatus('success', `Jumped to product ${reply.position}`);
+          // Briefly show success, then return to listening
+          this.updateStatus('success', `→ ${reply.position}`);
           console.log(`[VoiceControl] Successfully jumped to product ${reply.position}`);
         } else {
           this.updateStatus('error', reply.error || `Product ${number} not found`);
           console.warn(`[VoiceControl] Jump failed: ${reply.error}`);
         }
 
-        // Restart waveform after brief message
+        // Return to listening quickly (waveform keeps running)
         setTimeout(() => {
           if (this.isActive) {
             this.updateStatus('listening', 'Listening...');
-            this.startWaveformAnimation();
           }
-        }, 2000);
+        }, 1000);
       });
 
     } else {
-      // Invalid or out of range
-      const message = number === null
-        ? 'No number detected'
-        : `Invalid: ${number} (must be 1-99)`;
+      // No valid number detected - this is normal during continuous speech
+      // Only log, don't show error to user (too noisy during continuous mode)
+      if (text && text.trim()) {
+        console.log(`[VoiceControl] No number in transcript: "${text.substring(0, 50)}..."`);
+      }
 
-      this.updateStatus('error', message);
-      console.warn(`[VoiceControl] ${message}`);
-
-      // Restart waveform after brief error message
-      setTimeout(() => {
-        if (this.isActive) {
-          this.updateStatus('listening', 'Listening...');
-          this.startWaveformAnimation();
-        }
-      }, 2000);
+      // Resume listening state if still active
+      if (this.isActive && this.speechActive) {
+        this.updateStatus('listening', 'Listening...');
+      }
     }
   },
 
