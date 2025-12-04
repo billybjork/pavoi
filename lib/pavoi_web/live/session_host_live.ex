@@ -1,13 +1,13 @@
 defmodule PavoiWeb.SessionHostLive do
   @moduledoc """
   Host view for displaying product information during live streaming.
-  This view supports the same keyboard shortcuts as the producer view and displays:
+  This view supports the same keyboard shortcuts as the controller view and displays:
   - Current product information
   - Product images
   - Talking points
-  - Live messages from producer (as floating banner)
+  - Live messages from controller (as floating banner)
 
-  Changes made from either producer or host view are synchronized via PubSub.
+  Changes made from either controller or host view are synchronized via PubSub.
   """
   use PavoiWeb, :live_view
 
@@ -190,7 +190,7 @@ defmodule PavoiWeb.SessionHostLive do
     end
   end
 
-  # Handle PubSub broadcasts from producer
+  # Handle PubSub broadcasts from controller
   @impl true
   def handle_info({:state_changed, new_state}, socket) do
     socket = load_state_from_session_state(socket, new_state)

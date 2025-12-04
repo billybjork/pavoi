@@ -33,7 +33,7 @@
 - Built-in presence and PubSub
 
 **Elixir/BEAM Benefits:**
-- Handles concurrent connections efficiently (producer + host)
+- Handles concurrent connections efficiently (controller + host)
 - Fault-tolerant with supervision trees
 - Low latency for real-time updates (<100ms)
 - Proven for long-running processes (3-4 hour sessions)
@@ -55,8 +55,8 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Browser Clients                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Host View   │  │   Producer   │  │    Admin     │     │
-│  │  (Read-Only) │  │   Console    │  │    CRUD      │     │
+│  │  Host View   │  │  Controller  │  │    Admin     │     │
+│  │  (Read-Only) │  │    Panel     │  │    CRUD      │     │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
 └─────────┼──────────────────┼──────────────────┼────────────┘
           │                  │                  │
@@ -113,10 +113,10 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Data Flow: Producer Jumps to Product
+### 2.2 Data Flow: Controller Jumps to Product
 
 ```
-Producer Browser → keyboard input (number + Enter) → SessionProducerLive
+Controller Browser → keyboard input (number + Enter) → SessionControllerLive
   ↓
 Sessions.jump_to_product(session_id, position)
   ↓
@@ -124,7 +124,7 @@ Update session_states table + Broadcast PubSub
   ↓
 All subscribed LiveViews receive {:state_changed, new_state}
   ↓
-SessionProducerLive and SessionHostLive re-render with new product
+SessionControllerLive and SessionHostLive re-render with new product
 
 Note: Arrow keys (next/previous) also supported for convenience,
 but direct jumps are the primary navigation method.
@@ -212,20 +212,20 @@ _See [Implementation Guide](implementation_guide.md) for code examples._
 - Key Features:
   - Read-only (no keyboard controls)
   - Large product display with images and talking points
-  - Floating banner for producer messages
-  - PubSub sync for real-time updates from producer
+  - Floating banner for controller messages
+  - PubSub sync for real-time updates from controller
   - Memory-optimized with temporary assigns
 
-**SessionProducerLive** - Producer Control Panel
-- Route: `/sessions/:id/producer`
-- Purpose: Full control panel for managing live sessions
+**SessionControllerLive** - Session Controller Panel
+- Route: `/sessions/:id/controller`
+- Purpose: Mobile-optimized control panel for managing live sessions
 - Key Features:
   - **Voice control** - Hands-free navigation via speech recognition (Ctrl/Cmd+M)
   - Keyboard navigation controls (jump to product, cycle images)
   - Send live messages to host (persistent in database)
-  - View mode toggling (fullscreen config, split-screen, fullscreen host preview)
+  - Message presets for quick access to common messages
   - PubSub sync for real-time state management
-  - Memory-optimized with temporary assigns
+  - Touch-optimized for mobile devices
 
 
 **SessionEditLive** - Session Builder
@@ -280,7 +280,7 @@ _See [Implementation Guide](implementation_guide.md#sessionrunlive) for full cod
 _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete implementation details._
 
 **Other Hooks:**
-- **SessionHostKeyboard** - Keyboard navigation in producer view
+- **ControllerKeyboard** - Keyboard navigation in controller view
 - **ProductSortable** - Drag-and-drop product ordering
 - **ImageCarouselDrag** - Touch/mouse image carousel
 - **ThemeToggle** - Dark/light mode switching
@@ -337,7 +337,7 @@ _See [Implementation Guide](implementation_guide.md#performance) for implementat
 
 | Topic | Purpose | Subscribers | Payload |
 |-------|---------|-------------|---------|
-| `session:#{id}:state` | Current product/image changes + host messages | Host, Producer | SessionState struct with product_id, image_index, and host_message fields |
+| `session:#{id}:state` | Current product/image changes + host messages | Host, Controller | SessionState struct with product_id, image_index, and host_message fields |
 | `session:#{id}:meta` | Session metadata changes | Admin | `{name, notes, etc}` |
 | `session:#{id}:presence` | Who's connected | All | Presence data |
 
@@ -346,17 +346,17 @@ _See [Implementation Guide](implementation_guide.md#performance) for implementat
 ### 6.2 State Synchronization Flow
 
 **Navigation Flow:**
-1. **Producer triggers change** (keyboard event)
+1. **Controller triggers change** (keyboard/touch event)
 2. **Context function updates DB** and broadcasts
 3. **All subscribers receive** via `handle_info/2`
 4. **LiveViews re-render** with new state
 
 **Host Message Flow:**
-1. **Producer sends message** (form submission)
+1. **Controller sends message** (form submission)
 2. **`Sessions.send_host_message/2`** updates SessionState with message text, ID, timestamp
 3. **Broadcast via `:state` topic** includes updated SessionState
 4. **Host view receives broadcast** and displays floating banner
-5. **Producer can clear message** via `Sessions.clear_host_message/1`
+5. **Controller can clear message** via `Sessions.clear_host_message/1`
 
 **Key Decision:** DB-first approach (write to DB then broadcast) for resilience. State survives crashes and browser refreshes. Host messages are persisted to enable session history and review.
 
@@ -409,12 +409,12 @@ _See [Implementation Guide](implementation_guide.md#error-handling) for patterns
 
 ### 8.1 Authentication (MVP)
 
-- **Hashed shared secrets per role** (host, producer, admin) stored in config and compared with `Comeonin`/`bcrypt` rather than plain-text equality.
+- **Hashed shared secrets per role** (host, controller, admin) stored in config and compared with `Comeonin`/`bcrypt` rather than plain-text equality.
 - **Short-lived session tokens** scoped to the role that logged in; revoke on logout and after prolonged inactivity (4h maximum).
 - **Rate limiting + lockouts** on the login endpoint to defend against credential stuffing; log failed attempts for audit.
-- **Signed invite links** for one-off access when onboarding new producers without redeploying secrets.
+- **Signed invite links** for one-off access when onboarding new operators without redeploying secrets.
 
-**Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Producer, Host, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
+**Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Controller, Host, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
 
 ### 8.2 Database & Storage Security
 
@@ -434,7 +434,7 @@ _See [Implementation Guide](implementation_guide.md) for configuration details._
 - **Strict-Transport-Security** headers on the Phoenix endpoint so browsers refuse to downgrade.
 - **WebSocket over WSS** only; block insecure origins in the Endpoint.
 
-These guard rails keep remote producers safe when connecting over public networks.
+These guard rails keep remote controllers safe when connecting over public networks.
 
 ---
 

@@ -34,7 +34,7 @@ Visit `http://localhost:4000` to access the application.
 TikTok live streaming sessions (3-4 hours) need:
 - Organized product catalogs and talking points
 - Efficient navigation during live streams
-- Real-time coordination between hosts and producers
+- Real-time coordination between hosts and controllers
 - Easy remote control and editing
 
 ### The Solution
@@ -42,7 +42,7 @@ Pavoi provides:
 - **Product Catalog Management** - CRUD interface for products, images, and talking points (manual entry + Shopify sync)
 - **Session Planning** - Build sessions with product selection, ordering, and per-session overrides
 - **Host View** - Large-format display optimized for streaming with keyboard navigation
-- **Producer Console** - Remote control of session state with real-time sync
+- **Controller Panel** - Remote control of session state with real-time sync
 
 ### Tech Stack
 
@@ -70,8 +70,8 @@ Pavoi provides:
 ┌─────────────────────────────────────┐
 │         LiveView Clients            │
 │  ┌──────────┐      ┌──────────┐    │
-│  │   Host   │      │ Producer │    │
-│  │   View   │      │ Console  │    │
+│  │   Host   │      │Controller│    │
+│  │   View   │      │  Panel   │    │
 │  └────┬─────┘      └────┬─────┘    │
 │       │                 │           │
 │       └────────┬────────┘           │
@@ -135,7 +135,7 @@ Pavoi.Catalog.create_product(%{
 2. Select or create session
 3. Add products and reorder
 4. Click "Start Session" → opens Host View
-5. Share URL with producer for remote control
+5. Share URL with controller for remote control
 
 ## Support & Contributing
 

@@ -1,6 +1,6 @@
 # Pavoi
 
-Phoenix LiveView app for TikTok live streaming sessions. Real-time product catalog with keyboard-driven navigation and synchronized host/producer views.
+Phoenix LiveView app for TikTok live streaming sessions. Real-time product catalog with keyboard-driven navigation and synchronized host/controller views.
 
 ## Setup
 
@@ -14,7 +14,7 @@ mix assets.build
 mix phx.server
 ```
 
-Visit: **http://localhost:4000/sessions/1/producer**
+Visit: **http://localhost:4000/sessions/1/controller**
 
 ## Controls
 

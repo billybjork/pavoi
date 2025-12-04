@@ -446,7 +446,7 @@ defmodule PavoiWeb.CoreComponents do
           class="navbar__menu-trigger"
           aria-label="Open menu"
           aria-haspopup="true"
-          phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out")}
+          phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out", display: "flex")}
         >
           ⋮
         </button>

@@ -165,8 +165,9 @@
     display: flex;
   }
 
-  /* Convert menu to dropdown on mobile */
+  /* Convert menu to dropdown on mobile - hidden by default */
   .navbar__menu {
+    display: none;
     position: absolute;
     right: var(--space-4);
     top: 100%;

@@ -11,7 +11,7 @@ This guide tracks implementation progress and provides instructions for remainin
 - [x] **Dependencies** - earmark, req, oban, openai_ex
 - [x] **Domain Model** - All schemas and migrations (brands, products, product_images, sessions, session_products, session_states)
 - [x] **Contexts** - Catalog and Sessions contexts with CRUD operations
-- [x] **SessionHostLive & SessionProducerLive** - Separated views with real-time state sync
+- [x] **SessionHostLive & SessionControllerLive** - Separated views with real-time state sync
 - [x] **Template** - Dark theme UI optimized for live streaming (3-foot viewing distance)
 - [x] **Keyboard Navigation** - JS hooks for hands-free control (direct jump + arrow keys)
 - [x] **Voice Control** - Local speech recognition with Whisper.js + Silero VAD (see VOICE_CONTROL_PLAN.md)
@@ -73,8 +73,8 @@ end
 ### 1.2 LiveView Tests
 
 ```elixir
-# test/pavoi_web/live/session_producer_live_test.exs
-defmodule PavoiWeb.SessionProducerLiveTest do
+# test/pavoi_web/live/session_controller_live_test.exs
+defmodule PavoiWeb.SessionControllerLiveTest do
   use PavoiWeb.ConnCase
   import Phoenix.LiveViewTest
 
@@ -82,7 +82,7 @@ defmodule PavoiWeb.SessionProducerLiveTest do
     session = insert(:session)
     sp1 = insert(:session_product, session: session, position: 1)
 
-    {:ok, view, html} = live(conn, ~p"/sessions/#{session}/producer")
+    {:ok, view, html} = live(conn, ~p"/sessions/#{session}/controller")
 
     assert html =~ session.name
     assert has_element?(view, "#product-img-#{sp1.product_id}-0")
@@ -112,7 +112,7 @@ When deploying to production or remote access is required:
 
 1. **Create role-specific secrets** and store in `.env`:
    ```bash
-   PRODUCER_SHARED_SECRET=...
+   CONTROLLER_SHARED_SECRET=...
    HOST_SHARED_SECRET=...
    ADMIN_SHARED_SECRET=...
    ```
@@ -120,7 +120,7 @@ When deploying to production or remote access is required:
 2. **Hash secrets on boot** in `config/runtime.exs`:
    ```elixir
    config :pavoi, Pavoi.Auth,
-     producer_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("PRODUCER_SHARED_SECRET")),
+     controller_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("CONTROLLER_SHARED_SECRET")),
      host_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("HOST_SHARED_SECRET")),
      admin_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("ADMIN_SHARED_SECRET")),
      session_ttl: 4 * 60 * 60
@@ -130,7 +130,7 @@ When deploying to production or remote access is required:
 4. **Throttle** `/login` route (e.g., using `Hammer`) to 5 attempts/min/IP
 5. **Log audit events** (login, logout, elevated actions) with structured metadata
 
-Designate plugs (`PavoiWeb.RequireProducer`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
+Designate plugs (`PavoiWeb.RequireController`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
 
 ---
 
@@ -291,7 +291,7 @@ When you're ready to continue development:
 **Ready for use:**
 ```bash
 mix phx.server
-# Visit: http://localhost:4000/sessions/2/producer
+# Visit: http://localhost:4000/sessions/2/controller
 ```
 
 **Next priorities:**

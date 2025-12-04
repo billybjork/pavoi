@@ -303,7 +303,7 @@ A live streaming event with a curated product lineup.
 | `name` | varchar(500) | NOT NULL | Session name (e.g., "Holiday Favorites - Dec 2024 AM") |
 | `slug` | varchar(255) | NOT NULL, UNIQUE | URL-safe identifier |
 | `brand_id` | bigint | NOT NULL, REFERENCES brands(id) | Primary brand for session |
-| `notes` | text | NULLABLE | Producer notes |
+| `notes` | text | NULLABLE | Session notes |
 | `inserted_at` | timestamp | NOT NULL | Record creation |
 | `updated_at` | timestamp | NOT NULL | Last update |
 
@@ -409,7 +409,7 @@ Products assigned to a session with ordering and per-session overrides.
 | `featured_talking_points_md` | text | NULLABLE | Session-specific talking points |
 | `featured_original_price_cents` | integer | NULLABLE | Session-specific original price |
 | `featured_sale_price_cents` | integer | NULLABLE | Session-specific sale price |
-| `notes` | text | NULLABLE | Producer notes for this session |
+| `notes` | text | NULLABLE | Internal notes for this session |
 | `inserted_at` | timestamp | NOT NULL | Record creation |
 | `updated_at` | timestamp | NOT NULL | Last update |
 
@@ -868,7 +868,7 @@ end
 **Alternatives Considered:**
 - Memory-only (fast but not resilient)
 - Redis cache (adds dependency)
-- URL params only (works but no producer control)
+- URL params only (works but no remote control)
 
 **Solution:** Store in DB + URL params + PubSub.
 

@@ -14,17 +14,17 @@ Purpose-built application for TikTok streaming sessions that serves as:
 
 2. **Host View for Live Streaming**
    - Optimized for 3–4 hour TikTok streaming sessions
-   - Read-only display controlled by producer
+   - Read-only display controlled by controller
    - Clear, high-contrast display of product information and images
    - Large, readable fonts suitable for reading while on camera
    - Minimal cognitive load during live performance
-   - Floating banner for live messages from producer
+   - Floating banner for live messages from controller
 
 3. **Remote Editing Capability**
-   - Enable producer to edit catalog and sessions from outside studio
-   - Real-time synchronization between host and producer views
+   - Enable controller to edit catalog and sessions from outside studio
+   - Real-time synchronization between host and controller views
    - Allow for on-the-fly session adjustments during live streams
-   - Producer can send live messages to host during session
+   - Controller can send live messages to host during session
 
 4. **Robust & Simple Implementation**
    - Idiomatic Phoenix/LiveView patterns
@@ -55,7 +55,7 @@ These features are explicitly deferred to post-MVP phases:
 
 **User Experience:**
 - Host view must be readable while on camera
-- Producer controls must sync to host view within 1 second
+- Controller changes must sync to host view within 1 second
 - Images must load smoothly with no visible flashing
 - Host messages must be clearly visible as floating banners
 
@@ -101,9 +101,9 @@ These features are explicitly deferred to post-MVP phases:
 - Can read talking points without squinting
 - Never experiences visible loading delays for images
 
-### Persona 2: Producer (Secondary User)
+### Persona 2: Controller Operator (Secondary User)
 
-**Name:** Mike (Session Producer)
+**Name:** Mike (Session Controller)
 **Role:** Remote session controller and content manager
 
 **Responsibilities:**
@@ -169,7 +169,7 @@ These features are explicitly deferred to post-MVP phases:
 
 ### Epic 1: Session Preparation
 
-**US-1.1: As a producer, I want to create a new session with a name, so I can prepare for an upcoming live stream.**
+**US-1.1: As a controller, I want to create a new session with a name, so I can prepare for an upcoming live stream.**
 
 **Acceptance Criteria:**
 - Can create session with name
@@ -177,7 +177,7 @@ These features are explicitly deferred to post-MVP phases:
 - Session appears in session list
 - Can add notes for internal reference
 
-**US-1.2: As a producer, I want to search and select products for a session, so I can build a curated product lineup.**
+**US-1.2: As a controller, I want to search and select products for a session, so I can build a curated product lineup.**
 
 **Acceptance Criteria:**
 - Can search products by name, SKU, or PID
@@ -185,7 +185,7 @@ These features are explicitly deferred to post-MVP phases:
 - Can preview product images and details
 - Selected products are added to session
 
-**US-1.3: As a producer, I want to reorder products in a session, so I can optimize the presentation flow.**
+**US-1.3: As a controller, I want to reorder products in a session, so I can optimize the presentation flow.**
 
 **Acceptance Criteria:**
 - Can drag-and-drop products to reorder
@@ -193,7 +193,7 @@ These features are explicitly deferred to post-MVP phases:
 - Position numbers update automatically
 - Can group products into sections (optional)
 
-**US-1.4: As a producer, I want to override talking points for specific sessions, so I can customize messaging without changing the global product.**
+**US-1.4: As a controller, I want to override talking points for specific sessions, so I can customize messaging without changing the global product.**
 
 **Acceptance Criteria:**
 - Can edit per-session talking points
@@ -237,12 +237,12 @@ These features are explicitly deferred to post-MVP phases:
 - Font size is readable from 3 feet away
 - Bullet points don't wrap excessively
 
-**US-2.5: As a producer, I want to control the host view remotely, so I can help navigate during the stream.**
+**US-2.5: As a controller, I want to control the host view remotely, so I can help navigate during the stream.**
 
 **Acceptance Criteria:**
-- Producer and host see synchronized state
-- Producer navigation changes host view within 1 second
-- Both can navigate independently (producer's changes take precedence)
+- Controller and host see synchronized state
+- Controller navigation changes host view within 1 second
+- Both can navigate independently (controller's changes take precedence)
 - Connection status is visible
 
 ### Epic 3: Catalog Management
@@ -276,7 +276,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 - Refresh returns to exact same product/image
 - Session state survives browser close/reopen
 
-**US-4.2: As host, I want to see connection status, so I know if I'm synced with the producer.**
+**US-4.2: As host, I want to see connection status, so I know if I'm synced with the controller.**
 
 **Acceptance Criteria:**
 - Connection indicator shows "Connected", "Reconnecting...", "Disconnected"
@@ -346,7 +346,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 - `Ctrl+P`: Print/export current session
 - `Ctrl+R`: Refresh/re-sync state
 
-### 4.3 Producer Console
+### 4.3 Controller Panel
 
 **Layout Differences from Host View:**
 - Smaller preview of current product
@@ -450,7 +450,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 
 **Workflow:**
 - Host opens session URL, leaves it open 3-4 hours
-- Producer can connect from anywhere
+- Controller can connect from anywhere
 - No need to restart during session
 - Session can be paused/resumed
 
@@ -465,7 +465,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 - [ ] Session can be created and products assigned
 - [ ] Jump-to-product by number (primary navigation method)
 - [ ] Host can navigate all 40 products with keyboard only
-- [ ] Producer can control host view remotely in <1s sync
+- [ ] Controller can control host view remotely in <1s sync
 - [ ] Images preload without visible delay
 - [ ] State persists across browser refresh
 - [ ] Connection recovers automatically after interruption
@@ -500,7 +500,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 **User Satisfaction:**
 - Host confidence rating (target: 9/10)
 - Navigation speed vs. Google Sheets (target: 3x faster)
-- Producer setup time (target: <15 minutes)
+- Session setup time (target: <15 minutes)
 - Technical support requests (target: <1 per 10 sessions)
 
 ### Rollout Plan
@@ -512,7 +512,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 
 **Phase 2: Dress Rehearsal**
 - Full 40-product session, 2-hour test stream
-- Producer and host use simultaneously
+- Controller and host use simultaneously
 - Monitor performance and errors
 
 **Phase 3: Soft Launch**
@@ -537,7 +537,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 ### Technical Decisions
 - [ ] Authentication approach: Hashed shared secrets (see Implementation Guide §1.5) vs. full per-user accounts?
 - [ ] How to handle multi-brand if needed sooner than expected?
-- [ ] Should producer changes during stream be logged for review/audit history?
+- [ ] Should controller changes during stream be logged for review/audit history?
 
 ### Operational Decisions
 - [ ] Who manages product catalog day-to-day?
@@ -550,7 +550,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 
 ### Google Sheets Workflow (Current State)
 
-**Preparation (Producer):**
+**Preparation (Session Prep):**
 1. Copy previous session sheet
 2. Manually update product list
 3. Copy/paste talking points from various sources
@@ -569,7 +569,7 @@ _Note: CSV import has been removed. Products are now managed via Shopify sync an
 - Scrolling is slow and imprecise
 - Formatting breaks unexpectedly
 - Images are not embedded (URLs only)
-- No synchronization between host and producer
+- No synchronization between host and controller
 - Easy to lose place in sheet
 - Accidental edits during live stream
 - Sheet becomes sluggish with 40+ rows

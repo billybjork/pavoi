@@ -2,8 +2,8 @@ defmodule PavoiWeb.HostViewComponents do
   @moduledoc """
   Shared components for host view display across different contexts:
   - Actual host view (sessions/:id/host)
-  - Producer fullscreen preview
-  - Producer split-screen preview
+  - Controller fullscreen preview
+  - Controller split-screen preview
 
   These components ensure consistency across all three presentations.
   """

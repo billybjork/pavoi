@@ -10,7 +10,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Features:**
 - ✅ Product catalog CRUD
 - ✅ Session planning and management
-- ✅ Real-time host/producer views
+- ✅ Real-time host/controller views
 - ✅ Keyboard-driven navigation
 - ✅ Image management (object storage)
 - ✅ Per-session product overrides
@@ -20,7 +20,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Success Criteria:**
 - Replace Google Sheets for live streaming
 - 3-4 hour sessions without performance degradation
-- <1s sync latency between host and producer
+- <1s sync latency between host and controller
 - <15 minute session preparation time
 
 ---
@@ -111,7 +111,7 @@ end
 - Alert host to trending topics
 
 **Display:**
-- Sidebar in producer view
+- Sidebar in controller view
 - "Top Questions" panel
 - Product request counter
 
@@ -205,7 +205,7 @@ end
 - Button mapping configuration
 
 **Benefits:**
-- Tactile control for producer
+- Tactile control for controller
 - Faster navigation than keyboard
 - Professional production feel
 
@@ -260,7 +260,7 @@ _See [VOICE_CONTROL_PLAN.md](../VOICE_CONTROL_PLAN.md) for complete documentatio
 
 **Roles:**
 - **Admin** - Full access, configuration
-- **Producer** - Session management, live control
+- **Controller** - Session management, live control
 - **Host** - Read-only during sessions
 - **Cataloger** - Product CRUD only
 
