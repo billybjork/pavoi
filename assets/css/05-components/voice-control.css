@@ -143,6 +143,17 @@
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Side-by-side layout for mic selection and status */
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 320px) {
+  .voice-control-body {
+    flex-direction: column;
+  }
 }
 
 .voice-control-panel.collapsed .voice-control-body {
@@ -154,7 +165,8 @@
 
 /* Microphone Selection */
 .mic-selection {
-  margin-bottom: 16px;
+  flex: 1 1 50%;
+  min-width: 0;
 }
 
 .mic-selection label {
@@ -194,10 +206,11 @@
   gap: 10px;
   padding: 12px;
   border-radius: 8px;
-  margin-bottom: 12px;
   transition: all 0.3s ease;
   position: relative;
   min-height: 46px;
+  flex: 1 1 50%;
+  min-width: 0;
 }
 
 .status-dot {
