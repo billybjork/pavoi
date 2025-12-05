@@ -40,6 +40,7 @@ defmodule PavoiWeb.SessionControllerLive do
         host_message: nil,
         message_draft: "",
         selected_color: "amber",
+        message_panel_collapsed: true,
         message_presets: message_presets,
         show_preset_modal: false,
         voice_assets: voice_assets,
@@ -109,6 +110,11 @@ defmodule PavoiWeb.SessionControllerLive do
 
   # Host Message Controls
   @impl true
+  def handle_event("toggle_message_panel", _params, socket) do
+    {:noreply, assign(socket, :message_panel_collapsed, !socket.assigns.message_panel_collapsed)}
+  end
+
+  @impl true
   def handle_event("send_host_message", %{"message" => message_text}, socket) do
     color = socket.assigns.selected_color
 
@@ -117,7 +123,7 @@ defmodule PavoiWeb.SessionControllerLive do
         socket =
           socket
           |> assign(:message_draft, message_text)
-          |> put_flash(:info, "Message sent")
+          |> assign(:message_panel_collapsed, true)
 
         {:noreply, socket}
 
@@ -140,7 +146,7 @@ defmodule PavoiWeb.SessionControllerLive do
   def handle_event("clear_host_message", _params, socket) do
     case Sessions.clear_host_message(socket.assigns.session_id) do
       {:ok, _state} ->
-        {:noreply, put_flash(socket, :info, "Message cleared")}
+        {:noreply, socket}
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to clear message")}
@@ -177,8 +183,9 @@ defmodule PavoiWeb.SessionControllerLive do
             socket =
               socket
               |> assign(:message_draft, text)
+              |> assign(:selected_color, color)
               |> assign(:show_preset_modal, false)
-              |> put_flash(:info, "Message sent")
+              |> assign(:message_panel_collapsed, true)
 
             {:noreply, socket}
 

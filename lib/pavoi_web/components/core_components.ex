@@ -420,26 +420,26 @@ defmodule PavoiWeb.CoreComponents do
           <img src={~p"/images/logo-light.svg"} class="navbar__logo navbar__logo--light" alt="Pavoi" />
           <img src={~p"/images/logo-dark.svg"} class="navbar__logo navbar__logo--dark" alt="Pavoi" />
         </.link>
-        <div class="navbar__nav">
-          <.link
-            href={~p"/sessions"}
-            class={["navbar__link", @current_page == :sessions && "navbar__link--active"]}
-          >
-            Sessions
-          </.link>
-          <.link
-            href={~p"/products"}
-            class={["navbar__link", @current_page == :products && "navbar__link--active"]}
-          >
-            Products
-          </.link>
-          <.link
-            href={~p"/creators"}
-            class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
-          >
-            Creators
-          </.link>
-        </div>
+      </div>
+      <div class="navbar__nav">
+        <.link
+          href={~p"/sessions"}
+          class={["navbar__link", @current_page == :sessions && "navbar__link--active"]}
+        >
+          Sessions
+        </.link>
+        <.link
+          href={~p"/products"}
+          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+        >
+          Products
+        </.link>
+        <.link
+          href={~p"/creators"}
+          class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
+        >
+          Creators
+        </.link>
       </div>
       <div class="navbar__end">
         <button
@@ -459,7 +459,7 @@ defmodule PavoiWeb.CoreComponents do
             :if={@current_page == :sessions}
             variant="primary"
             size="sm"
-            phx-click="show_new_session_modal"
+            phx-click={JS.push("show_new_session_modal") |> JS.hide(to: "#navbar-menu", transition: "fade-out")}
           >
             New Session
           </.button>

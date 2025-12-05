@@ -42,6 +42,14 @@
   padding-bottom: var(--space-16);
 }
 
+/* Mobile: Reduce region top spacing to match page-header gaps */
+@media (max-width: 640px) {
+  .region {
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-6);
+  }
+}
+
 /* Stack - Vertical layout with consistent spacing */
 .stack {
   display: flex;

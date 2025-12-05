@@ -21,17 +21,29 @@
   </div>
 
   <%!-- Message to Host (Collapsible, starts collapsed) --%>
-  <div id="message-panel" class="controller-panel controller-panel--message controller-panel--collapsed">
-    <button
-      type="button"
-      class="controller-panel__header"
-      phx-click={JS.toggle_class("controller-panel--collapsed", to: "#message-panel")}
-    >
+  <div id="message-panel" class={[
+    "controller-panel controller-panel--message",
+    @message_panel_collapsed && "controller-panel--collapsed"
+  ]}>
+    <div class="controller-panel__header" phx-click="toggle_message_panel">
       <span class="controller-panel__title">Message to Host</span>
+      <%= if @host_message && @message_panel_collapsed do %>
+        <div class={"message-preview message-preview--#{@host_message.color}"}>
+          <span class="message-preview__text"><%= @host_message.text %></span>
+          <button
+            type="button"
+            class="message-preview__clear"
+            phx-click="clear_host_message"
+            aria-label="Clear message"
+          >
+            ×
+          </button>
+        </div>
+      <% end %>
       <svg class="controller-panel__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="6 9 12 15 18 9"></polyline>
       </svg>
-    </button>
+    </div>
 
     <div class="controller-panel__body">
       <form phx-submit="send_host_message" class="controller-message-form">

@@ -219,29 +219,25 @@ export default {
   setupUI() {
     console.log('[VoiceControl] Setting up UI...');
 
-    // Create UI structure
+    // Create UI structure using shared controller-panel classes
+    // Note: header is a div (not button) because it contains the toggle button
     this.el.innerHTML = `
-      <div class="voice-control-panel${this.isCollapsed ? ' collapsed' : ''}">
-        <div class="voice-control-header">
-          <div class="voice-control-title">
-            <button id="voice-minimize" class="voice-minimize-btn" title="Minimize">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-            <h3>Voice Control</h3>
-          </div>
+      <div class="voice-control-panel${this.isCollapsed ? ' controller-panel--collapsed' : ''}">
+        <div class="controller-panel__header" id="voice-header">
+          <span class="controller-panel__title">Voice Control</span>
           <div class="voice-control-actions">
-            <button id="voice-toggle" class="voice-toggle-btn" disabled>
+            <button type="button" id="voice-toggle" class="voice-toggle-btn" disabled>
               <span class="text">Loading model...</span>
             </button>
           </div>
+          <svg class="controller-panel__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
 
-        <div class="voice-control-body">
+        <div class="controller-panel__body">
           <!-- Microphone Selection -->
           <div class="mic-selection">
-            <label for="mic-select">Microphone</label>
             <select id="mic-select">
               <option value="">Loading microphones...</option>
             </select>
@@ -261,8 +257,7 @@ export default {
 
     // Get references to UI elements
     this.panel = this.el.querySelector('.voice-control-panel');
-    this.header = this.el.querySelector('.voice-control-header');
-    this.minimizeBtn = this.el.querySelector('#voice-minimize');
+    this.header = this.el.querySelector('#voice-header');
     this.toggleBtn = this.el.querySelector('#voice-toggle');
     this.micSelect = this.el.querySelector('#mic-select');
     this.statusEl = this.el.querySelector('#voice-status');
@@ -278,17 +273,17 @@ export default {
     requestAnimationFrame(() => this.setupCanvas());
 
     // Wire up event listeners
-    this.minimizeBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent header click from also firing
-      this.toggleCollapse();
-    });
     this.toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation(); // Prevent header click from also firing
       this.toggle();
     });
 
     // Make the entire header clickable for expand/collapse
-    this.header.addEventListener('click', () => this.toggleCollapse());
+    this.header.addEventListener('click', (e) => {
+      // Don't collapse if clicking the toggle button
+      if (e.target.closest('#voice-toggle')) return;
+      this.toggleCollapse();
+    });
 
     this.micSelect.addEventListener('change', () => {
       const selectedMic = this.micSelect.value;
@@ -392,7 +387,7 @@ export default {
    */
   toggleCollapse() {
     this.isCollapsed = !this.isCollapsed;
-    this.panel.classList.toggle('collapsed', this.isCollapsed);
+    this.panel.classList.toggle('controller-panel--collapsed', this.isCollapsed);
     localStorage.setItem('pavoi_voice_collapsed', this.isCollapsed);
   },
 

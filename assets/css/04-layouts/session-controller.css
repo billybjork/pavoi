@@ -35,7 +35,7 @@
 .controller-panel__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
@@ -45,6 +45,7 @@
   -webkit-tap-highlight-color: transparent;
   color: inherit;
   font-family: inherit;
+  text-align: left;
 }
 
 .controller-panel__header:active {
@@ -52,6 +53,7 @@
 }
 
 .controller-panel__title {
+  flex: 1;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
@@ -89,6 +91,81 @@
 /* ==========================================================================
    MESSAGE PANEL
    ========================================================================== */
+
+/* Message Preview (shown in collapsed header when message is active) */
+.message-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 12px;
+  max-width: 200px;
+}
+
+.message-preview__text {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Color variants for preview */
+.message-preview--amber {
+  background-color: var(--color-accent-amber);
+  color: #000;
+}
+.message-preview--blue {
+  background-color: var(--color-accent-blue);
+  color: #fff;
+}
+.message-preview--green {
+  background-color: var(--color-accent-green);
+  color: #fff;
+}
+.message-preview--red {
+  background-color: var(--color-accent-red);
+  color: #fff;
+}
+.message-preview--purple {
+  background-color: var(--color-accent-purple);
+  color: #fff;
+}
+.message-preview--gray {
+  background-color: var(--color-text-secondary);
+  color: #fff;
+}
+
+/* Clear button inside preview bubble */
+.message-preview__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: var(--radius-full);
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.message-preview__clear:hover {
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 1;
+}
+
+.message-preview__clear:active {
+  transform: scale(0.9);
+}
 
 .controller-message-form {
   display: flex;
@@ -129,12 +206,13 @@
 /* Inline Color Picker */
 .controller-color-picker {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  align-items: center;
 }
 
 .controller-color-btn {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--radius-full);
   border: 2px solid transparent;
   cursor: pointer;
@@ -166,16 +244,19 @@
   gap: var(--space-2);
 }
 
-/* Controller Buttons */
+/* Controller Buttons - matches voice toggle button size */
 .controller-btn {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
   border: none;
-  min-height: 44px; /* Touch target minimum */
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
 }
@@ -197,6 +278,8 @@
   background-color: var(--color-surface-secondary);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border-primary);
+  /* Adjust padding to account for border so size matches primary */
+  padding: 7px 15px;
 }
 
 .controller-btn--secondary:active {
@@ -278,7 +361,7 @@
 }
 
 .controller-products__grid {
-  flex: 1;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--space-3);
@@ -393,7 +476,7 @@
 
 /* ==========================================================================
    VOICE CONTROL PANEL (Bottom)
-   Override positioning from voice-control.css
+   Uses shared controller-panel styles, just needs positioning overrides
    ========================================================================== */
 
 .controller-panel--voice {
@@ -410,6 +493,7 @@
   border-radius: 0;
   border: none;
   box-shadow: none;
+  background: transparent;
 }
 
 /* ==========================================================================

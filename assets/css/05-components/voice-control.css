@@ -1,92 +1,16 @@
 /**
  * Voice Control Panel Component
  *
- * Styles for the voice-activated product navigation panel.
- * Fixed position in bottom-right corner of controller view.
+ * Styles for voice-specific elements within the controller panel.
+ * Uses shared .controller-panel styles for the panel chrome (header, body, collapse).
  */
 
-/* Main Panel Container */
-.voice-control-panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 320px;
-  background: var(--color-bg-secondary);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--color-border-primary);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  z-index: 1000;
-  font-family: var(--font-sans);
-}
-
-/* Header Section */
-.voice-control-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid var(--color-border-primary);
-  gap: 12px;
-  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  user-select: none;
-}
-
-.voice-control-panel.collapsed .voice-control-header {
-  border-bottom-color: transparent;
-}
-
-.voice-control-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.voice-control-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.voice-minimize-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.voice-minimize-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.voice-minimize-btn svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.3s ease;
-}
-
-.voice-control-panel.collapsed .voice-minimize-btn svg {
-  transform: rotate(180deg);
-}
-
+/* Voice control actions in header */
 .voice-control-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-right: var(--space-2);
 }
 
 /* Toggle Button */
@@ -101,6 +25,7 @@
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -134,57 +59,35 @@
   line-height: 1;
 }
 
-/* Body Section */
-.voice-control-body {
-  padding: 16px;
-  max-height: 500px;
-  overflow: hidden;
-  opacity: 1;
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Side-by-side layout for mic selection and status */
+/* Voice panel body uses side-by-side layout for mic selection and status */
+.voice-control-panel .controller-panel__body {
   display: flex;
   gap: 12px;
   align-items: stretch;
 }
 
 @media (max-width: 320px) {
-  .voice-control-body {
+  .voice-control-panel .controller-panel__body {
     flex-direction: column;
   }
-}
-
-.voice-control-panel.collapsed .voice-control-body {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
 }
 
 /* Microphone Selection */
 .mic-selection {
   flex: 1 1 50%;
   min-width: 0;
-}
-
-.mic-selection label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  display: flex;
 }
 
 .mic-selection select {
   width: 100%;
-  padding: 8px 12px;
+  height: 100%;
+  padding: 6px 10px;
   border: 1px solid var(--color-border-primary);
   border-radius: 6px;
   background: var(--color-surface-primary);
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
@@ -203,12 +106,12 @@
 .voice-status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
   transition: all 0.3s ease;
   position: relative;
-  min-height: 46px;
+  min-height: 34px;
   flex: 1 1 50%;
   min-width: 0;
 }
@@ -356,21 +259,7 @@
   }
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .voice-control-panel {
-    bottom: 10px;
-    right: 10px;
-    left: 10px;
-    width: auto;
-  }
-}
-
 /* Dark Mode Support */
-.dark .voice-control-panel {
-  background: var(--color-surface-secondary);
-}
-
 .dark .voice-status.status-loading {
   background: rgba(96, 165, 250, 0.15);
 }

@@ -38,12 +38,10 @@
   background: var(--color-surface-secondary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 
-/* Fixed column widths */
+/* Fixed column widths - sized to fit header text + sort icon without truncation */
 .creator-table th:nth-child(1),
 .creator-table td:nth-child(1) { width: 130px; }  /* Username */
 .creator-table th:nth-child(2),
@@ -55,11 +53,11 @@
 .creator-table th:nth-child(5),
 .creator-table td:nth-child(5) { width: 110px; }  /* Followers */
 .creator-table th:nth-child(6),
-.creator-table td:nth-child(6) { width: 90px; }   /* GMV */
+.creator-table td:nth-child(6) { width: 80px; }   /* GMV */
 .creator-table th:nth-child(7),
-.creator-table td:nth-child(7) { width: 90px; }   /* Samples */
+.creator-table td:nth-child(7) { width: 105px; }  /* Samples */
 .creator-table th:nth-child(8),
-.creator-table td:nth-child(8) { width: 90px; }   /* Videos */
+.creator-table td:nth-child(8) { width: 95px; }   /* Videos */
 .creator-table th:nth-child(9),
 .creator-table td:nth-child(9) { width: 90px; }   /* Badge */
 
@@ -247,4 +245,15 @@
   display: flex;
   justify-content: center;
   padding: var(--space-6) 0;
+}
+
+/* Mobile: edge-to-edge table */
+@media (max-width: 768px) {
+  .creator-table-wrapper {
+    margin-left: calc(-1 * var(--space-4));
+    margin-right: calc(-1 * var(--space-4));
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
 }
