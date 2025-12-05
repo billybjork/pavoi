@@ -101,17 +101,19 @@
           phx-value-position={sp.position}
           data-haptic="true"
         >
-          <span class="controller-product-card__position"><%= sp.position %></span>
-          <%= if image = primary_image(sp.product) do %>
-            <img
-              src={public_image_url(image.thumbnail_path || image.path)}
-              alt=""
-              class="controller-product-card__image"
-              loading="lazy"
-            />
-          <% else %>
-            <div class="controller-product-card__placeholder"></div>
-          <% end %>
+          <div class="controller-product-card__image-container">
+            <span class="controller-product-card__position"><%= sp.position %></span>
+            <%= if image = primary_image(sp.product) do %>
+              <img
+                src={public_image_url(image.thumbnail_path || image.path)}
+                alt=""
+                class="controller-product-card__image"
+                loading="lazy"
+              />
+            <% else %>
+              <div class="controller-product-card__placeholder"></div>
+            <% end %>
+          </div>
           <span class="controller-product-card__name"><%= sp.featured_name || sp.product.name %></span>
         </button>
       <% end %>
