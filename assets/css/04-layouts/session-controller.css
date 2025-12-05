@@ -366,11 +366,12 @@
   overflow-x: hidden;
   padding: var(--space-3);
 
-  /* Auto-fill grid with cards that include names */
+  /* Auto-fill grid with fixed-size cards */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, 120px);
   gap: var(--space-2);
   align-content: start;
+  justify-content: center;
 
   /* Smooth scrolling */
   -webkit-overflow-scrolling: touch;
@@ -500,10 +501,10 @@
    RESPONSIVE ADJUSTMENTS
    ========================================================================== */
 
-/* Slightly larger screens - increase grid density */
+/* Slightly larger screens - increase card size */
 @media (min-width: 400px) {
   .controller-products__grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, 140px);
     gap: var(--space-3);
   }
 
@@ -517,7 +518,7 @@
 /* Tablet portrait */
 @media (min-width: 600px) {
   .controller-products__grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, 160px);
     gap: var(--space-3);
   }
 
@@ -530,7 +531,7 @@
 /* Tablet landscape and larger */
 @media (min-width: 1024px) {
   .controller-products__grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, 180px);
     gap: var(--space-4);
   }
 }
