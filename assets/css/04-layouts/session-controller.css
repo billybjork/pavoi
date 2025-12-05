@@ -409,6 +409,8 @@
   -webkit-tap-highlight-color: transparent;
   width: 100%;
   min-width: 0;
+  min-height: 0; /* Allow grid item to size based on content, not stretch */
+  height: min-content; /* Safari fix: forces height calc from aspect-ratio child */
   text-align: left;
 }
 
