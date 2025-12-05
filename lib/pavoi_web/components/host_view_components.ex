@@ -75,14 +75,15 @@ defmodule PavoiWeb.HostViewComponents do
         </div>
       </div>
 
-      <%!-- PRODUCT SECTION: Header + Description + Talking Points + Variants --%>
+      <%!-- PRODUCT SECTION: Header + Description + Talking Points --%>
       <div class="host-product-section">
-        <%!-- Product Header: Position block + Name + Price --%>
+        <%!-- Product Header: Position block + Name + Price + Variants --%>
         <.product_header
           session_product={@current_session_product}
           product={@current_product}
           current_position={@current_position}
           total_products={@total_products}
+          variants={@current_product.product_variants || []}
         />
 
         <%!-- Description (compact) --%>
@@ -92,16 +93,6 @@ defmodule PavoiWeb.HostViewComponents do
 
         <%!-- Talking Points (primary content area) --%>
         <.talking_points_section talking_points_html={@talking_points_html} />
-
-        <%!-- Variants (compact, at bottom) --%>
-        <%= if @current_product.product_variants && length(@current_product.product_variants) > 0 do %>
-          <div class="host-variants">
-            <PavoiWeb.ProductComponents.product_variants
-              variants={@current_product.product_variants}
-              compact={true}
-            />
-          </div>
-        <% end %>
       </div>
     <% else %>
       <%= if @total_products == 0 do %>
@@ -209,47 +200,97 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
-  Product header with position number block, name, and pricing.
+  Product header with position number block, name, pricing, and variants.
   Redesigned for utilitarian display with prominent position badge.
+  Variants are collapsible and default to collapsed.
   """
   attr :session_product, :map, required: true
   attr :product, :map, required: true
   attr :current_position, :integer, default: nil
   attr :total_products, :integer, default: nil
+  attr :variants, :list, default: []
 
   def product_header(assigns) do
+    assigns = assign(assigns, :variant_id, "header-variants-#{System.unique_integer([:positive])}")
+
     ~H"""
     <div class="host-product-header">
-      <%!-- Position Number Block --%>
-      <%= if @current_position do %>
-        <div class="host-product-position">
-          {@current_position}
+      <%!-- Main row: Position + Name + Price + Variants toggle --%>
+      <div class="host-product-header__main">
+        <%!-- Position Number Block --%>
+        <%= if @current_position do %>
+          <div class="host-product-position">
+            {@current_position}
+          </div>
+        <% end %>
+
+        <%!-- Product Name --%>
+        <h1 class="host-product-name">
+          {get_effective_name(@session_product)}
+        </h1>
+
+        <%!-- Pricing --%>
+        <div class="host-product-pricing">
+          <% prices = get_effective_prices(@session_product) %>
+          <%= if prices.sale do %>
+            <span class="host-product-price--sale">
+              {format_price(prices.sale)}
+            </span>
+            <span class="host-product-price--original">
+              {format_price(prices.original)}
+            </span>
+          <% else %>
+            <span class="host-product-price">
+              {format_price(prices.original)}
+            </span>
+          <% end %>
         </div>
-      <% end %>
 
-      <%!-- Product Name --%>
-      <h1 class="host-product-name">
-        {get_effective_name(@session_product)}
-      </h1>
-
-      <%!-- Pricing --%>
-      <div class="host-product-pricing">
-        <% prices = get_effective_prices(@session_product) %>
-        <%= if prices.sale do %>
-          <span class="host-product-price--sale">
-            {format_price(prices.sale)}
-          </span>
-          <span class="host-product-price--original">
-            {format_price(prices.original)}
-          </span>
-        <% else %>
-          <span class="host-product-price">
-            {format_price(prices.original)}
-          </span>
+        <%!-- Variants toggle button --%>
+        <%= if @variants && length(@variants) > 0 do %>
+          <button
+            type="button"
+            class="host-variants-toggle"
+            phx-click={Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")}
+          >
+            <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
+            <span class="host-variants-toggle__icon"></span>
+          </button>
         <% end %>
       </div>
+
+      <%!-- Variants row (collapsed by default) --%>
+      <%= if @variants && length(@variants) > 0 do %>
+        <div id={@variant_id} class="host-variants-row">
+          <div class="host-variants-grid">
+            <%= for variant <- @variants do %>
+              <div class="host-variant-chip">
+                <span class="host-variant-chip__title">{variant.title}</span>
+                <%= if variant.compare_at_price_cents do %>
+                  <span class="host-variant-chip__price-sale">
+                    ${format_variant_price(variant.price_cents)}
+                  </span>
+                  <span class="host-variant-chip__price-original">
+                    ${format_variant_price(variant.compare_at_price_cents)}
+                  </span>
+                <% else %>
+                  <span class="host-variant-chip__price">
+                    ${format_variant_price(variant.price_cents)}
+                  </span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
+  end
+
+  defp format_variant_price(nil), do: "N/A"
+  defp format_variant_price(cents) when is_integer(cents) do
+    dollars = cents / 100
+    :erlang.float_to_binary(dollars, decimals: 2)
   end
 
   @doc """

@@ -9,8 +9,8 @@
  * - Press Escape to cancel pending jump
  *
  * Convenience Navigation (Sequential):
- * - Arrow keys (↑↓) for previous/next product
- * - Arrow keys (←→) for previous/next image
+ * - Arrow keys (←→) for previous/next product
+ * - Arrow keys (↑↓) for previous/next image
  * - Space for next product
  */
 export default {
@@ -38,12 +38,12 @@ export default {
       }
 
       switch (e.code) {
-        // CONVENIENCE: Sequential product navigation with arrow keys
-        case 'ArrowDown':
+        // PRODUCT navigation (left/right arrows)
+        case 'ArrowRight':
           this.pushEvent("next_product", {})
           break
 
-        case 'ArrowUp':
+        case 'ArrowLeft':
           this.pushEvent("previous_product", {})
           break
 
@@ -52,12 +52,12 @@ export default {
           this.pushEvent("next_product", {})
           break
 
-        // IMAGE navigation (always sequential)
-        case 'ArrowRight':
+        // IMAGE navigation (up/down arrows)
+        case 'ArrowDown':
           this.pushEvent("next_image", {})
           break
 
-        case 'ArrowLeft':
+        case 'ArrowUp':
           this.pushEvent("previous_image", {})
           break
 

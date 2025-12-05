@@ -209,13 +209,19 @@
 
 .host-product-header {
   display: flex;
-  align-items: center;
-  gap: var(--space-4);
+  flex-direction: column;
   flex-shrink: 0;
-  padding: var(--space-4) var(--space-5);
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
   border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.host-product-header__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
 }
 
 .host-product-position {
@@ -272,18 +278,122 @@
   text-decoration: line-through;
 }
 
+/* Variants toggle button - matches product position style */
+.host-variants-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-accent-blue);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.host-variants-toggle:hover {
+  background-color: var(--color-accent-blue-hover);
+}
+
+.host-variants-toggle__icon {
+  width: 12px;
+  height: 12px;
+  position: relative;
+}
+
+.host-variants-toggle__icon::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translate(-50%, -70%) rotate(45deg);
+  transition: transform var(--transition-fast);
+}
+
+/* Variants row - collapsed by default */
+.host-variants-row {
+  display: none;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.host-variants-row--expanded {
+  display: block;
+}
+
+.host-variants-row--expanded + .host-variants-toggle .host-variants-toggle__icon::before,
+.host-product-header:has(.host-variants-row--expanded) .host-variants-toggle__icon::before {
+  transform: translate(-50%, -30%) rotate(-135deg);
+}
+
+.host-variants-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Variant chips inside header */
+.host-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.host-variant-chip__title {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.host-variant-chip__price {
+  color: var(--color-accent-gold);
+}
+
+.host-variant-chip__price-sale {
+  color: var(--color-accent-green);
+}
+
+.host-variant-chip__price-original {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  font-size: var(--text-xs);
+}
+
+/* ==========================================================================
+   SHARED SECTION LABEL STYLE
+   ========================================================================== */
+
+.host-section-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
 /* ==========================================================================
    DESCRIPTION SECTION
-   Compact, de-emphasized
+   Compact, flexible sizing
    ========================================================================== */
 
 .host-description {
-  background-color: var(--color-surface-secondary);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  flex-shrink: 0;
-  max-height: 12vh;
-  overflow-y: auto;
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .host-description__label {
@@ -292,18 +402,23 @@
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .host-description__content {
-  font-size: clamp(var(--text-sm), 1.2vw, var(--text-base));
-  line-height: var(--leading-relaxed);
+  background-color: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  /* Font scales with viewport height - smaller on short viewports */
+  font-size: clamp(var(--text-xs), 1.5vh, var(--text-base));
+  line-height: var(--leading-normal);
   color: var(--color-text-primary);
 }
 
 /* ==========================================================================
    TALKING POINTS SECTION
-   PRIMARY content area - large text, takes remaining space
+   PRIMARY content area - responsive grid, viewport-scaled text
    ========================================================================== */
 
 .host-talking-points {
@@ -311,7 +426,6 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 .host-talking-points__label {
@@ -327,36 +441,48 @@
 .host-talking-points__content {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  font-size: clamp(var(--text-lg), 2vw, var(--text-2xl));
-  line-height: var(--leading-relaxed);
+  /* Font scales with viewport height */
+  font-size: clamp(var(--text-sm), 1.8vh, var(--text-lg));
+  line-height: var(--leading-normal);
   color: var(--color-text-primary);
-  padding-right: var(--space-2);
-
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-text-tertiary) var(--color-surface-secondary);
 }
 
-.host-talking-points__content::-webkit-scrollbar {
-  width: 8px;
+/* Talking points list - responsive grid of cards */
+.host-talking-points-list,
+.host-talking-points__content ul,
+.host-talking-points__content ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  /* Auto-fit columns: min 375px, grow to fill space */
+  grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
+  gap: var(--space-2);
+  align-content: start;
 }
 
-.host-talking-points__content::-webkit-scrollbar-track {
-  background: var(--color-surface-secondary);
-  border-radius: var(--radius-full);
+.host-talking-points-list li,
+.host-talking-points__content li {
+  background-color: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  /* Limit individual item height for very long text */
+  max-height: 20vh;
+  overflow: hidden;
 }
 
-.host-talking-points__content::-webkit-scrollbar-thumb {
-  background: var(--color-text-tertiary);
-  border-radius: var(--radius-full);
+.host-talking-points__content strong {
+  font-weight: var(--font-bold);
+  color: var(--color-accent-gold);
 }
 
-/* Markdown styling */
+/* Markdown styling - rarely used but keep for compatibility */
 .host-talking-points__content h1,
 .host-talking-points__content h2,
 .host-talking-points__content h3 {
-  margin-top: var(--space-4);
-  margin-bottom: var(--space-2);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-1);
   font-weight: var(--font-bold);
 }
 
@@ -366,63 +492,6 @@
   margin-top: 0;
 }
 
-/* Talking points list - explicit bullet styling */
-.host-talking-points-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.host-talking-points-list li,
-.host-talking-points__content li {
-  position: relative;
-  padding-left: 1.5em;
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border-secondary);
-}
-
-.host-talking-points-list li::before,
-.host-talking-points__content li::before {
-  content: "•";
-  position: absolute;
-  left: 0;
-  top: 0;
-  color: var(--color-accent-blue);
-  font-weight: var(--font-bold);
-  font-size: 1.4em;
-  line-height: 1;
-}
-
-.host-talking-points-list li:last-child,
-.host-talking-points__content li:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.host-talking-points__content ul,
-.host-talking-points__content ol {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.host-talking-points__content strong {
-  font-weight: var(--font-bold);
-  color: var(--color-accent-gold);
-}
-
-/* ==========================================================================
-   VARIANTS SECTION
-   Compact at bottom
-   ========================================================================== */
-
-.host-variants {
-  flex-shrink: 0;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border-secondary);
-}
 
 /* ==========================================================================
    HOST MESSAGE BANNER
@@ -521,18 +590,13 @@
 
 @media (max-width: 600px) {
   .host-top-section {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    height: auto;
-    max-height: 45vh;
+    /* Keep 50/50 split even on narrow viewports */
+    grid-template-columns: 1fr 1fr;
+    height: clamp(150px, 30vh, 280px);
   }
 
-  .host-session-panel {
-    max-height: 25vh;
-  }
-
-  .host-image-panel {
-    max-height: 18vh;
+  .host-product-header__main {
+    gap: var(--space-2);
   }
 
   .host-images {
