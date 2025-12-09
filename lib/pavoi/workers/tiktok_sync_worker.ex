@@ -369,22 +369,35 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
          is_matched
        ) do
     cond do
-      matching_product ->
-        # SKU match found - update with TikTok data
+      # Case 1: SKU match found AND it's the same product that has this tiktok_product_id (or no product has it yet)
+      matching_product && (is_nil(existing_tiktok_product) || existing_tiktok_product.id == matching_product.id) ->
         result =
           update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
 
         {matching_product, result}
 
-      existing_tiktok_product ->
-        # No SKU match, but product already exists by TikTok ID - update it
+      # Case 2: SKU match found but a DIFFERENT product already has this tiktok_product_id
+      # This is a data conflict - the SKU-matched product and tiktok_product_id belong to different products
+      # Prioritize the existing tiktok_product_id assignment to avoid breaking existing links
+      matching_product && existing_tiktok_product && existing_tiktok_product.id != matching_product.id ->
+        Logger.warning(
+          "SKU match (product #{matching_product.id}) differs from TikTok ID match (product #{existing_tiktok_product.id}) for tiktok_product_id #{tiktok_product_id}. Using existing TikTok link."
+        )
+
         result =
           update_existing_product(existing_tiktok_product, tiktok_product_id, tiktok_skus, false)
 
         {existing_tiktok_product, result}
 
+      # Case 3: No SKU match, but product already exists by TikTok ID - update it
+      existing_tiktok_product ->
+        result =
+          update_existing_product(existing_tiktok_product, tiktok_product_id, tiktok_skus, false)
+
+        {existing_tiktok_product, result}
+
+      # Case 4: No existing product found - create new TikTok-only product
       true ->
-        # No existing product found - create new TikTok-only product
         result = create_tiktok_only_product(tiktok_product_id, tiktok_title, tiktok_skus)
         # Fetch the newly created product
         product = Catalog.get_product_by_tiktok_product_id(tiktok_product_id)
