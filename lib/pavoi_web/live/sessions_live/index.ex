@@ -487,21 +487,35 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> Session.changeset(params)
       |> Map.put(:action, :validate)
 
-    # If brand changed, reload products
+    # Check if brand_id actually changed
+    current_brand_id = get_in(socket.assigns.session_form.params, ["brand_id"])
+    new_brand_id = params["brand_id"]
+    brand_changed = current_brand_id != new_brand_id
+
+    socket = assign(socket, :session_form, to_form(changeset))
+
+    # Only reload products if brand actually changed
     socket =
-      socket
-      |> assign(:session_form, to_form(changeset))
-      |> then(fn socket ->
-        if params["brand_id"] && params["brand_id"] != "" do
-          load_products_for_new_session(socket)
+      if brand_changed do
+        if new_brand_id && new_brand_id != "" do
+          socket
+          |> assign(:product_search_query, "")
+          |> assign(:product_page, 1)
+          |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:new_session_products_map, %{})
+          |> load_products_for_new_session()
         else
           socket
           |> stream(:new_session_products, [], reset: true)
           |> assign(:new_session_has_more, false)
           |> assign(:product_search_query, "")
+          |> assign(:product_total_count, 0)
           |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:new_session_products_map, %{})
         end
-      end)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
