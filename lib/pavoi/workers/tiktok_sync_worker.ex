@@ -259,7 +259,15 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
 
       {:error, reason} ->
         {:error, reason}
+
+      other ->
+        Logger.error("Unexpected transaction result for product #{tiktok_product_id}: #{inspect(other)}")
+        {:error, {:unexpected_result, other}}
     end
+  rescue
+    e ->
+      Logger.error("Exception syncing product #{tiktok_product["id"]}: #{Exception.message(e)}")
+      {:error, {:exception, Exception.message(e)}}
   end
 
   defp needs_tiktok_details?(product, is_matched) do
