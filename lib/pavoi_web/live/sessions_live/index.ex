@@ -121,18 +121,22 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:product_page, 1)
       |> assign(:product_total_count, 0)
       |> assign(:selected_product_ids, MapSet.new())
+      |> assign(:selected_product_order, [])
       |> assign(:new_session_has_more, false)
       |> assign(:loading_products, false)
       |> assign(:new_session_products_map, %{})
+      |> assign(:new_session_display_order, [])
       |> assign(:show_product_enter_hint, false)
       |> stream(:new_session_products, [])
       |> assign(:add_product_search_query, "")
       |> assign(:add_product_page, 1)
       |> assign(:add_product_total_count, 0)
       |> assign(:add_product_selected_ids, MapSet.new())
+      |> assign(:add_product_selected_order, [])
       |> assign(:add_product_has_more, false)
       |> assign(:loading_add_products, false)
       |> assign(:add_product_products_map, %{})
+      |> assign(:add_product_display_order, [])
       |> assign(:show_add_product_enter_hint, false)
       |> stream(:add_product_products, [])
       |> assign(:current_generation, nil)
@@ -439,6 +443,8 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:add_product_search_query, "")
       |> assign(:add_product_page, 1)
       |> assign(:add_product_selected_ids, MapSet.new())
+      |> assign(:add_product_selected_order, [])
+      |> assign(:add_product_display_order, [])
       |> stream(:add_product_products, [], reset: true)
       |> assign(:add_product_has_more, false)
       |> assign(:loading_add_products, false)
@@ -516,7 +522,9 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:product_search_query, "")
           |> assign(:product_page, 1)
           |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:selected_product_order, [])
           |> assign(:new_session_products_map, %{})
+          |> assign(:new_session_display_order, [])
           |> load_products_for_new_session()
         else
           socket
@@ -525,7 +533,9 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:product_search_query, "")
           |> assign(:product_total_count, 0)
           |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:selected_product_order, [])
           |> assign(:new_session_products_map, %{})
+          |> assign(:new_session_display_order, [])
         end
       else
         socket
@@ -540,8 +550,8 @@ defmodule PavoiWeb.SessionsLive.Index do
     slug = Sessions.slugify(session_params["name"])
     session_params = Map.put(session_params, "slug", slug)
 
-    # Extract selected product IDs (as list in order)
-    selected_ids = MapSet.to_list(socket.assigns.selected_product_ids)
+    # Extract selected product IDs in order (preserves paste/selection order)
+    selected_ids = socket.assigns.selected_product_order
 
     case Sessions.create_session_with_products(session_params, selected_ids) do
       {:ok, _created_session} ->
@@ -566,6 +576,8 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:product_search_query, "")
           |> assign(:product_page, 1)
           |> assign(:selected_product_ids, MapSet.new())
+          |> assign(:selected_product_order, [])
+          |> assign(:new_session_display_order, [])
           |> stream(:new_session_products, [], reset: true)
           |> assign(:new_session_has_more, false)
           |> push_patch(to: path)
@@ -586,7 +598,8 @@ defmodule PavoiWeb.SessionsLive.Index do
   @impl true
   def handle_event("save_products_to_session", _params, socket) do
     session_id = socket.assigns.selected_session_for_product.id
-    selected_ids = MapSet.to_list(socket.assigns.add_product_selected_ids)
+    # Use order list to preserve paste/selection order
+    selected_ids = socket.assigns.add_product_selected_order
 
     # Add each product to the end of the queue
     case add_products_to_session(session_id, selected_ids) do
@@ -599,6 +612,8 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:add_product_search_query, "")
           |> assign(:add_product_page, 1)
           |> assign(:add_product_selected_ids, MapSet.new())
+          |> assign(:add_product_selected_order, [])
+          |> assign(:add_product_display_order, [])
           |> stream(:add_product_products, [], reset: true)
           |> assign(:add_product_has_more, false)
           |> put_flash(:info, "#{Enum.count(selected_ids)} product(s) added to session")
@@ -614,6 +629,8 @@ defmodule PavoiWeb.SessionsLive.Index do
           |> assign(:add_product_search_query, "")
           |> assign(:add_product_page, 1)
           |> assign(:add_product_selected_ids, MapSet.new())
+          |> assign(:add_product_selected_order, [])
+          |> assign(:add_product_display_order, [])
           |> stream(:add_product_products, [], reset: true)
           |> assign(:add_product_has_more, false)
           |> put_flash(
@@ -645,14 +662,13 @@ defmodule PavoiWeb.SessionsLive.Index do
       socket =
         socket
         |> assign(:add_product_search_query, query)
-        |> display_products_by_id(
-          query,
-          brand_id,
-          :add_product_selected_ids,
-          :add_product_products,
-          :add_product_products_map,
-          :add_product_total_count,
-          :show_add_product_enter_hint
+        |> display_products_by_id(query, brand_id,
+          selected_ids: :add_product_selected_ids,
+          stream: :add_product_products,
+          products_map: :add_product_products_map,
+          total_count: :add_product_total_count,
+          enter_hint: :show_add_product_enter_hint,
+          display_order: :add_product_display_order
         )
 
       {:noreply, socket}
@@ -676,12 +692,13 @@ defmodule PavoiWeb.SessionsLive.Index do
     if looks_like_product_ids?(query) do
       # ID-based lookup mode - select all displayed products
       socket =
-        select_all_displayed_products(
-          socket,
-          :add_product_selected_ids,
-          :add_product_products,
-          :add_product_products_map,
-          :show_add_product_enter_hint
+        select_all_displayed_products(socket,
+          selected_ids: :add_product_selected_ids,
+          selected_order: :add_product_selected_order,
+          stream: :add_product_products,
+          products_map: :add_product_products_map,
+          display_order: :add_product_display_order,
+          enter_hint: :show_add_product_enter_hint
         )
 
       {:noreply, socket}
@@ -713,12 +730,23 @@ defmodule PavoiWeb.SessionsLive.Index do
   def handle_event("toggle_add_product_selection", %{"product-id" => product_id}, socket) do
     product_id = normalize_id(product_id)
     selected_ids = socket.assigns.add_product_selected_ids
+    selected_order = socket.assigns.add_product_selected_order
+
+    is_selecting = not MapSet.member?(selected_ids, product_id)
 
     new_selected_ids =
-      if MapSet.member?(selected_ids, product_id) do
-        MapSet.delete(selected_ids, product_id)
-      else
+      if is_selecting do
         MapSet.put(selected_ids, product_id)
+      else
+        MapSet.delete(selected_ids, product_id)
+      end
+
+    # Maintain order: append when selecting, remove when deselecting
+    new_selected_order =
+      if is_selecting do
+        selected_order ++ [product_id]
+      else
+        List.delete(selected_order, product_id)
       end
 
     # Find the product in the map and update it with the new selected state
@@ -727,6 +755,7 @@ defmodule PavoiWeb.SessionsLive.Index do
     socket =
       socket
       |> assign(:add_product_selected_ids, new_selected_ids)
+      |> assign(:add_product_selected_order, new_selected_order)
 
     # Update the product in the stream with the new selected state
     socket =
@@ -1064,14 +1093,13 @@ defmodule PavoiWeb.SessionsLive.Index do
       socket =
         socket
         |> assign(:product_search_query, query)
-        |> display_products_by_id(
-          query,
-          brand_id,
-          :selected_product_ids,
-          :new_session_products,
-          :new_session_products_map,
-          :product_total_count,
-          :show_product_enter_hint
+        |> display_products_by_id(query, brand_id,
+          selected_ids: :selected_product_ids,
+          stream: :new_session_products,
+          products_map: :new_session_products_map,
+          total_count: :product_total_count,
+          enter_hint: :show_product_enter_hint,
+          display_order: :new_session_display_order
         )
 
       {:noreply, socket}
@@ -1095,12 +1123,13 @@ defmodule PavoiWeb.SessionsLive.Index do
     if looks_like_product_ids?(query) do
       # ID-based lookup mode - select all displayed products
       socket =
-        select_all_displayed_products(
-          socket,
-          :selected_product_ids,
-          :new_session_products,
-          :new_session_products_map,
-          :show_product_enter_hint
+        select_all_displayed_products(socket,
+          selected_ids: :selected_product_ids,
+          selected_order: :selected_product_order,
+          stream: :new_session_products,
+          products_map: :new_session_products_map,
+          display_order: :new_session_display_order,
+          enter_hint: :show_product_enter_hint
         )
 
       {:noreply, socket}
@@ -1132,12 +1161,23 @@ defmodule PavoiWeb.SessionsLive.Index do
   def handle_event("toggle_product_selection", %{"product-id" => product_id}, socket) do
     product_id = normalize_id(product_id)
     selected_ids = socket.assigns.selected_product_ids
+    selected_order = socket.assigns.selected_product_order
+
+    is_selecting = not MapSet.member?(selected_ids, product_id)
 
     new_selected_ids =
-      if MapSet.member?(selected_ids, product_id) do
-        MapSet.delete(selected_ids, product_id)
-      else
+      if is_selecting do
         MapSet.put(selected_ids, product_id)
+      else
+        MapSet.delete(selected_ids, product_id)
+      end
+
+    # Maintain order: append when selecting, remove when deselecting
+    new_selected_order =
+      if is_selecting do
+        selected_order ++ [product_id]
+      else
+        List.delete(selected_order, product_id)
       end
 
     # Find the product in the map and update it with the new selected state
@@ -1146,6 +1186,7 @@ defmodule PavoiWeb.SessionsLive.Index do
     socket =
       socket
       |> assign(:selected_product_ids, new_selected_ids)
+      |> assign(:selected_product_order, new_selected_order)
 
     # Update the product in the stream with the new selected state
     socket =
@@ -1374,6 +1415,8 @@ defmodule PavoiWeb.SessionsLive.Index do
     |> assign(:product_search_query, "")
     |> assign(:product_page, 1)
     |> assign(:selected_product_ids, MapSet.new())
+    |> assign(:selected_product_order, [])
+    |> assign(:new_session_display_order, [])
     |> stream(:new_session_products, [], reset: true)
     |> assign(:new_session_has_more, false)
     |> load_products_for_new_session()
@@ -1521,16 +1564,14 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Display products by ID without selecting them (called on input change)
   # Shows found products in the grid, preserving existing selections
-  defp display_products_by_id(
-         socket,
-         ids_input,
-         brand_id,
-         selected_ids_key,
-         stream_key,
-         products_map_key,
-         total_count_key,
-         enter_hint_key
-       ) do
+  # Keys: selected_ids, stream, products_map, total_count, enter_hint, display_order
+  defp display_products_by_id(socket, ids_input, brand_id, keys) do
+    selected_ids_key = Keyword.fetch!(keys, :selected_ids)
+    stream_key = Keyword.fetch!(keys, :stream)
+    products_map_key = Keyword.fetch!(keys, :products_map)
+    total_count_key = Keyword.fetch!(keys, :total_count)
+    enter_hint_key = Keyword.fetch!(keys, :enter_hint)
+    display_order_key = Keyword.fetch!(keys, :display_order)
     # Parse input: split by comma, newline, or whitespace
     product_ids =
       ids_input
@@ -1540,7 +1581,9 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> Enum.uniq()
 
     if Enum.empty?(product_ids) do
-      assign(socket, enter_hint_key, false)
+      socket
+      |> assign(enter_hint_key, false)
+      |> assign(display_order_key, [])
     else
       opts = if brand_id, do: [brand_id: brand_id], else: []
       {found_products, _not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
@@ -1560,12 +1603,16 @@ defmodule PavoiWeb.SessionsLive.Index do
       # Build new products map from found products
       new_products_map = Map.new(products_with_state, &{&1.id, &1})
 
+      # Track display order (preserves paste order from find_products_by_ids)
+      display_order = Enum.map(found_products, & &1.id)
+
       # Show "Press Enter to select" hint if we found products
       show_hint = length(found_products) > 0
 
       # Reset stream with found products and update all related state
       socket
       |> assign(products_map_key, new_products_map)
+      |> assign(display_order_key, display_order)
       |> assign(total_count_key, length(found_products))
       |> assign(enter_hint_key, show_hint)
       |> stream(stream_key, products_with_state, reset: true)
@@ -1574,24 +1621,34 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Select all products currently displayed in the grid (called on Enter)
   # Shows flash feedback about what was found/selected
-  defp select_all_displayed_products(
-         socket,
-         selected_ids_key,
-         stream_key,
-         products_map_key,
-         enter_hint_key
-       ) do
+  # Keys: selected_ids, selected_order, stream, products_map, display_order, enter_hint
+  defp select_all_displayed_products(socket, keys) do
+    selected_ids_key = Keyword.fetch!(keys, :selected_ids)
+    selected_order_key = Keyword.fetch!(keys, :selected_order)
+    stream_key = Keyword.fetch!(keys, :stream)
+    products_map_key = Keyword.fetch!(keys, :products_map)
+    display_order_key = Keyword.fetch!(keys, :display_order)
+    enter_hint_key = Keyword.fetch!(keys, :enter_hint)
+
     products_map = socket.assigns[products_map_key]
+    display_order = socket.assigns[display_order_key]
 
     if map_size(products_map) == 0 do
       socket
     else
-      # Get all product IDs from the current display
-      displayed_product_ids = Map.keys(products_map) |> MapSet.new()
+      # Get all product IDs from the current display (use display_order to preserve paste order)
+      displayed_product_ids = MapSet.new(display_order)
 
       # Merge into current selection
       current_selected = socket.assigns[selected_ids_key]
       new_selected = MapSet.union(current_selected, displayed_product_ids)
+
+      # Merge into selection order, preserving paste order for new items
+      current_order = socket.assigns[selected_order_key]
+
+      new_order =
+        current_order ++
+          Enum.reject(display_order, fn id -> id in current_order end)
 
       # Update all products in the map to selected state
       updated_products_map =
@@ -1615,6 +1672,7 @@ defmodule PavoiWeb.SessionsLive.Index do
       socket =
         socket
         |> assign(selected_ids_key, new_selected)
+        |> assign(selected_order_key, new_order)
         |> assign(products_map_key, updated_products_map)
         |> assign(enter_hint_key, false)
 
