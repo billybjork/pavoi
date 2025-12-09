@@ -1123,6 +1123,27 @@ defmodule PavoiWeb.SessionsLive.Index do
       # Update stream items with :selected state for products in the map
       products_map = socket.assigns[products_map_key]
 
+      # Find products not already in the grid and insert them at the top (in reverse
+      # order so they appear in the correct order when inserted at position 0)
+      products_not_in_grid =
+        found_products
+        |> Enum.reject(fn p -> Map.has_key?(products_map, p.id) end)
+        |> Enum.map(fn p -> Map.put(p, :selected, true) end)
+        |> Enum.reverse()
+
+      # Insert new products at top of stream and update products_map
+      socket =
+        Enum.reduce(products_not_in_grid, socket, fn product, acc_socket ->
+          stream_insert(acc_socket, stream_key, product, at: 0)
+        end)
+
+      new_products_map =
+        products_map
+        |> Map.merge(Map.new(products_not_in_grid, &{&1.id, &1}))
+
+      socket = assign(socket, products_map_key, new_products_map)
+
+      # Update existing products in stream to show selected state
       socket =
         update_stream_selection(socket, products_map, found_product_ids, stream_key)
 

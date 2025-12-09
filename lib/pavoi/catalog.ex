@@ -324,6 +324,18 @@ defmodule Pavoi.Catalog do
 
     products = Repo.all(query)
 
+    # Build lookup map: input_id -> product (for reordering to match input order)
+    product_lookup =
+      Enum.reduce(products, %{}, &add_product_to_lookup/2)
+
+    # Reorder products to match input order, deduplicating
+    ordered_products =
+      product_ids
+      |> Enum.reduce({[], MapSet.new()}, &collect_unique_product(&1, &2, product_lookup))
+      |> elem(0)
+      |> Enum.reverse()
+      |> add_primary_image_virtual_field()
+
     # Build a set of all matched IDs (from all ID fields)
     # Include both the full GID and the numeric portion for Shopify PIDs
     matched_ids =
@@ -340,7 +352,32 @@ defmodule Pavoi.Catalog do
       product_ids
       |> Enum.reject(&MapSet.member?(matched_ids, &1))
 
-    {products, not_found_ids}
+    {ordered_products, not_found_ids}
+  end
+
+  # Helper to add a product to the lookup map keyed by all its ID fields
+  defp add_product_to_lookup(product, acc) do
+    acc
+    |> Map.put(product.tiktok_product_id, product)
+    |> Map.put(product.pid, product)
+    |> Map.put(extract_shopify_numeric_id(product.pid), product)
+    |> add_tiktok_ids_to_lookup(product)
+  end
+
+  defp add_tiktok_ids_to_lookup(acc, product) do
+    Enum.reduce(product.tiktok_product_ids || [], acc, fn id, m ->
+      Map.put(m, id, product)
+    end)
+  end
+
+  # Helper for reordering products to match input order while deduplicating
+  defp collect_unique_product(id, {list, seen}, product_lookup) do
+    with product when not is_nil(product) <- Map.get(product_lookup, id),
+         false <- MapSet.member?(seen, product.id) do
+      {[product | list], MapSet.put(seen, product.id)}
+    else
+      _ -> {list, seen}
+    end
   end
 
   # Check if a string contains only digits
