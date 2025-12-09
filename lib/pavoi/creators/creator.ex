@@ -18,6 +18,7 @@ defmodule Pavoi.Creators.Creator do
   import Ecto.Changeset
 
   @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)
+  @outreach_statuses ~w(pending approved sent skipped)
 
   schema "creators" do
     # Identity
@@ -53,12 +54,19 @@ defmodule Pavoi.Creators.Creator do
     field :total_gmv_cents, :integer, default: 0
     field :total_videos, :integer, default: 0
 
+    # Outreach tracking
+    field :outreach_status, :string
+    field :outreach_sent_at, :utc_datetime
+    field :sms_consent, :boolean, default: false
+    field :sms_consent_at, :utc_datetime
+
     # Associations
     has_many :brand_creators, Pavoi.Creators.BrandCreator
     has_many :brands, through: [:brand_creators, :brand]
     has_many :creator_samples, Pavoi.Creators.CreatorSample
     has_many :creator_videos, Pavoi.Creators.CreatorVideo
     has_many :performance_snapshots, Pavoi.Creators.CreatorPerformanceSnapshot
+    has_many :outreach_logs, Pavoi.Outreach.OutreachLog
 
     timestamps()
   end
@@ -87,12 +95,19 @@ defmodule Pavoi.Creators.Creator do
       :notes,
       :follower_count,
       :total_gmv_cents,
-      :total_videos
+      :total_videos,
+      :outreach_status,
+      :outreach_sent_at,
+      :sms_consent,
+      :sms_consent_at
     ])
     |> validate_required([:tiktok_username])
     |> normalize_username()
     |> validate_inclusion(:tiktok_badge_level, @badge_levels,
       message: "must be a valid badge level"
+    )
+    |> validate_inclusion(:outreach_status, @outreach_statuses,
+      message: "must be a valid outreach status"
     )
     |> validate_format(:email, ~r/@/, message: "must be a valid email")
     |> unique_constraint(:tiktok_username)
@@ -109,6 +124,11 @@ defmodule Pavoi.Creators.Creator do
   Returns the list of valid TikTok badge levels.
   """
   def badge_levels, do: @badge_levels
+
+  @doc """
+  Returns the list of valid outreach statuses.
+  """
+  def outreach_statuses, do: @outreach_statuses
 
   @doc """
   Returns the creator's full name if available.

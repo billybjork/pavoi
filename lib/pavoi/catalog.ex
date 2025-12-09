@@ -198,7 +198,8 @@ defmodule Pavoi.Catalog do
       ilike(p.name, ^search_pattern) or
         ilike(p.sku, ^search_pattern) or
         ilike(p.pid, ^search_pattern) or
-        ilike(p.tiktok_product_id, ^search_pattern)
+        ilike(p.tiktok_product_id, ^search_pattern) or
+        ^search_query in p.tiktok_product_ids
     )
   end
 

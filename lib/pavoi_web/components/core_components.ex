@@ -440,6 +440,12 @@ defmodule PavoiWeb.CoreComponents do
         >
           Creators
         </.link>
+        <.link
+          href={~p"/outreach"}
+          class={["navbar__link", @current_page == :outreach && "navbar__link--active"]}
+        >
+          Outreach
+        </.link>
       </div>
       <div class="navbar__end">
         <button

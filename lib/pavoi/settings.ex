@@ -112,6 +112,41 @@ defmodule Pavoi.Settings do
     end
   end
 
+  @doc """
+  Gets a generic string setting by key.
+
+  Returns nil if the setting doesn't exist.
+  """
+  def get_setting(key) when is_binary(key) do
+    case Repo.get_by(SystemSetting, key: key) do
+      nil -> nil
+      setting -> setting.value
+    end
+  end
+
+  @doc """
+  Sets a generic string setting.
+
+  Creates the setting if it doesn't exist, updates it if it does.
+  """
+  def set_setting(key, value) when is_binary(key) and is_binary(value) do
+    case Repo.get_by(SystemSetting, key: key) do
+      nil ->
+        %SystemSetting{}
+        |> SystemSetting.changeset(%{
+          key: key,
+          value: value,
+          value_type: "string"
+        })
+        |> Repo.insert()
+
+      setting ->
+        setting
+        |> SystemSetting.changeset(%{value: value})
+        |> Repo.update()
+    end
+  end
+
   defp parse_datetime(nil), do: nil
 
   defp parse_datetime(value) when is_binary(value) do

@@ -59,6 +59,9 @@ defmodule PavoiWeb.Router do
 
     # Creator CRM
     live "/creators", CreatorsLive.Index
+
+    # Creator Outreach
+    live "/outreach", OutreachLive.Index
   end
 
   # Other scopes may use custom stacks.

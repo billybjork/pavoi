@@ -29,7 +29,16 @@ if config_env() == :dev do
     # BigQuery configuration for Creator CRM sync
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
-    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY")
+    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
+    # Mailgun configuration for creator outreach emails
+    mailgun_api_key: System.get_env("MAILGUN_API_KEY"),
+    mailgun_domain: System.get_env("MAILGUN_DOMAIN"),
+    mailgun_from_email: System.get_env("MAILGUN_FROM_EMAIL"),
+    mailgun_from_name: System.get_env("MAILGUN_FROM_NAME", "Pavoi"),
+    # Twilio configuration for creator outreach SMS
+    twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
+    twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
+    twilio_from_number: System.get_env("TWILIO_FROM_NUMBER")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,
@@ -96,7 +105,16 @@ if config_env() == :prod do
     # BigQuery configuration for Creator CRM sync
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
-    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY")
+    bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
+    # Mailgun configuration for creator outreach emails
+    mailgun_api_key: System.get_env("MAILGUN_API_KEY"),
+    mailgun_domain: System.get_env("MAILGUN_DOMAIN"),
+    mailgun_from_email: System.get_env("MAILGUN_FROM_EMAIL"),
+    mailgun_from_name: System.get_env("MAILGUN_FROM_NAME", "Pavoi"),
+    # Twilio configuration for creator outreach SMS
+    twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
+    twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
+    twilio_from_number: System.get_env("TWILIO_FROM_NUMBER")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,

@@ -429,8 +429,17 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp update_existing_product(product, tiktok_product_id, tiktok_skus, is_matched) do
-    # Update product with TikTok product ID
-    case Catalog.update_product(product, %{tiktok_product_id: tiktok_product_id}) do
+    # Build the list of TikTok product IDs, adding the new one if not already present
+    existing_ids = product.tiktok_product_ids || []
+    updated_ids = Enum.uniq([tiktok_product_id | existing_ids])
+
+    # Update product with TikTok product ID and IDs array
+    attrs = %{
+      tiktok_product_id: tiktok_product_id,
+      tiktok_product_ids: updated_ids
+    }
+
+    case Catalog.update_product(product, attrs) do
       {:ok, updated_product} ->
         # Sync TikTok SKU data to variants
         variant_count = sync_tiktok_skus_to_variants(updated_product, tiktok_skus)
@@ -455,6 +464,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     # Create new product
     product_attrs = %{
       tiktok_product_id: tiktok_product_id,
+      tiktok_product_ids: [tiktok_product_id],
       name: tiktok_title,
       description: nil,
       original_price_cents: min_price,
