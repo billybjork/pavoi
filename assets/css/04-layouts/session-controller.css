@@ -233,13 +233,7 @@
   box-shadow: 0 0 0 2px var(--color-bg-primary);
 }
 
-/* Color variants */
-.controller-color-btn--amber { background-color: var(--color-accent-amber); }
-.controller-color-btn--blue { background-color: var(--color-accent-blue); }
-.controller-color-btn--green { background-color: var(--color-accent-green); }
-.controller-color-btn--red { background-color: var(--color-accent-red); }
-.controller-color-btn--purple { background-color: var(--color-accent-purple); }
-.controller-color-btn--gray { background-color: var(--color-text-secondary); }
+/* Color variants - now using shared .color-accent-- utilities from base.css */
 
 .controller-message-buttons {
   display: flex;
@@ -462,11 +456,6 @@
   object-fit: cover;
 }
 
-/* Placeholder no longer needed - container has background */
-.controller-product-card__placeholder {
-  display: none;
-}
-
 /* Product Name */
 .controller-product-card__name {
   padding: var(--space-1) var(--space-2);
@@ -655,12 +644,7 @@ body:has(.controller-container) .app-navbar {
   flex-shrink: 0;
 }
 
-.preset-item__color--amber { background-color: var(--color-accent-amber); }
-.preset-item__color--blue { background-color: var(--color-accent-blue); }
-.preset-item__color--green { background-color: var(--color-accent-green); }
-.preset-item__color--red { background-color: var(--color-accent-red); }
-.preset-item__color--purple { background-color: var(--color-accent-purple); }
-.preset-item__color--gray { background-color: var(--color-text-secondary); }
+/* Color variants now use shared .color-accent-- utilities from base.css */
 
 .preset-item__text {
   flex: 1;
@@ -756,12 +740,7 @@ body:has(.controller-container) .app-navbar {
   transition: all var(--transition-fast);
 }
 
-.color-swatch--amber { background-color: var(--color-accent-amber); }
-.color-swatch--blue { background-color: var(--color-accent-blue); }
-.color-swatch--green { background-color: var(--color-accent-green); }
-.color-swatch--red { background-color: var(--color-accent-red); }
-.color-swatch--purple { background-color: var(--color-accent-purple); }
-.color-swatch--gray { background-color: var(--color-text-secondary); }
+/* Color variants now use shared .color-accent-- utilities from base.css */
 
 .color-label {
   font-size: var(--text-xs);

@@ -44,3 +44,33 @@ select:focus {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
 }
+
+/* ============================================================================
+   COLOR VARIANT UTILITIES
+   ============================================================================
+   Shared accent color utilities used across components
+   ============================================================================ */
+
+.color-accent--amber {
+  background-color: var(--color-accent-amber);
+}
+
+.color-accent--blue {
+  background-color: var(--color-accent-blue);
+}
+
+.color-accent--green {
+  background-color: var(--color-accent-green);
+}
+
+.color-accent--red {
+  background-color: var(--color-accent-red);
+}
+
+.color-accent--purple {
+  background-color: var(--color-accent-purple);
+}
+
+.color-accent--gray {
+  background-color: var(--color-text-secondary);
+}

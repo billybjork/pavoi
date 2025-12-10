@@ -173,12 +173,8 @@
     </div>
     <div class="modal__footer">
       <.button variant="outline" phx-click="close_send_modal">Cancel</.button>
-      <.button variant="primary" phx-click="send_outreach" disabled={@sending}>
-        <%= if @sending do %>
-          Sending...
-        <% else %>
-          Send Messages
-        <% end %>
+      <.button variant="primary" phx-click="send_outreach">
+        Send Messages
       </.button>
     </div>
   </.modal>

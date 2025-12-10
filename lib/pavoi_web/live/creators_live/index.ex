@@ -56,7 +56,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:sent_today, 0)
       |> assign(:lark_invite_url, "")
       |> assign(:show_send_modal, false)
-      |> assign(:sending, false)
       # Sync state
       |> assign(:bigquery_syncing, bigquery_syncing)
       |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
