@@ -86,11 +86,13 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     # Join Orders with LineItems to get product details
     # Filter for free samples (total_amount = 0)
     # Capture ALL available address and contact fields
+    # buyer_email is a TikTok forwarding address (e.g., xxx@scs.tiktokw.us) that forwards to the buyer
     sql = """
     SELECT
       CAST(o.order_id AS STRING) as order_id,
       o.recipient_name,
       o.recipient_phone_number as phone_number,
+      o.buyer_email as email,
       o.recipient_full_address as full_address,
       o.recipient_address_line1 as address_line1,
       o.recipient_address_line2 as address_line2,
@@ -198,6 +200,10 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   defp get_usable_phone(nil), do: nil
   defp get_usable_phone(phone), do: if(String.contains?(phone, "*"), do: nil, else: phone)
 
+  defp get_usable_email(nil), do: nil
+  defp get_usable_email(""), do: nil
+  defp get_usable_email(email), do: email
+
   defp find_creator_by_phone(nil), do: nil
   defp find_creator_by_phone(phone), do: Creators.get_creator_by_phone(phone)
 
@@ -214,11 +220,13 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     normalized_phone = Creators.normalize_phone(order["phone_number"])
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
     {address_line1, city, state} = parse_address_fields(order)
+    email = get_usable_email(order["email"])
 
     updates =
       build_field_updates(creator, [
         {:first_name, first_name},
         {:last_name, last_name},
+        {:email, email},
         {:address_line_1, address_line1},
         {:address_line_2, order["address_line2"]},
         {:city, city},
@@ -325,6 +333,10 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     # Only store phone if valid (not masked)
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
 
+    # Email from BigQuery is a TikTok forwarding address (xxx@scs.tiktokw.us)
+    # These are functional - emails sent to them forward to the buyer's real email
+    email = get_usable_email(order["email"])
+
     attrs =
       %{
         tiktok_username: username,
@@ -332,6 +344,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
         last_name: last_name,
         phone: if(phone_is_valid, do: normalized_phone, else: nil),
         phone_verified: phone_is_valid,
+        email: email,
         address_line_1: address_line1,
         address_line_2: order["address_line2"],
         city: city,
@@ -513,6 +526,85 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     {:ok, stats}
   end
 
+  @doc """
+  Backfills email addresses for creators who have BigQuery samples but are missing email.
+
+  Call from IEx:
+      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_emails()
+  """
+  def backfill_emails do
+    import Ecto.Query
+
+    Logger.info("Starting email backfill for creators missing email...")
+
+    # Find creators with BigQuery samples that have no email
+    creators_to_fix =
+      Repo.all(
+        from c in Pavoi.Creators.Creator,
+          join: s in Pavoi.Creators.CreatorSample,
+          on: s.creator_id == c.id,
+          where: not is_nil(s.tiktok_order_id) and (is_nil(c.email) or c.email == ""),
+          group_by: [c.id],
+          select: {c, fragment("array_agg(?)", s.tiktok_order_id)}
+      )
+
+    total = length(creators_to_fix)
+    Logger.info("Found #{total} creators to backfill emails")
+
+    # Batch order IDs for BigQuery lookup
+    all_order_ids =
+      creators_to_fix
+      |> Enum.flat_map(fn {_c, order_ids} -> order_ids end)
+      |> Enum.uniq()
+
+    Logger.info("Looking up #{length(all_order_ids)} unique orders in BigQuery...")
+
+    # Fetch all orders from BigQuery in batches
+    order_map = fetch_orders_in_batches(all_order_ids)
+    Logger.info("Retrieved #{map_size(order_map)} orders from BigQuery")
+
+    # Update creators with email only
+    stats =
+      creators_to_fix
+      |> Enum.with_index(1)
+      |> Enum.reduce(%{updated: 0, skipped: 0, errors: 0}, fn {{creator, order_ids}, idx}, acc ->
+        if rem(idx, 100) == 0,
+          do: Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated)")
+
+        update_creator_email_from_orders(acc, creator, order_ids, order_map)
+      end)
+
+    Logger.info("""
+    Email backfill completed:
+      - Updated: #{stats.updated}
+      - Skipped (no order data): #{stats.skipped}
+      - Errors: #{stats.errors}
+    """)
+
+    {:ok, stats}
+  end
+
+  defp update_creator_email_from_orders(acc, creator, order_ids, order_map) do
+    order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
+
+    case order do
+      nil ->
+        %{acc | skipped: acc.skipped + 1}
+
+      order ->
+        email = get_usable_email(order["email"])
+
+        if email do
+          case Creators.update_creator(creator, %{email: email}) do
+            {:ok, _} -> %{acc | updated: acc.updated + 1}
+            {:error, _} -> %{acc | errors: acc.errors + 1}
+          end
+        else
+          %{acc | skipped: acc.skipped + 1}
+        end
+    end
+  end
+
   defp update_creator_from_orders(acc, creator, order_ids, order_map) do
     order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
     do_update_creator(acc, creator, order)
@@ -550,6 +642,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       CAST(order_id AS STRING) as order_id,
       recipient_name,
       recipient_phone_number as phone_number,
+      buyer_email as email,
       recipient_full_address as full_address,
       recipient_address_line1 as address_line1,
       recipient_address_line2 as address_line2,
