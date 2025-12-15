@@ -8,11 +8,16 @@
  * - Automatically jumps after 500ms (allows double-digit entry)
  * - Press Enter to jump immediately
  * - Press Escape to cancel pending jump
+ *
+ * Auto-scroll:
+ * - Scrolls the active product into view when changed externally
+ *   (e.g., via another tab, host view, or voice control)
  */
 export default {
   mounted() {
     this.jumpBuffer = ""
     this.jumpTimeout = null
+    this.scrollToActiveProduct()
 
     this.handleKeydown = (e) => {
       // Pause keyboard control when any modal is open
@@ -107,6 +112,17 @@ export default {
     const indicator = document.getElementById("controller-jump-indicator")
     if (indicator) {
       indicator.remove()
+    }
+  },
+
+  updated() {
+    this.scrollToActiveProduct()
+  },
+
+  scrollToActiveProduct() {
+    const activeCard = this.el.querySelector(".controller-product-card--active")
+    if (activeCard) {
+      activeCard.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
     }
   },
 }

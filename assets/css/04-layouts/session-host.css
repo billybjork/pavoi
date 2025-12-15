@@ -20,86 +20,120 @@
 }
 
 /* ==========================================================================
-   TOP SECTION: Session Info + Product Image side by side
-   Takes ~30% of viewport height (compact to maximize content space)
+   SESSION PANEL (Top, Collapsible)
    ========================================================================== */
 
-.host-top-section {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-4);
-  flex-shrink: 0;
-  align-items: stretch;
-  max-height: 30vh;
-}
-
-/* Session Info Panel - left side, matches description/talking points style */
 .host-session-panel {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  flex-shrink: 0;
+  background-color: var(--color-surface-primary);
+  border-bottom: 1px solid var(--color-border-primary);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  /* Extend to container edges, counteracting parent padding */
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0;
 }
 
-.host-session-info {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.host-session-info__header {
+.host-session-panel__header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.host-session-info__title {
+.host-session-panel__header:active {
+  background-color: var(--color-bg-hover);
+}
+
+.host-session-panel__title {
+  flex: 1;
   font-size: var(--text-base);
-  font-weight: var(--font-bold);
-  color: var(--color-text-tertiary);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.host-session-info__count {
+.host-session-panel__count {
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-tertiary);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.host-session-info__notes {
-  flex: 1;
-  min-height: 0;
-  background-color: var(--color-panel-bg);
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  font-size: clamp(var(--text-base), 2vh, 1.5rem);
-  line-height: var(--leading-relaxed);
-  color: var(--color-text-primary);
-  white-space: pre-line;
+.host-session-panel__chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-tertiary);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed state - chevron rotates to point up */
+.host-session-panel--collapsed .host-session-panel__chevron {
+  transform: rotate(180deg);
+}
+
+.host-session-panel__body {
+  padding: 0 var(--space-4) var(--space-4);
+  max-height: 20vh;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.host-session-panel--collapsed .host-session-panel__body {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Notes displayed as a 2-column grid of cards */
+.host-session-panel__notes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+  max-height: calc(20vh - var(--space-3) * 2);
   overflow-y: auto;
 }
 
-/* Image Panel - right side */
+/* Single column on narrow viewports */
+@media (max-width: 500px) {
+  .host-session-panel__notes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.host-session-panel__note-card {
+  background-color: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: clamp(var(--text-base), 2vh, 1.375rem);
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  white-space: pre-line; /* Preserve line breaks within paragraphs */
+}
+
+/* ==========================================================================
+   IMAGE PANEL
+   ========================================================================== */
+
+/* Image Panel - full width */
 .host-image-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: 30vh;
   overflow: hidden;
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
-}
-
-.host-image-panel--full {
-  grid-column: 1 / -1;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -352,6 +386,8 @@
   padding: var(--space-2) var(--space-4) var(--space-3);
   border-top: 1px solid rgba(59, 130, 246, 0.2);
   background: rgba(0, 0, 0, 0.1);
+  max-height: 30vh;
+  overflow-y: auto;
 }
 
 .host-variants-row--expanded {
@@ -398,6 +434,11 @@
   color: var(--color-text-tertiary);
   text-decoration: line-through;
   font-size: var(--text-sm);
+}
+
+/* Pricing + Variants row wrapper */
+.host-product-pricing-row {
+  display: contents;
 }
 
 /* ==========================================================================
@@ -449,12 +490,21 @@
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  /* Larger font for utilitarian legibility */
-  font-size: clamp(var(--text-base), 2vh, 1.5rem);
-  line-height: var(--leading-relaxed);
+  padding: var(--space-2) var(--space-3);
+  /* Unified font size with talking points, compact line-height */
+  font-size: clamp(var(--text-base), 2vh, 1.375rem);
+  line-height: 1.4;
   color: var(--color-text-primary);
   overflow-y: auto;
+}
+
+/* Reduced paragraph spacing in description */
+.host-description__content p {
+  margin-bottom: 0.5em;
+}
+
+.host-description__content p:last-child {
+  margin-bottom: 0;
 }
 
 /* ==========================================================================
@@ -484,9 +534,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Larger font for utilitarian legibility */
-  font-size: clamp(var(--text-lg), 2.2vh, 1.75rem);
-  line-height: var(--leading-relaxed);
+  /* Unified font size with description, compact line-height */
+  font-size: clamp(var(--text-base), 2vh, 1.375rem);
+  line-height: 1.4;
   color: var(--color-text-primary);
 }
 
@@ -500,7 +550,7 @@
   display: grid;
   /* Auto-fit columns: min 350px, grow to fill space */
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-content: start;
 }
 
@@ -509,7 +559,7 @@
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   /* Allow items to grow but limit extreme heights */
   max-height: 25vh;
   overflow: hidden;
@@ -632,33 +682,24 @@
    ========================================================================== */
 
 @media (max-width: 600px) {
-  .host-top-section {
-    /* Keep 50/50 split even on narrow viewports */
-    grid-template-columns: 1fr 1fr;
-    max-height: 25vh;
-    min-height: 120px;
-  }
-
   .host-product-header__main {
     gap: var(--space-2);
-  }
-
-  .host-images {
-    flex-direction: row;
-  }
-
-  .host-product-header {
-    gap: var(--space-2);
-  }
-
-  .host-product-name {
-    font-size: var(--text-xl);
+    padding: var(--space-2) var(--space-3);
   }
 
   .host-product-position {
     min-width: 44px;
     height: 44px;
     font-size: var(--text-xl);
+  }
+
+  .host-product-name {
+    font-size: var(--text-lg);
+  }
+
+  .host-product-price,
+  .host-product-price--sale {
+    font-size: var(--text-lg);
   }
 }
 

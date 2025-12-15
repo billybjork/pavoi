@@ -3,7 +3,7 @@
   class="controller-container"
   phx-hook="ControllerHaptic"
 >
-  <%!-- TOP: Header with back button, session name, and count --%>
+  <%!-- TOP: Header with back button, session name, and notes toggle --%>
   <div class="controller-header">
     <.link navigate={~p"/sessions"} class="controller-back-link">
       <svg
@@ -24,6 +24,17 @@
         {@total_products}
       <% end %>
     </span>
+    <button
+      type="button"
+      class={["controller-notes-toggle", @session_notes_visible && "controller-notes-toggle--on"]}
+      phx-click="toggle_session_notes"
+      title={if @session_notes_visible, do: "Hide session notes", else: "Show session notes"}
+    >
+      <span class="controller-notes-toggle__label">Show session notes</span>
+      <span class="controller-notes-toggle__track">
+        <span class="controller-notes-toggle__thumb"></span>
+      </span>
+    </button>
   </div>
 
   <%!-- Message to Host (Collapsible, starts collapsed) --%>

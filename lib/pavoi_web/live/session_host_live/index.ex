@@ -33,7 +33,8 @@ defmodule PavoiWeb.SessionHostLive.Index do
         product_images: [],
         total_products: length(session.session_products),
         host_message: nil,
-        products_panel_collapsed: true
+        products_panel_collapsed: true,
+        session_panel_collapsed: true
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection
@@ -158,6 +159,11 @@ defmodule PavoiWeb.SessionHostLive.Index do
   end
 
   @impl true
+  def handle_event("toggle_session_panel", _params, socket) do
+    {:noreply, update(socket, :session_panel_collapsed, &(!&1))}
+  end
+
+  @impl true
   def handle_event("select_product_from_panel", %{"position" => position}, socket) do
     position = String.to_integer(position)
 
@@ -223,10 +229,17 @@ defmodule PavoiWeb.SessionHostLive.Index do
     {:noreply, socket}
   end
 
+  # Handle session notes toggle from controller
+  @impl true
+  def handle_info({:session_notes_toggle, visible}, socket) do
+    {:noreply, assign(socket, :session_panel_collapsed, !visible)}
+  end
+
   ## Private Helpers
 
   defp subscribe_to_session(session_id) do
     Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:state")
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:ui")
   end
 
   defp load_initial_state(socket) do

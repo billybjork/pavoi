@@ -44,7 +44,8 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         message_presets: message_presets,
         show_preset_modal: false,
         voice_assets: voice_assets,
-        voice_control_enabled: voice_control_enabled
+        voice_control_enabled: voice_control_enabled,
+        session_notes_visible: false
       )
 
     socket =
@@ -106,6 +107,21 @@ defmodule PavoiWeb.SessionControllerLive.Index do
 
     Sessions.jump_to_product(socket.assigns.session_id, prev_position)
     {:noreply, socket}
+  end
+
+  # Session Notes Toggle (controls host view)
+  @impl true
+  def handle_event("toggle_session_notes", _params, socket) do
+    new_visible = !socket.assigns.session_notes_visible
+
+    # Broadcast to host view
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "session:#{socket.assigns.session_id}:ui",
+      {:session_notes_toggle, new_visible}
+    )
+
+    {:noreply, assign(socket, :session_notes_visible, new_visible)}
   end
 
   # Host Message Controls

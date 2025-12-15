@@ -13,6 +13,10 @@
   margin-right: auto;
 }
 
+.voice-control-hint--hidden {
+  display: none;
+}
+
 /* Voice control actions in header */
 .voice-control-actions {
   display: flex;

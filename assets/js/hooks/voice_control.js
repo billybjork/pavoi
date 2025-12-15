@@ -285,7 +285,7 @@ export default {
       <div class="voice-control-panel${this.isCollapsed ? ' controller-panel--collapsed' : ''}">
         <div class="controller-panel__header" id="voice-header">
           <span class="controller-panel__title">Voice Control</span>
-          <span class="voice-control-hint">Say "show number ..." to jump to a product</span>
+          <span class="voice-control-hint voice-control-hint--hidden">Say "show number ..." to jump to a product</span>
           <div class="voice-control-actions">
             <button type="button" id="voice-toggle" class="voice-toggle-btn" disabled>
               <span class="text">Loading model...</span>
@@ -322,6 +322,7 @@ export default {
     this.toggleBtn = this.el.querySelector('#voice-toggle');
     this.micSelect = this.el.querySelector('#mic-select');
     this.statusEl = this.el.querySelector('#voice-status');
+    this.hintEl = this.el.querySelector('.voice-control-hint');
     this.waveformContainer = this.el.querySelector('.voice-waveform');
     this.waveformCanvas = this.el.querySelector('#waveform-canvas');
     this.waveformCtx = this.waveformCanvas.getContext('2d');
@@ -611,6 +612,7 @@ export default {
       this.toggleBtn.classList.add('active');
       this.toggleBtn.querySelector('.text').textContent = 'Stop';
       this.toggleBtn.disabled = false;
+      this.hintEl.classList.remove('voice-control-hint--hidden');
 
       // Update status and start waveform visualization immediately
       this.updateStatus('listening', 'Listening...');
@@ -666,6 +668,7 @@ export default {
 
     this.toggleBtn.classList.remove('active');
     this.toggleBtn.querySelector('.text').textContent = 'Start';
+    this.hintEl.classList.add('voice-control-hint--hidden');
 
     if (!keepStatus) {
       this.updateStatus('stopped', 'Stopped');

@@ -47,6 +47,7 @@ defmodule PavoiWeb.HostViewComponents do
   attr :show_header, :boolean, default: false
   attr :id_prefix, :string, default: "host"
   attr :products_panel_collapsed, :boolean, default: true
+  attr :session_panel_collapsed, :boolean, default: true
 
   def host_content(assigns) do
     ~H"""
@@ -56,37 +57,36 @@ defmodule PavoiWeb.HostViewComponents do
     <% end %>
 
     <%= if @current_session_product && @current_product do %>
-      <%!-- TOP SECTION: Session Info (left) + Product Image (right) --%>
-      <div class="host-top-section">
-        <%!-- Session Info Panel --%>
-        <%= if @show_header do %>
-          <div class="host-session-panel">
-            <.session_info session={@session} total_products={@total_products} />
-          </div>
-        <% end %>
+      <%!-- SESSION PANEL: Collapsible header at top --%>
+      <%= if @show_header do %>
+        <.session_panel
+          session={@session}
+          total_products={@total_products}
+          collapsed={@session_panel_collapsed}
+        />
+      <% end %>
 
-        <%!-- Image Panel --%>
-        <div class={["host-image-panel", !@show_header && "host-image-panel--full"]}>
-          <.product_image_display
-            product_images={@product_images}
-            current_image_index={@current_image_index}
-            current_product={@current_product}
-            id_prefix={@id_prefix}
-          />
-        </div>
+      <%!-- PRODUCT HEADER: Full width above images --%>
+      <.product_header
+        session_product={@current_session_product}
+        product={@current_product}
+        current_position={@current_position}
+        total_products={@total_products}
+        variants={@current_product.product_variants || []}
+      />
+
+      <%!-- IMAGE PANEL: Full width --%>
+      <div class="host-image-panel">
+        <.product_image_display
+          product_images={@product_images}
+          current_image_index={@current_image_index}
+          current_product={@current_product}
+          id_prefix={@id_prefix}
+        />
       </div>
 
-      <%!-- PRODUCT SECTION: Header + Description + Talking Points --%>
+      <%!-- PRODUCT SECTION: Description + Talking Points (full width) --%>
       <div class="host-product-section">
-        <%!-- Product Header: Position block + Name + Price + Variants --%>
-        <.product_header
-          session_product={@current_session_product}
-          product={@current_product}
-          current_position={@current_position}
-          total_products={@total_products}
-          variants={@current_product.product_variants || []}
-        />
-
         <%!-- Description (compact) --%>
         <%= if @current_product.description && String.trim(@current_product.description) != "" do %>
           <.product_description description={@current_product.description} />
@@ -132,22 +132,51 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
-  Session info panel - displays session title, product count, and notes.
-  Rendered inside the session panel with distinct background.
+  Collapsible session panel - displays session title and notes in an expandable header.
+  Similar to products_panel but at the top of the view.
   """
   attr :session, :map, required: true
   attr :total_products, :integer, required: true
+  attr :collapsed, :boolean, default: true
 
-  def session_info(assigns) do
+  def session_panel(assigns) do
+    # Split notes into paragraphs (on blank lines) for column layout
+    notes_items =
+      if assigns.session.notes && String.trim(assigns.session.notes) != "" do
+        assigns.session.notes
+        |> String.split(~r/\n\s*\n/, trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+      else
+        []
+      end
+
+    assigns = assign(assigns, :notes_items, notes_items)
+
     ~H"""
-    <div class="host-session-info">
-      <div class="host-session-info__header">
-        <span class="host-session-info__title">{@session.name}</span>
-        <span class="host-session-info__count">{@total_products} products</span>
+    <div class={["host-session-panel", @collapsed && "host-session-panel--collapsed"]}>
+      <div class="host-session-panel__header" phx-click="toggle_session_panel">
+        <span class="host-session-panel__title">{@session.name}</span>
+        <span class="host-session-panel__count">{@total_products} products</span>
+        <svg
+          class="host-session-panel__chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
       </div>
-      <%= if @session.notes && String.trim(@session.notes) != "" do %>
-        <div class="host-session-info__notes">{@session.notes}</div>
-      <% end %>
+      <div class="host-session-panel__body">
+        <%= if length(@notes_items) > 0 do %>
+          <div class="host-session-panel__notes-grid">
+            <%= for item <- @notes_items do %>
+              <div class="host-session-panel__note-card">{item}</div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
     </div>
     """
   end
@@ -265,7 +294,7 @@ defmodule PavoiWeb.HostViewComponents do
 
     ~H"""
     <div class="host-product-header">
-      <%!-- Main row: Position + Name + Price + Variants toggle --%>
+      <%!-- Main content: Position + Name + Price + Variants toggle --%>
       <div class="host-product-header__main">
         <%!-- Position Number Block --%>
         <%= if @current_position do %>
@@ -279,36 +308,39 @@ defmodule PavoiWeb.HostViewComponents do
           {get_effective_name(@session_product)}
         </h1>
 
-        <%!-- Pricing --%>
-        <div class="host-product-pricing">
-          <% prices = get_effective_prices(@session_product) %>
-          <%= if prices.sale do %>
-            <span class="host-product-price--sale">
-              {format_price(prices.sale)}
-            </span>
-            <span class="host-product-price--original">
-              {format_price(prices.original)}
-            </span>
-          <% else %>
-            <span class="host-product-price">
-              {format_price(prices.original)}
-            </span>
+        <%!-- Pricing + Variants --%>
+        <div class="host-product-pricing-row">
+          <%!-- Pricing --%>
+          <div class="host-product-pricing">
+            <% prices = get_effective_prices(@session_product) %>
+            <%= if prices.sale do %>
+              <span class="host-product-price--sale">
+                {format_price(prices.sale)}
+              </span>
+              <span class="host-product-price--original">
+                {format_price(prices.original)}
+              </span>
+            <% else %>
+              <span class="host-product-price">
+                {format_price(prices.original)}
+              </span>
+            <% end %>
+          </div>
+
+          <%!-- Variants toggle button --%>
+          <%= if @variants && length(@variants) > 0 do %>
+            <button
+              type="button"
+              class="host-variants-toggle"
+              phx-click={
+                Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")
+              }
+            >
+              <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
+              <span class="host-variants-toggle__icon"></span>
+            </button>
           <% end %>
         </div>
-
-        <%!-- Variants toggle button --%>
-        <%= if @variants && length(@variants) > 0 do %>
-          <button
-            type="button"
-            class="host-variants-toggle"
-            phx-click={
-              Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")
-            }
-          >
-            <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
-            <span class="host-variants-toggle__icon"></span>
-          </button>
-        <% end %>
       </div>
 
       <%!-- Variants row (collapsed by default) --%>
