@@ -602,8 +602,32 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   end
 
   defp update_creator_from_orders(acc, creator, order_ids, order_map) do
-    order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
+    # Get all orders for this creator and pick the best one (with unmasked phone if available)
+    orders =
+      order_ids
+      |> Enum.map(&Map.get(order_map, &1))
+      |> Enum.reject(&is_nil/1)
+
+    order = pick_best_order(orders)
     do_update_creator(acc, creator, order)
+  end
+
+  # Pick the order with the best data - prefer orders with unmasked phone numbers
+  defp pick_best_order([]), do: nil
+
+  defp pick_best_order(orders) do
+    Enum.max_by(orders, fn order ->
+      phone = order["phone_number"]
+
+      cond do
+        # Best: has phone without asterisks
+        phone && phone != "" && !String.contains?(phone, "*") -> 2
+        # OK: has some phone data
+        phone && phone != "" -> 1
+        # Worst: no phone
+        true -> 0
+      end
+    end)
   end
 
   defp do_update_creator(acc, _creator, nil), do: %{acc | skipped: acc.skipped + 1}
