@@ -15,6 +15,8 @@ defmodule Pavoi.Application do
       {Phoenix.PubSub, name: Pavoi.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Pavoi.Finch},
+      # Registry for TikTok Live stream connections and event handlers
+      {Registry, keys: :unique, name: Pavoi.TiktokLive.Registry},
       # Start Oban for background job processing
       {Oban, Application.fetch_env!(:pavoi, Oban)},
       # Start to serve requests, typically the last entry

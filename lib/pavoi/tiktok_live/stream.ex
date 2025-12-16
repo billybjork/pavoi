@@ -1,0 +1,55 @@
+defmodule Pavoi.TiktokLive.Stream do
+  @moduledoc """
+  Represents a TikTok live stream session that has been captured.
+
+  Each stream record tracks metadata about the live broadcast including
+  engagement metrics and timing information.
+  """
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  @statuses ~w(capturing ended failed)a
+
+  schema "tiktok_streams" do
+    field :room_id, :string
+    field :unique_id, :string
+    field :title, :string
+    field :started_at, :utc_datetime
+    field :ended_at, :utc_datetime
+    field :status, Ecto.Enum, values: @statuses, default: :capturing
+    field :viewer_count_peak, :integer, default: 0
+    field :total_likes, :integer, default: 0
+    field :total_comments, :integer, default: 0
+    field :total_gifts_value, :integer, default: 0
+    field :raw_metadata, :map, default: %{}
+
+    has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
+    has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
+
+    timestamps()
+  end
+
+  @doc false
+  def changeset(stream, attrs) do
+    stream
+    |> cast(attrs, [
+      :room_id,
+      :unique_id,
+      :title,
+      :started_at,
+      :ended_at,
+      :status,
+      :viewer_count_peak,
+      :total_likes,
+      :total_comments,
+      :total_gifts_value,
+      :raw_metadata
+    ])
+    |> validate_required([:room_id, :unique_id, :started_at])
+  end
+
+  @doc """
+  Returns the list of valid stream statuses.
+  """
+  def statuses, do: @statuses
+end

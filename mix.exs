@@ -74,7 +74,11 @@ defmodule Pavoi.MixProject do
       # Static type analysis
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # Static code analysis
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+
+      # TikTok Live stream capture
+      {:websockex, "~> 0.4.3"},
+      {:protobuf, "~> 0.12.0"}
     ]
   end
 

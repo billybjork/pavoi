@@ -51,10 +51,15 @@ config :pavoi, Oban,
        # Sync BigQuery orders to Creator CRM every 24 hours (at midnight UTC)
        {"0 0 * * *", Pavoi.Workers.BigQueryOrderSyncWorker},
        # Refresh TikTok access token every 30 minutes (prevents token expiration)
-       {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker}
+       {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker},
+       # Monitor TikTok live status every 2 minutes
+       {"*/2 * * * *", Pavoi.Workers.TiktokLiveMonitorWorker}
      ]}
   ],
   queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3]
+
+# TikTok Live stream capture configuration
+config :pavoi, :tiktok_live_monitor, accounts: ["pavoi"]
 
 # Configure esbuild (the version is required)
 config :esbuild,
