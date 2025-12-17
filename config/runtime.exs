@@ -40,8 +40,10 @@ if config_env() == :dev do
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
-    # Euler Stream API key for TikTok Live capture
-    euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY")
+    # Euler Stream API key for TikTok Live capture (legacy, kept for reference)
+    euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY"),
+    # TikTok Bridge service URL (self-hosted replacement for Euler Stream)
+    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,
@@ -117,8 +119,10 @@ if config_env() == :prod do
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
-    # Euler Stream API key for TikTok Live capture
-    euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY")
+    # Euler Stream API key for TikTok Live capture (legacy, kept for reference)
+    euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY"),
+    # TikTok Bridge service URL (self-hosted replacement for Euler Stream)
+    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,
