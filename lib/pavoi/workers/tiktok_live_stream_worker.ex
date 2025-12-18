@@ -3,10 +3,11 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
   Oban worker that manages the capture process for a single TikTok live stream.
 
   This worker:
-  1. Starts the WebSocket Connection to Euler Stream's hosted service
-  2. Starts the Event Handler for persisting events
-  3. Monitors both processes and restarts them if they crash
-  4. Runs until the stream ends or connection fails
+  1. Connects to the TikTok Bridge via HTTP API
+  2. Subscribes to bridge events via PubSub
+  3. Translates events from unique_id to stream_id format
+  4. Starts the Event Handler for persisting events
+  5. Runs until the stream ends or connection fails
 
   The worker is designed to be long-running (up to several hours for a live stream).
   It uses Oban's snooze mechanism to periodically check if the stream is still active.
@@ -20,7 +21,7 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
   require Logger
 
   alias Pavoi.Repo
-  alias Pavoi.TiktokLive.{Connection, EventHandler, Stream}
+  alias Pavoi.TiktokLive.{BridgeClient, EventHandler, Stream}
 
   # Check stream status every 5 minutes
   @status_check_interval_seconds 300
@@ -59,11 +60,11 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
 
     case EventHandler.start_link(event_handler_opts) do
       {:ok, event_handler_pid} ->
-        start_connection(stream_id, unique_id, event_handler_pid)
+        connect_via_bridge(stream_id, unique_id, event_handler_pid)
 
       {:error, {:already_started, pid}} ->
         Logger.info("Event handler already running for stream #{stream_id}")
-        start_connection(stream_id, unique_id, pid)
+        connect_via_bridge(stream_id, unique_id, pid)
 
       {:error, reason} ->
         Logger.error("Failed to start event handler: #{inspect(reason)}")
@@ -72,145 +73,124 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     end
   end
 
-  defp start_connection(stream_id, unique_id, event_handler_pid) do
-    connection_opts = [
-      unique_id: unique_id,
-      stream_id: stream_id,
-      name: connection_name(stream_id)
-    ]
-
-    case Connection.start_link(connection_opts) do
-      {:ok, connection_pid} ->
-        monitor_capture(stream_id, connection_pid, event_handler_pid)
-
-      {:error, {:already_started, pid}} ->
-        Logger.info("Connection already running for stream #{stream_id}")
-        monitor_capture(stream_id, pid, event_handler_pid)
-
-      {:error, :missing_api_key} ->
-        Logger.error("Euler Stream API key not configured")
-        stop_event_handler(event_handler_pid)
-        {:error, :missing_api_key}
+  defp connect_via_bridge(stream_id, unique_id, event_handler_pid) do
+    # Connect to the TikTok stream via Bridge HTTP API
+    case BridgeClient.connect_stream(unique_id) do
+      {:ok, _response} ->
+        Logger.info("Connected to TikTok stream @#{unique_id} via bridge")
+        monitor_capture(stream_id, unique_id, event_handler_pid)
 
       {:error, reason} ->
-        Logger.error("Failed to start connection: #{inspect(reason)}")
+        Logger.error("Failed to connect to stream via bridge: #{inspect(reason)}")
         stop_event_handler(event_handler_pid)
         # Snooze and retry
         {:snooze, 60}
     end
   end
 
-  defp monitor_capture(stream_id, connection_pid, event_handler_pid) do
-    # Monitor both processes
-    connection_ref = Process.monitor(connection_pid)
+  defp monitor_capture(stream_id, unique_id, event_handler_pid) do
+    # Monitor the event handler process
     event_handler_ref = Process.monitor(event_handler_pid)
 
-    # Subscribe to stream events to detect stream end
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:stream:#{stream_id}")
+    # Subscribe to bridge events (receives all events from all streams)
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:bridge:events")
 
     result =
       capture_loop(
         stream_id,
-        connection_pid,
+        unique_id,
         event_handler_pid,
-        connection_ref,
         event_handler_ref
       )
 
     # Cleanup
-    Process.demonitor(connection_ref, [:flush])
     Process.demonitor(event_handler_ref, [:flush])
-    Phoenix.PubSub.unsubscribe(Pavoi.PubSub, "tiktok_live:stream:#{stream_id}")
+    Phoenix.PubSub.unsubscribe(Pavoi.PubSub, "tiktok_live:bridge:events")
+
+    # Disconnect from bridge
+    disconnect_from_bridge(unique_id)
 
     result
   end
 
-  defp capture_loop(
-         stream_id,
-         connection_pid,
-         event_handler_pid,
-         connection_ref,
-         event_handler_ref
-       ) do
+  defp capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref) do
     receive do
-      # Stream ended naturally
-      {:tiktok_live_stream_event, {:stream_ended}} ->
-        Logger.info("Stream #{stream_id} ended")
-        cleanup_processes(connection_pid, event_handler_pid)
-        :ok
+      # Bridge event for our stream - translate and forward to EventHandler
+      {:tiktok_bridge_event, ^unique_id, event} ->
+        handle_bridge_event(stream_id, event)
 
-      # Connection failed permanently
-      {:tiktok_live_stream_event, {:connection_failed}} ->
-        Logger.error("Connection failed for stream #{stream_id}")
-        cleanup_processes(connection_pid, event_handler_pid)
-        :ok
+        # Check for terminal events
+        case event.type do
+          :stream_ended ->
+            Logger.info("Stream #{stream_id} ended")
+            stop_event_handler(event_handler_pid)
+            :ok
 
-      # Connection process died
-      {:DOWN, ^connection_ref, :process, ^connection_pid, reason} ->
-        Logger.warning("Connection process died: #{inspect(reason)}")
-        stop_event_handler(event_handler_pid)
-        # Check if stream is still capturing
-        case Repo.get(Stream, stream_id) do
-          %Stream{status: :capturing} ->
+          :disconnected ->
+            Logger.info("Stream #{stream_id} disconnected from bridge")
+            stop_event_handler(event_handler_pid)
+            :ok
+
+          :error ->
+            Logger.error("Bridge error for stream #{stream_id}: #{inspect(event[:error])}")
+            stop_event_handler(event_handler_pid)
             # Snooze and retry
-            {:snooze, 30}
+            {:snooze, 60}
 
           _ ->
-            :ok
+            capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
         end
+
+      # Ignore events from other streams
+      {:tiktok_bridge_event, _other_unique_id, _event} ->
+        capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
 
       # Event handler process died
       {:DOWN, ^event_handler_ref, :process, ^event_handler_pid, reason} ->
         Logger.warning("Event handler process died: #{inspect(reason)}")
-        stop_connection(connection_pid)
         # Snooze and retry
         {:snooze, 30}
 
-      # Periodic status check (use timeout)
+      # Ignore other messages
       _other ->
-        capture_loop(
-          stream_id,
-          connection_pid,
-          event_handler_pid,
-          connection_ref,
-          event_handler_ref
-        )
+        capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
     after
       @status_check_interval_seconds * 1000 ->
         # Check if stream is still valid
         case Repo.get(Stream, stream_id) do
           %Stream{status: :capturing} ->
             # Continue monitoring
-            capture_loop(
-              stream_id,
-              connection_pid,
-              event_handler_pid,
-              connection_ref,
-              event_handler_ref
-            )
+            capture_loop(stream_id, unique_id, event_handler_pid, event_handler_ref)
 
           _ ->
             Logger.info("Stream #{stream_id} no longer in capturing state")
-            cleanup_processes(connection_pid, event_handler_pid)
+            stop_event_handler(event_handler_pid)
             :ok
         end
     end
   end
 
-  defp cleanup_processes(connection_pid, event_handler_pid) do
-    stop_connection(connection_pid)
-    stop_event_handler(event_handler_pid)
+  # Translate bridge event (keyed by unique_id) to the format EventHandler expects
+  # (keyed by stream_id) and broadcast to the standard events topic
+  defp handle_bridge_event(stream_id, event) do
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "tiktok_live:events",
+      {:tiktok_live_event, stream_id, event}
+    )
   end
 
-  defp stop_connection(pid) when is_pid(pid) do
-    if Process.alive?(pid) do
-      Connection.stop(pid)
+  defp disconnect_from_bridge(unique_id) do
+    case BridgeClient.disconnect_stream(unique_id) do
+      {:ok, _} ->
+        Logger.info("Disconnected from TikTok stream @#{unique_id}")
+
+      {:error, reason} ->
+        Logger.warning("Failed to disconnect from bridge: #{inspect(reason)}")
     end
   rescue
     _ -> :ok
   end
-
-  defp stop_connection(_), do: :ok
 
   defp stop_event_handler(pid) when is_pid(pid) do
     if Process.alive?(pid) do
@@ -226,10 +206,6 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
     stream
     |> Stream.changeset(%{status: :failed})
     |> Repo.update()
-  end
-
-  defp connection_name(stream_id) do
-    {:via, Registry, {Pavoi.TiktokLive.Registry, {:connection, stream_id}}}
   end
 
   defp event_handler_name(stream_id) do

@@ -49,15 +49,17 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   ## Options
 
   - `:bridge_url` - WebSocket URL of the bridge service. Defaults to env config.
-  - `:name` - Process name for registration.
+  - `:name` - Process name for registration. Defaults to `__MODULE__`.
+
+  Returns `:ignore` if bridge URL is not configured (allows safe supervision).
   """
   def start_link(opts \\ []) do
     bridge_url = Keyword.get(opts, :bridge_url, bridge_ws_url())
-    name = Keyword.get(opts, :name)
+    name = Keyword.get(opts, :name, __MODULE__)
 
     if is_nil(bridge_url) or bridge_url == "" do
-      Logger.error("TikTok Bridge URL not configured")
-      {:error, :missing_bridge_url}
+      Logger.warning("TikTok Bridge URL not configured, skipping BridgeClient")
+      :ignore
     else
       Logger.info("Starting TikTok Bridge client, connecting to #{bridge_url}")
 
@@ -69,6 +71,18 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       ws_opts = [name: name, handle_initial_conn_failure: true]
       WebSockex.start_link(bridge_url, __MODULE__, state, ws_opts)
     end
+  end
+
+  @doc """
+  Returns the child spec for supervision tree.
+  """
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :permanent,
+      type: :worker
+    }
   end
 
   @doc """
@@ -260,7 +274,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       nickname: data["nickname"],
       count: data["likeCount"],
       total_count: data["totalLikeCount"],
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
       raw: data
     })
   end
@@ -271,7 +285,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       user_id: to_string(data["userId"]),
       username: data["uniqueId"],
       nickname: data["nickname"],
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
       raw: data
     })
   end
@@ -280,7 +294,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
     broadcast_event(unique_id, %{
       type: :viewer_count,
       viewer_count: data["viewerCount"],
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
       raw: data
     })
   end
@@ -298,7 +312,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       user_id: to_string(data["userId"]),
       username: data["uniqueId"],
       nickname: data["nickname"],
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
       raw: data
     })
   end
@@ -329,28 +343,32 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   end
 
   defp bridge_ws_url do
-    base = Application.get_env(:pavoi, :tiktok_bridge_url, "http://localhost:8080")
+    base = Application.get_env(:pavoi, :tiktok_bridge_url)
 
-    base
-    |> String.replace(~r{^http://}, "ws://")
-    |> String.replace(~r{^https://}, "wss://")
-    |> Kernel.<>("/events")
+    if is_nil(base) or base == "" do
+      nil
+    else
+      base
+      |> String.replace(~r{^http://}, "ws://")
+      |> String.replace(~r{^https://}, "wss://")
+      |> Kernel.<>("/events")
+    end
   end
 
   defp bridge_http_url do
     Application.get_env(:pavoi, :tiktok_bridge_url, "http://localhost:8080")
   end
 
-  defp parse_timestamp(nil), do: DateTime.utc_now()
+  defp parse_timestamp(nil), do: DateTime.utc_now() |> DateTime.truncate(:second)
 
   defp parse_timestamp(ts) when is_integer(ts) do
     ts = if ts > 10_000_000_000, do: div(ts, 1000), else: ts
 
     case DateTime.from_unix(ts) do
-      {:ok, dt} -> dt
-      _ -> DateTime.utc_now()
+      {:ok, dt} -> DateTime.truncate(dt, :second)
+      _ -> DateTime.utc_now() |> DateTime.truncate(:second)
     end
   end
 
-  defp parse_timestamp(_), do: DateTime.utc_now()
+  defp parse_timestamp(_), do: DateTime.utc_now() |> DateTime.truncate(:second)
 end

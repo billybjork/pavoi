@@ -315,40 +315,32 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   defp build_filters(assigns) do
-    filters = []
-
-    filters =
-      case assigns.status_filter do
-        "all" -> filters
-        "capturing" -> [{:status, :capturing} | filters]
-        "ended" -> [{:status, :ended} | filters]
-        "failed" -> [{:status, :failed} | filters]
-        _ -> filters
-      end
-
-    filters =
-      case assigns.date_filter do
-        "all" ->
-          filters
-
-        "today" ->
-          today_start = Date.utc_today() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-          [{:started_after, today_start} | filters]
-
-        "week" ->
-          week_ago = Date.utc_today() |> Date.add(-7) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-          [{:started_after, week_ago} | filters]
-
-        "month" ->
-          month_ago = Date.utc_today() |> Date.add(-30) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
-          [{:started_after, month_ago} | filters]
-
-        _ ->
-          filters
-      end
-
-    filters
+    []
+    |> apply_status_filter(assigns.status_filter)
+    |> apply_date_filter(assigns.date_filter)
   end
+
+  defp apply_status_filter(filters, "capturing"), do: [{:status, :capturing} | filters]
+  defp apply_status_filter(filters, "ended"), do: [{:status, :ended} | filters]
+  defp apply_status_filter(filters, "failed"), do: [{:status, :failed} | filters]
+  defp apply_status_filter(filters, _), do: filters
+
+  defp apply_date_filter(filters, "today") do
+    today_start = Date.utc_today() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    [{:started_after, today_start} | filters]
+  end
+
+  defp apply_date_filter(filters, "week") do
+    week_ago = Date.utc_today() |> Date.add(-7) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    [{:started_after, week_ago} | filters]
+  end
+
+  defp apply_date_filter(filters, "month") do
+    month_ago = Date.utc_today() |> Date.add(-30) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+    [{:started_after, month_ago} | filters]
+  end
+
+  defp apply_date_filter(filters, _), do: filters
 
   defp count_streams(filters) do
     # Get count by listing with filters (could be optimized with a count query)

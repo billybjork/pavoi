@@ -76,12 +76,20 @@ defmodule Pavoi.TiktokLive.TestConnection do
     IO.puts("Target: @#{unique_id}")
     IO.puts("Timeout: #{timeout_seconds}s\n")
 
-    # Step 1: Check bridge health
+    with :ok <- check_bridge_health(bridge_url),
+         {:ok, pid} <- connect_to_websocket(bridge_url),
+         {:ok, _room_id} <- connect_to_stream(bridge_url, unique_id, pid) do
+      wait_for_events(pid, timeout_seconds * 1000, bridge_url, unique_id)
+    end
+  end
+
+  defp check_bridge_health(bridge_url) do
     IO.puts("Step 1: Checking bridge health...")
 
     case Req.get("#{bridge_url}/health", receive_timeout: 5_000) do
       {:ok, %{status: 200, body: body}} ->
         IO.puts("  Bridge is healthy: #{inspect(body)}\n")
+        :ok
 
       {:ok, %{status: status}} ->
         IO.puts("  ERROR: Bridge returned status #{status}")
@@ -92,48 +100,43 @@ defmodule Pavoi.TiktokLive.TestConnection do
         IO.puts("  Make sure the bridge is running: cd services/tiktok-bridge && npm start")
         {:error, :bridge_unreachable}
     end
-    |> case do
-      {:error, _} = error ->
-        error
+  end
 
-      _ ->
-        # Step 2: Connect to bridge WebSocket
-        IO.puts("Step 2: Connecting to bridge WebSocket...")
+  defp connect_to_websocket(bridge_url) do
+    IO.puts("Step 2: Connecting to bridge WebSocket...")
 
-        ws_url = bridge_ws_url(bridge_url)
-        state = %State{parent: self(), event_count: 0, unique_id: unique_id}
+    ws_url = bridge_ws_url(bridge_url)
+    state = %State{parent: self(), event_count: 0, unique_id: nil}
 
-        case WebSockex.start_link(ws_url, __MODULE__, state) do
-          {:ok, pid} ->
-            IO.puts("  Connected to bridge!\n")
+    case WebSockex.start_link(ws_url, __MODULE__, state) do
+      {:ok, pid} ->
+        IO.puts("  Connected to bridge!\n")
+        {:ok, pid}
 
-            # Step 3: Request connection to TikTok stream
-            IO.puts("Step 3: Requesting connection to @#{unique_id}...")
+      {:error, reason} ->
+        IO.puts("  ERROR: Failed to connect to WebSocket: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 
-            case Req.post("#{bridge_url}/connect",
-                   json: %{uniqueId: unique_id},
-                   receive_timeout: 30_000
-                 ) do
-              {:ok, %{status: 200, body: body}} ->
-                IO.puts("  Success! Room ID: #{body["roomId"]}")
-                IO.puts("  Waiting for events...\n")
-                wait_for_events(pid, timeout_seconds * 1000, bridge_url, unique_id)
+  defp connect_to_stream(bridge_url, unique_id, pid) do
+    IO.puts("Step 3: Requesting connection to @#{unique_id}...")
 
-              {:ok, %{status: _, body: body}} ->
-                IO.puts("  Failed: #{body["error"]}")
-                WebSockex.cast(pid, :stop)
-                {:error, body["error"]}
+    case Req.post("#{bridge_url}/connect", json: %{uniqueId: unique_id}, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: body}} ->
+        IO.puts("  Success! Room ID: #{body["roomId"]}")
+        IO.puts("  Waiting for events...\n")
+        {:ok, body["roomId"]}
 
-              {:error, reason} ->
-                IO.puts("  Error: #{inspect(reason)}")
-                WebSockex.cast(pid, :stop)
-                {:error, reason}
-            end
+      {:ok, %{status: _, body: body}} ->
+        IO.puts("  Failed: #{body["error"]}")
+        WebSockex.cast(pid, :stop)
+        {:error, body["error"]}
 
-          {:error, reason} ->
-            IO.puts("  ERROR: Failed to connect to WebSocket: #{inspect(reason)}")
-            {:error, reason}
-        end
+      {:error, reason} ->
+        IO.puts("  Error: #{inspect(reason)}")
+        WebSockex.cast(pid, :stop)
+        {:error, reason}
     end
   end
 
