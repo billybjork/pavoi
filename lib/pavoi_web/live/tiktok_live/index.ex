@@ -47,6 +47,10 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:stream_stats, [])
       # Track which stream we're subscribed to for real-time updates
       |> assign(:subscribed_stream_id, nil)
+      # Test capture form state
+      |> assign(:capture_input, "")
+      |> assign(:capture_loading, false)
+      |> assign(:capture_error, nil)
 
     {:ok, socket}
   end
@@ -135,6 +139,29 @@ defmodule PavoiWeb.TiktokLive.Index do
   def handle_event("load_more", _params, socket) do
     send(self(), :load_more_streams)
     {:noreply, assign(socket, :loading_streams, true)}
+  end
+
+  @impl true
+  def handle_event("start_capture", %{"unique_id" => unique_id}, socket) do
+    unique_id = unique_id |> String.trim() |> String.trim_leading("@")
+
+    if unique_id == "" do
+      {:noreply, assign(socket, :capture_error, "Enter a username")}
+    else
+      # Start capture async to avoid blocking
+      socket =
+        socket
+        |> assign(:capture_input, unique_id)
+        |> assign(:capture_loading, true)
+        |> assign(:capture_error, nil)
+
+      Task.start(fn ->
+        result = TiktokLiveContext.start_capture(unique_id)
+        send(self(), {:capture_result, result})
+      end)
+
+      {:noreply, socket}
+    end
   end
 
   # PubSub handlers for global "tiktok_live:events" topic
@@ -259,6 +286,46 @@ defmodule PavoiWeb.TiktokLive.Index do
       socket
       |> assign(:page, socket.assigns.page + 1)
       |> load_streams(append: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:capture_result, {:ok, _stream}}, socket) do
+    socket =
+      socket
+      |> assign(:capture_input, "")
+      |> assign(:capture_loading, false)
+      |> assign(:capture_error, nil)
+      |> assign(:page, 1)
+      |> load_streams()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:capture_result, {:error, :not_live}}, socket) do
+    socket =
+      socket
+      |> assign(:capture_loading, false)
+      |> assign(:capture_error, "User is not live")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:capture_result, {:error, reason}}, socket) do
+    error_msg =
+      case reason do
+        :room_id_not_found -> "User not found or not live"
+        {:http_error, status} -> "TikTok returned #{status}"
+        _ -> "Failed to connect"
+      end
+
+    socket =
+      socket
+      |> assign(:capture_loading, false)
+      |> assign(:capture_error, error_msg)
 
     {:noreply, socket}
   end

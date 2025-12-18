@@ -25,6 +25,27 @@
           <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
         </select>
       </form>
+
+      <form phx-submit="start_capture" class="capture-form">
+        <input
+          type="text"
+          name="unique_id"
+          placeholder="@username"
+          class="input input--sm"
+          value={@capture_input}
+          disabled={@capture_loading}
+        />
+        <button type="submit" class="btn btn--sm btn--primary" disabled={@capture_loading}>
+          <%= if @capture_loading do %>
+            Connecting...
+          <% else %>
+            Capture
+          <% end %>
+        </button>
+      </form>
+      <%= if @capture_error do %>
+        <span class="capture-error">{@capture_error}</span>
+      <% end %>
     </div>
   </div>
 
