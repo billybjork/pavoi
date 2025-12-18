@@ -299,6 +299,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   defp handle_bridge_event(%{"type" => "chat", "uniqueId" => unique_id, "data" => data}) do
     broadcast_event(unique_id, %{
       type: :comment,
+      msg_id: data["msgId"],
       user_id: to_string(data["userId"]),
       username: data["uniqueId"],
       nickname: data["nickname"],

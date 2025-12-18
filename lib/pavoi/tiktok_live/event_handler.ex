@@ -24,6 +24,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
   @batch_size 50
   @batch_flush_interval_ms 1_000
   @stats_interval_ms 30_000
+  # Max msg_ids to track for deduplication (prevents unbounded memory growth)
+  @max_seen_msg_ids 5_000
 
   defmodule State do
     @moduledoc false
@@ -33,7 +35,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
       :comment_batch,
       :stats,
       :flush_timer_ref,
-      :stats_timer_ref
+      :stats_timer_ref,
+      :seen_msg_ids
     ]
   end
 
@@ -93,7 +96,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
         comment_count: stream.total_comments || 0
       },
       flush_timer_ref: schedule_flush(),
-      stats_timer_ref: schedule_stats_save()
+      stats_timer_ref: schedule_stats_save(),
+      seen_msg_ids: MapSet.new()
     }
 
     {:ok, state}
@@ -158,30 +162,51 @@ defmodule Pavoi.TiktokLive.EventHandler do
   # Event processing
 
   defp process_event(%{type: :comment} = event, state) do
-    # Add comment to batch
-    comment_attrs = %{
-      stream_id: state.stream_id,
-      tiktok_user_id: event.user_id,
-      tiktok_username: event.username,
-      tiktok_nickname: event.nickname,
-      comment_text: event.content,
-      commented_at: event.timestamp,
-      raw_event: sanitize_raw_event(event.raw)
-    }
+    msg_id = event[:msg_id]
 
-    new_batch = [comment_attrs | state.comment_batch]
-    new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
-
-    # Broadcast to UI
-    broadcast_to_stream(state.stream_id, {:comment, event})
-
-    # Flush if batch is full
-    new_state = %{state | comment_batch: new_batch, stats: new_stats}
-
-    if length(new_batch) >= @batch_size do
-      flush_comment_batch(new_state)
+    # Skip if we've already seen this message (prevents duplicate UI broadcasts)
+    if msg_id && MapSet.member?(state.seen_msg_ids, msg_id) do
+      Logger.debug("Skipping duplicate comment with msg_id: #{msg_id}")
+      state
     else
-      new_state
+      # Add comment to batch
+      comment_attrs = %{
+        stream_id: state.stream_id,
+        tiktok_user_id: event.user_id,
+        tiktok_username: event.username,
+        tiktok_nickname: event.nickname,
+        comment_text: event.content,
+        commented_at: event.timestamp,
+        raw_event: sanitize_raw_event(event.raw)
+      }
+
+      new_batch = [comment_attrs | state.comment_batch]
+      new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
+
+      # Track seen msg_id (only if present), reset if too large
+      new_seen =
+        if msg_id do
+          seen = state.seen_msg_ids
+
+          # Reset if we've accumulated too many (duplicates come in quick succession anyway)
+          seen = if MapSet.size(seen) >= @max_seen_msg_ids, do: MapSet.new(), else: seen
+
+          MapSet.put(seen, msg_id)
+        else
+          state.seen_msg_ids
+        end
+
+      # Broadcast to UI
+      broadcast_to_stream(state.stream_id, {:comment, event})
+
+      # Flush if batch is full
+      new_state = %{state | comment_batch: new_batch, stats: new_stats, seen_msg_ids: new_seen}
+
+      if length(new_batch) >= @batch_size do
+        flush_comment_batch(new_state)
+      else
+        new_state
+      end
     end
   end
 

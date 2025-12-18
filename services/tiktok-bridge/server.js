@@ -103,6 +103,7 @@ async function connectToStream(uniqueId) {
         type: 'chat',
         uniqueId,
         data: {
+          msgId: data.msgId,
           userId: data.userId,
           uniqueId: data.uniqueId,
           nickname: data.nickname,
