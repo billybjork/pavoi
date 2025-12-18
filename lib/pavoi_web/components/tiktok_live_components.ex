@@ -73,7 +73,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               class={[@on_row_click && "cursor-pointer hover:bg-hover"]}
             >
               <td class="streams-table__title">
-                <span class="streams-table__title-text">{stream.title || "Untitled Stream"}</span>
+                <span class="streams-table__title-text">{format_stream_title(stream)}</span>
                 <span class="streams-table__username">@{stream.unique_id}</span>
               </td>
               <td>
@@ -126,7 +126,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
         <div class="modal__header">
           <div class="stream-modal-header">
             <div class="stream-modal-header__title">
-              <h2 class="modal__title">{@stream.title || "Untitled Stream"}</h2>
+              <h2 class="modal__title">{format_stream_title(@stream)}</h2>
               <span class="text-secondary">@{@stream.unique_id}</span>
             </div>
             <div class="stream-modal-header__status">
@@ -335,6 +335,43 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   # Helper functions
+
+  # Default TikTok page titles that aren't useful
+  @useless_titles [
+    "Download TikTok Lite - Make Your Day",
+    "TikTok - Make Your Day",
+    "TikTok LIVE"
+  ]
+
+  defp format_stream_title(%{title: title, started_at: started_at}) do
+    if is_nil(title) or title == "" or title in @useless_titles do
+      format_stream_date(started_at)
+    else
+      title
+    end
+  end
+
+  defp format_stream_date(nil), do: "Stream"
+
+  defp format_stream_date(%DateTime{} = dt) do
+    today = Date.utc_today()
+    date = DateTime.to_date(dt)
+    time_str = Calendar.strftime(dt, "%I:%M %p")
+
+    cond do
+      date == today ->
+        "Today at #{time_str}"
+
+      date == Date.add(today, -1) ->
+        "Yesterday at #{time_str}"
+
+      Date.diff(today, date) < 7 ->
+        Calendar.strftime(dt, "%A at #{time_str}")
+
+      true ->
+        Calendar.strftime(dt, "%b %d at #{time_str}")
+    end
+  end
 
   defp format_stream_time(nil), do: "-"
 
