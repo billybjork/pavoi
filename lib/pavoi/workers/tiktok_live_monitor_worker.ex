@@ -146,20 +146,30 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
 
   # Check if a capture is receiving events (stats updated within last 3 minutes)
   # Stats are saved every 30s, so 3 min = 6 missed saves = definitely stale
+  # Exception: streams that just started (< 2 min old) are considered healthy
+  # since they may not have saved their first stat yet
   defp capture_healthy?(stream) do
     import Ecto.Query
     alias Pavoi.TiktokLive.StreamStat
 
-    cutoff = DateTime.utc_now() |> DateTime.add(-3, :minute)
+    # New streams (< 2 min old) are given grace period
+    stream_age_seconds = DateTime.diff(DateTime.utc_now(), stream.started_at)
 
-    recent_stat =
-      from(s in StreamStat,
-        where: s.stream_id == ^stream.id and s.recorded_at > ^cutoff,
-        limit: 1
-      )
-      |> Repo.one()
+    if stream_age_seconds < 120 do
+      # Stream just started, consider healthy
+      true
+    else
+      cutoff = DateTime.utc_now() |> DateTime.add(-3, :minute)
 
-    recent_stat != nil
+      recent_stat =
+        from(s in StreamStat,
+          where: s.stream_id == ^stream.id and s.recorded_at > ^cutoff,
+          limit: 1
+        )
+        |> Repo.one()
+
+      recent_stat != nil
+    end
   end
 
   # Restart a stale capture by re-enqueuing the worker

@@ -262,7 +262,13 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp process_event(%{type: :disconnected} = event, state) do
-    broadcast_to_stream(state.stream_id, {:disconnected, event.reason})
+    Logger.info("Stream #{state.stream_id} disconnected: #{inspect(event[:reason])}")
+    broadcast_to_stream(state.stream_id, {:disconnected, event[:reason]})
+
+    # Mark stream as ended on disconnect (the worker will also handle cleanup)
+    update_stream_field(state.stream, :status, :ended)
+    update_stream_field(state.stream, :ended_at, DateTime.utc_now())
+
     state
   end
 
