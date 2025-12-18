@@ -134,6 +134,7 @@ if config_env() == :prod do
 
   config :pavoi, PavoiWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
+    check_origin: ["https://#{host}", "https://app.pavoi.com"],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
