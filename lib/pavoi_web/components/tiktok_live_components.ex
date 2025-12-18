@@ -354,45 +354,49 @@ defmodule PavoiWeb.TiktokLiveComponents do
   defp format_stream_date(nil), do: "Stream"
 
   defp format_stream_date(%DateTime{} = dt) do
-    today = Date.utc_today()
-    date = DateTime.to_date(dt)
-    time_str = Calendar.strftime(dt, "%I:%M %p")
+    # Convert UTC to PST (UTC-8)
+    pst_dt = DateTime.add(dt, -8 * 3600, :second)
+    pst_today = DateTime.add(DateTime.utc_now(), -8 * 3600, :second) |> DateTime.to_date()
+    date = DateTime.to_date(pst_dt)
+    time_str = Calendar.strftime(pst_dt, "%I:%M %p")
 
     cond do
-      date == today ->
-        "Today at #{time_str}"
+      date == pst_today ->
+        "Today at #{time_str} PST"
 
-      date == Date.add(today, -1) ->
-        "Yesterday at #{time_str}"
+      date == Date.add(pst_today, -1) ->
+        "Yesterday at #{time_str} PST"
 
-      Date.diff(today, date) < 7 ->
-        Calendar.strftime(dt, "%A at #{time_str}")
+      Date.diff(pst_today, date) < 7 ->
+        Calendar.strftime(pst_dt, "%A at ") <> "#{time_str} PST"
 
       true ->
-        Calendar.strftime(dt, "%b %d at #{time_str}")
+        Calendar.strftime(pst_dt, "%b %d at ") <> "#{time_str} PST"
     end
   end
 
   defp format_stream_time(nil), do: "-"
 
   defp format_stream_time(%DateTime{} = dt) do
-    today = Date.utc_today()
-    date = DateTime.to_date(dt)
+    # Convert UTC to PST (UTC-8)
+    pst_dt = DateTime.add(dt, -8 * 3600, :second)
+    pst_today = DateTime.add(DateTime.utc_now(), -8 * 3600, :second) |> DateTime.to_date()
+    date = DateTime.to_date(pst_dt)
 
-    time_str = Calendar.strftime(dt, "%I:%M %p")
+    time_str = Calendar.strftime(pst_dt, "%I:%M %p")
 
     cond do
-      date == today ->
-        "Today #{time_str}"
+      date == pst_today ->
+        "Today #{time_str} PST"
 
-      date == Date.add(today, -1) ->
-        "Yesterday #{time_str}"
+      date == Date.add(pst_today, -1) ->
+        "Yesterday #{time_str} PST"
 
-      Date.diff(today, date) < 7 ->
-        Calendar.strftime(dt, "%A #{time_str}")
+      Date.diff(pst_today, date) < 7 ->
+        Calendar.strftime(pst_dt, "%A ") <> "#{time_str} PST"
 
       true ->
-        Calendar.strftime(dt, "%b %d, %Y")
+        Calendar.strftime(pst_dt, "%b %d, %Y")
     end
   end
 
