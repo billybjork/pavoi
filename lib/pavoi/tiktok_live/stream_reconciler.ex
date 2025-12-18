@@ -3,14 +3,16 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   Reconciles stream state on application startup.
 
   Finds streams that are marked as "capturing" but have no active Oban worker,
-  which can happen after application restarts or crashes. These orphaned streams
-  are marked as "ended" to maintain data integrity.
+  which can happen after application restarts or crashes. For each orphaned stream:
+  - If the stream is still live, restart capture
+  - If the stream is no longer live, mark as ended
   """
 
   require Logger
 
   alias Pavoi.Repo
-  alias Pavoi.TiktokLive.Stream
+  alias Pavoi.TiktokLive.{Client, Stream}
+  alias Pavoi.Workers.TiktokLiveStreamWorker
 
   import Ecto.Query
 
@@ -38,11 +40,37 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
       Logger.info("Stream reconciliation: found #{length(orphaned_streams)} orphaned streams")
 
       Enum.each(orphaned_streams, fn stream ->
-        mark_stream_ended(stream)
+        reconcile_orphaned_stream(stream)
       end)
 
       cancelled + length(orphaned_streams)
     end
+  end
+
+  # Check if stream is still live and restart capture, otherwise mark as ended
+  defp reconcile_orphaned_stream(stream) do
+    case Client.fetch_room_info(stream.unique_id) do
+      {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
+        # Stream is still live with same room_id, restart capture
+        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) is still live, restarting capture")
+        restart_capture(stream)
+
+      {:ok, %{is_live: true}} ->
+        # Live but different room_id means this is a new stream
+        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) has new room_id, marking as ended")
+        mark_stream_ended(stream)
+
+      _ ->
+        # Not live or error checking, mark as ended
+        Logger.info("Stream #{stream.id} (@#{stream.unique_id}) is no longer live, marking as ended")
+        mark_stream_ended(stream)
+    end
+  end
+
+  defp restart_capture(stream) do
+    %{stream_id: stream.id, unique_id: stream.unique_id}
+    |> TiktokLiveStreamWorker.new()
+    |> Oban.insert()
   end
 
   @doc """

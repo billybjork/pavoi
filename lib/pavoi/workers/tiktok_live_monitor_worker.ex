@@ -144,12 +144,13 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     |> Repo.one()
   end
 
-  # Check if a capture is receiving events (stats updated within last 5 minutes)
+  # Check if a capture is receiving events (stats updated within last 3 minutes)
+  # Stats are saved every 30s, so 3 min = 6 missed saves = definitely stale
   defp capture_healthy?(stream) do
     import Ecto.Query
     alias Pavoi.TiktokLive.StreamStat
 
-    cutoff = DateTime.utc_now() |> DateTime.add(-5, :minute)
+    cutoff = DateTime.utc_now() |> DateTime.add(-3, :minute)
 
     recent_stat =
       from(s in StreamStat,
