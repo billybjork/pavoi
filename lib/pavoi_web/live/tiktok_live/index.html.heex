@@ -2,9 +2,13 @@
 
 <div class="container container--xl region tiktok-live-index">
   <div class="page-header">
-    <div class="page-header__left">
-      <h1 class="page-title">Live Streams</h1>
-      <span class="streams-count">{format_number(@total)} streams</span>
+    <div class="page-header__search page-header__search--with-count">
+      <.search_input
+        value={@search_query}
+        on_change="search_streams"
+        placeholder="Search by username or title..."
+      />
+      <span class="search-count">{format_number(@total)} streams</span>
     </div>
 
     <div class="page-header__filters">
@@ -25,7 +29,9 @@
           <option value="month" selected={@date_filter == "month"}>Last 30 Days</option>
         </select>
       </form>
+    </div>
 
+    <%= if @dev_mode do %>
       <form phx-submit="start_capture" class="capture-form">
         <input
           type="text"
@@ -35,18 +41,32 @@
           value={@capture_input}
           disabled={@capture_loading}
         />
-        <button type="submit" class="btn btn--sm btn--primary" disabled={@capture_loading}>
+        <button type="submit" class="button button--sm button--primary" disabled={@capture_loading}>
           <%= if @capture_loading do %>
             Connecting...
           <% else %>
             Capture
           <% end %>
         </button>
+        <%= if @capture_error do %>
+          <span class="capture-error">{@capture_error}</span>
+        <% end %>
       </form>
-      <%= if @capture_error do %>
-        <span class="capture-error">{@capture_error}</span>
-      <% end %>
-    </div>
+    <% else %>
+      <button
+        type="button"
+        class="button button--sm button--primary"
+        style="margin-left: auto;"
+        phx-click="scan_streams"
+        disabled={@scanning}
+      >
+        <%= if @scanning do %>
+          Scanning...
+        <% else %>
+          Scan Streams
+        <% end %>
+      </button>
+    <% end %>
   </div>
 
   <%= if Enum.empty?(@live_streams) do %>

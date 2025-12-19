@@ -33,6 +33,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:per_page, @per_page)
       |> assign(:has_more, false)
       |> assign(:loading_streams, false)
+      |> assign(:search_query, "")
       |> assign(:status_filter, "all")
       |> assign(:date_filter, "all")
       # Modal state
@@ -45,10 +46,12 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:stream_stats, [])
       # Track which stream we're subscribed to for real-time updates
       |> assign(:subscribed_stream_id, nil)
-      # Test capture form state
+      # Capture form state (dev only)
+      |> assign(:dev_mode, Application.get_env(:pavoi, :dev_routes, false))
       |> assign(:capture_input, "")
       |> assign(:capture_loading, false)
       |> assign(:capture_error, nil)
+      |> assign(:scanning, false)
 
     {:ok, socket}
   end
@@ -69,19 +72,38 @@ defmodule PavoiWeb.TiktokLive.Index do
   @impl true
   def handle_event("filter_status", %{"status" => status}, socket) do
     params = build_query_params(socket, status_filter: status, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/live-streams?#{params}")}
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
   end
 
   @impl true
   def handle_event("filter_date", %{"date" => date}, socket) do
     params = build_query_params(socket, date_filter: date, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/live-streams?#{params}")}
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("search_streams", %{"value" => query}, socket) do
+    params = build_query_params(socket, search_query: query, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("scan_streams", _params, socket) do
+    socket = assign(socket, :scanning, true)
+    pid = self()
+
+    Task.start(fn ->
+      result = TiktokLiveContext.check_live_status_now()
+      send(pid, {:scan_result, result})
+    end)
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("navigate_to_stream", %{"id" => id}, socket) do
     params = build_query_params(socket, stream_id: id)
-    {:noreply, push_patch(socket, to: ~p"/live-streams?#{params}")}
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
   end
 
   @impl true
@@ -100,7 +122,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
-      |> push_patch(to: ~p"/live-streams?#{params}")
+      |> push_patch(to: ~p"/streams?#{params}")
 
     {:noreply, socket}
   end
@@ -108,7 +130,34 @@ defmodule PavoiWeb.TiktokLive.Index do
   @impl true
   def handle_event("change_tab", %{"tab" => tab}, socket) do
     params = build_query_params(socket, tab: tab)
-    {:noreply, push_patch(socket, to: ~p"/live-streams?#{params}")}
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("delete_stream", %{"id" => id}, socket) do
+    stream_id = String.to_integer(id)
+
+    case TiktokLiveContext.delete_stream(stream_id) do
+      {:ok, _stream} ->
+        socket =
+          socket
+          |> maybe_unsubscribe_from_stream()
+          |> assign(:selected_stream, nil)
+          |> assign(:stream_summary, nil)
+          |> assign(:active_tab, "comments")
+          |> stream(:comments, [], reset: true)
+          |> assign(:has_comments, false)
+          |> assign(:comment_search_query, "")
+          |> assign(:stream_stats, [])
+          |> assign(:page, 1)
+          |> load_streams()
+          |> push_patch(to: ~p"/streams")
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -363,6 +412,13 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
+  def handle_info({:scan_result, _result}, socket) do
+    # The monitor worker will broadcast events if it finds/starts a stream
+    # Just reset the scanning state
+    {:noreply, assign(socket, :scanning, false)}
+  end
+
+  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -371,6 +427,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   defp apply_params(socket, params) do
     socket
+    |> assign(:search_query, params["q"] || "")
     |> assign(:status_filter, params["status"] || "all")
     |> assign(:date_filter, params["date"] || "all")
     |> assign(:page, parse_page(params["page"]))
@@ -415,9 +472,13 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   defp build_filters(assigns) do
     []
+    |> apply_search_filter(assigns.search_query)
     |> apply_status_filter(assigns.status_filter)
     |> apply_date_filter(assigns.date_filter)
   end
+
+  defp apply_search_filter(filters, ""), do: filters
+  defp apply_search_filter(filters, query), do: [{:search, query} | filters]
 
   defp apply_status_filter(filters, "capturing"), do: [{:status, :capturing} | filters]
   defp apply_status_filter(filters, "ended"), do: [{:status, :ended} | filters]
@@ -473,10 +534,10 @@ defmodule PavoiWeb.TiktokLive.Index do
           socket
         rescue
           Ecto.NoResultsError ->
-            push_patch(socket, to: ~p"/live-streams")
+            push_patch(socket, to: ~p"/streams")
 
           ArgumentError ->
-            push_patch(socket, to: ~p"/live-streams")
+            push_patch(socket, to: ~p"/streams")
         end
     end
   end
@@ -551,6 +612,7 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @key_mapping %{
+    search_query: :q,
     status_filter: :status,
     date_filter: :date,
     page: :page,
@@ -560,6 +622,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   defp build_query_params(socket, overrides) do
     base = %{
+      q: socket.assigns.search_query,
       status: socket.assigns.status_filter,
       date: socket.assigns.date_filter,
       page: socket.assigns.page,

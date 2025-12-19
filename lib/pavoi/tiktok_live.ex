@@ -290,17 +290,62 @@ defmodule Pavoi.TiktokLive do
     |> Repo.update()
   end
 
+  @doc """
+  Deletes a stream and all associated data (comments, stats).
+
+  Returns `{:ok, stream}` on success or `{:error, reason}` on failure.
+  """
+  def delete_stream(stream_id) do
+    stream = get_stream!(stream_id)
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.delete_all(:comments, from(c in Comment, where: c.stream_id == ^stream_id))
+    |> Ecto.Multi.delete_all(:stats, from(s in StreamStat, where: s.stream_id == ^stream_id))
+    |> Ecto.Multi.delete(:stream, stream)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{stream: stream}} -> {:ok, stream}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
   ## Private Helpers
 
   defp apply_filters(query, opts) do
     Enum.reduce(opts, query, fn
-      {:status, status}, q -> where(q, [s], s.status == ^status)
-      {:unique_id, unique_id}, q -> where(q, [s], s.unique_id == ^unique_id)
-      {:started_after, datetime}, q -> where(q, [s], s.started_at >= ^datetime)
-      {:started_before, datetime}, q -> where(q, [s], s.started_at <= ^datetime)
-      {:limit, limit}, q -> limit(q, ^limit)
-      {:offset, offset}, q -> offset(q, ^offset)
-      _, q -> q
+      {:search, search_term}, q ->
+        pattern = "%#{search_term}%"
+
+        # Search across unique_id, title, and formatted started_at (day name + time)
+        where(
+          q,
+          [s],
+          ilike(s.unique_id, ^pattern) or
+            ilike(s.title, ^pattern) or
+            ilike(fragment("to_char(?, 'FMDay')", s.started_at), ^pattern) or
+            ilike(fragment("to_char(?, 'HH12:MI AM')", s.started_at), ^pattern)
+        )
+
+      {:status, status}, q ->
+        where(q, [s], s.status == ^status)
+
+      {:unique_id, unique_id}, q ->
+        where(q, [s], s.unique_id == ^unique_id)
+
+      {:started_after, datetime}, q ->
+        where(q, [s], s.started_at >= ^datetime)
+
+      {:started_before, datetime}, q ->
+        where(q, [s], s.started_at <= ^datetime)
+
+      {:limit, limit}, q ->
+        limit(q, ^limit)
+
+      {:offset, offset}, q ->
+        offset(q, ^offset)
+
+      _, q ->
+        q
     end)
   end
 

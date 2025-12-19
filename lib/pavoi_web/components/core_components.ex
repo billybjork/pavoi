@@ -429,10 +429,10 @@ defmodule PavoiWeb.CoreComponents do
           Sessions
         </.link>
         <.link
-          href={~p"/products"}
-          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+          href={~p"/streams"}
+          class={["navbar__link", @current_page == :streams && "navbar__link--active"]}
         >
-          Products
+          Streams
         </.link>
         <.link
           href={~p"/creators"}
@@ -440,7 +440,12 @@ defmodule PavoiWeb.CoreComponents do
         >
           Creators
         </.link>
-        <%!-- Live Streams nav link hidden during testing - route still accessible at /live-streams --%>
+        <.link
+          href={~p"/products"}
+          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+        >
+          Products
+        </.link>
       </div>
       <div class="navbar__end">
         <button
