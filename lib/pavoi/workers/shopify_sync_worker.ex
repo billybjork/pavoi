@@ -37,6 +37,7 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
 
   require Logger
   alias Pavoi.Catalog
+  alias Pavoi.Catalog.SizeExtractor
   alias Pavoi.Repo
   alias Pavoi.Settings
   alias Pavoi.Shopify.Client
@@ -262,36 +263,73 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
     # Delete existing variants
     Catalog.delete_product_variants(product.id)
 
-    # Create new variants
-    Enum.with_index(shopify_variants, fn variant, index ->
-      # Convert selectedOptions array to a map
-      selected_options =
-        (variant["selectedOptions"] || [])
-        |> Enum.map(fn opt -> {opt["name"], opt["value"]} end)
-        |> Enum.into(%{})
+    # Create new variants with size extraction
+    variants =
+      Enum.with_index(shopify_variants, fn variant, index ->
+        # Convert selectedOptions array to a map
+        selected_options =
+          (variant["selectedOptions"] || [])
+          |> Enum.map(fn opt -> {opt["name"], opt["value"]} end)
+          |> Enum.into(%{})
 
-      case Catalog.create_product_variant(%{
-             product_id: product.id,
-             shopify_variant_id: variant["id"],
-             title: variant["title"],
-             sku: variant["sku"],
-             price_cents: parse_price_to_cents(variant["price"]),
-             compare_at_price_cents: parse_compare_at_price(variant["compareAtPrice"]),
-             barcode: variant["barcode"],
-             position: index,
-             selected_options: selected_options
-           }) do
-        {:ok, product_variant} ->
-          product_variant
-
-        {:error, changeset} ->
-          Logger.error(
-            "Failed to create product variant for #{product.name} (#{variant["title"]}): #{inspect(changeset.errors)}"
+        # Extract size from multiple sources (including product name as fallback)
+        {size, size_type, size_source} =
+          SizeExtractor.extract_size(
+            selected_options: selected_options,
+            sku: variant["sku"],
+            name: variant["title"],
+            product_name: product.name
           )
 
-          raise "Failed to create product variant"
-      end
-    end)
+        case Catalog.create_product_variant(%{
+               product_id: product.id,
+               shopify_variant_id: variant["id"],
+               title: variant["title"],
+               sku: variant["sku"],
+               price_cents: parse_price_to_cents(variant["price"]),
+               compare_at_price_cents: parse_compare_at_price(variant["compareAtPrice"]),
+               barcode: variant["barcode"],
+               position: index,
+               selected_options: selected_options,
+               size: size,
+               size_type: size_type && to_string(size_type),
+               size_source: size_source && to_string(size_source)
+             }) do
+          {:ok, product_variant} ->
+            product_variant
+
+          {:error, changeset} ->
+            Logger.error(
+              "Failed to create product variant for #{product.name} (#{variant["title"]}): #{inspect(changeset.errors)}"
+            )
+
+            raise "Failed to create product variant"
+        end
+      end)
+
+    # Update product size_range after all variants created
+    update_product_size_range(product, variants)
+
+    variants
+  end
+
+  defp update_product_size_range(product, variants) do
+    size_range = SizeExtractor.compute_size_range(variants)
+    sizes_with_values = Enum.filter(variants, & &1.size)
+    has_size_variants = length(sizes_with_values) > 1
+
+    case Catalog.update_product(product, %{
+           size_range: size_range,
+           has_size_variants: has_size_variants
+         }) do
+      {:ok, _updated_product} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning(
+          "Failed to update product size_range for #{product.name}: #{inspect(changeset.errors)}"
+        )
+    end
   end
 
   # Price conversion functions

@@ -20,6 +20,10 @@ defmodule Pavoi.Catalog.ProductVariant do
     field :tiktok_sku_id, :string
     field :tiktok_price_cents, :integer
     field :tiktok_compare_at_price_cents, :integer
+    # Normalized size fields
+    field :size, :string
+    field :size_type, :string
+    field :size_source, :string
 
     belongs_to :product, Pavoi.Catalog.Product
 
@@ -41,7 +45,10 @@ defmodule Pavoi.Catalog.ProductVariant do
       :selected_options,
       :tiktok_sku_id,
       :tiktok_price_cents,
-      :tiktok_compare_at_price_cents
+      :tiktok_compare_at_price_cents,
+      :size,
+      :size_type,
+      :size_source
     ])
     |> validate_required([:product_id, :title, :price_cents, :position])
     |> validate_number(:price_cents, greater_than: 0)

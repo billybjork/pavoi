@@ -32,6 +32,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   require Logger
   import Ecto.Query
   alias Pavoi.Catalog
+  alias Pavoi.Catalog.SizeExtractor
   alias Pavoi.Repo
   alias Pavoi.Settings
   alias Pavoi.TiktokShop
@@ -619,11 +620,53 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp apply_tiktok_sku_update(variant, tiktok_sku_id, tiktok_sku, count) do
-    tiktok_attrs = %{
-      tiktok_sku_id: tiktok_sku_id,
-      tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
-      tiktok_compare_at_price_cents: nil
-    }
+    sales_attributes = tiktok_sku["sales_attributes"] || []
+
+    # Only update size if variant doesn't already have one (from Shopify)
+    size_attrs =
+      if is_nil(variant.size) do
+        selected_options = parse_tiktok_sales_attributes(sales_attributes)
+
+        # Fetch product name for fallback extraction
+        product_name =
+          from(p in Pavoi.Catalog.Product, where: p.id == ^variant.product_id, select: p.name)
+          |> Repo.one()
+
+        {size, size_type, size_source} =
+          SizeExtractor.extract_size(
+            tiktok_attributes: sales_attributes,
+            selected_options: selected_options,
+            sku: variant.sku,
+            name: variant.title,
+            product_name: product_name
+          )
+
+        # Also update selected_options if they were empty
+        options_update =
+          if map_size(variant.selected_options || %{}) == 0 and map_size(selected_options) > 0 do
+            %{selected_options: selected_options}
+          else
+            %{}
+          end
+
+        Map.merge(options_update, %{
+          size: size,
+          size_type: size_type && to_string(size_type),
+          size_source: size_source && to_string(size_source)
+        })
+      else
+        %{}
+      end
+
+    tiktok_attrs =
+      Map.merge(
+        %{
+          tiktok_sku_id: tiktok_sku_id,
+          tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
+          tiktok_compare_at_price_cents: nil
+        },
+        size_attrs
+      )
 
     case Catalog.update_product_variant(variant, tiktok_attrs) do
       {:ok, _} ->
@@ -639,39 +682,100 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp create_variants_from_tiktok_skus(product, tiktok_skus) do
-    tiktok_skus
-    |> Enum.with_index()
-    |> Enum.reduce(0, fn {tiktok_sku, index}, count ->
-      seller_sku = tiktok_sku["seller_sku"]
-      # Handle both nil and empty string cases for title
-      variant_title =
-        if seller_sku in [nil, ""], do: "Variant #{index + 1}", else: seller_sku
+    variants =
+      tiktok_skus
+      |> Enum.with_index()
+      |> Enum.reduce([], fn {tiktok_sku, index}, acc ->
+        seller_sku = tiktok_sku["seller_sku"]
+        # Handle both nil and empty string cases for title
+        variant_title =
+          if seller_sku in [nil, ""], do: "Variant #{index + 1}", else: seller_sku
 
-      variant_attrs = %{
-        product_id: product.id,
-        tiktok_sku_id: tiktok_sku["id"],
-        title: variant_title,
-        sku: tiktok_sku["seller_sku"],
-        price_cents: parse_tiktok_price(tiktok_sku["price"]),
-        compare_at_price_cents: nil,
-        tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
-        tiktok_compare_at_price_cents: nil,
-        position: index,
-        selected_options: %{}
-      }
+        # Parse sales_attributes from TikTok SKU
+        sales_attributes = tiktok_sku["sales_attributes"] || []
 
-      case Catalog.create_product_variant(variant_attrs) do
-        {:ok, _} ->
-          count + 1
+        # Convert to selected_options format for consistency
+        selected_options = parse_tiktok_sales_attributes(sales_attributes)
 
-        {:error, changeset} ->
-          Logger.error(
-            "Failed to create TikTok variant for #{tiktok_sku["seller_sku"]}: #{inspect(changeset.errors)}"
+        # Extract size from TikTok attributes, then SKU fallback, then product name
+        {size, size_type, size_source} =
+          SizeExtractor.extract_size(
+            tiktok_attributes: sales_attributes,
+            selected_options: selected_options,
+            sku: seller_sku,
+            name: variant_title,
+            product_name: product.name
           )
 
-          count
-      end
+        variant_attrs = %{
+          product_id: product.id,
+          tiktok_sku_id: tiktok_sku["id"],
+          title: variant_title,
+          sku: seller_sku,
+          price_cents: parse_tiktok_price(tiktok_sku["price"]),
+          compare_at_price_cents: nil,
+          tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
+          tiktok_compare_at_price_cents: nil,
+          position: index,
+          selected_options: selected_options,
+          size: size,
+          size_type: size_type && to_string(size_type),
+          size_source: size_source && to_string(size_source)
+        }
+
+        case Catalog.create_product_variant(variant_attrs) do
+          {:ok, variant} ->
+            [variant | acc]
+
+          {:error, changeset} ->
+            Logger.error(
+              "Failed to create TikTok variant for #{seller_sku}: #{inspect(changeset.errors)}"
+            )
+
+            acc
+        end
+      end)
+      |> Enum.reverse()
+
+    # Update product size_range
+    update_product_size_range(product, variants)
+
+    length(variants)
+  end
+
+  defp parse_tiktok_sales_attributes(attributes) when is_list(attributes) do
+    # Convert TikTok sales_attributes to our selected_options map format
+    # TikTok format: [%{"attribute_name" => "Size", "value_name" => "7"}, ...]
+    # or alternate format: [%{"name" => "Size", "value" => "7"}, ...]
+    attributes
+    |> Enum.map(fn attr ->
+      name = attr["attribute_name"] || attr["name"] || ""
+      value = attr["value_name"] || attr["value"] || ""
+      {name, value}
     end)
+    |> Enum.reject(fn {name, _} -> name == "" end)
+    |> Enum.into(%{})
+  end
+
+  defp parse_tiktok_sales_attributes(_), do: %{}
+
+  defp update_product_size_range(product, variants) do
+    size_range = SizeExtractor.compute_size_range(variants)
+    sizes_with_values = Enum.filter(variants, & &1.size)
+    has_size_variants = length(sizes_with_values) > 1
+
+    case Catalog.update_product(product, %{
+           size_range: size_range,
+           has_size_variants: has_size_variants
+         }) do
+      {:ok, _updated_product} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning(
+          "Failed to update product size_range for #{product.name}: #{inspect(changeset.errors)}"
+        )
+    end
   end
 
   defp get_or_create_tiktok_brand do

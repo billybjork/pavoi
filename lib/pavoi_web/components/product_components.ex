@@ -300,11 +300,20 @@ defmodule PavoiWeb.ProductComponents do
             </div>
 
             <%= if @editing_product.sku do %>
-              <div style="color: var(--color-text-secondary); font-size: var(--text-sm);">
+              <div style="color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: var(--space-2);">
                 <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
                   SKU:
                 </strong>
                 <span style="font-family: monospace;">{@editing_product.sku}</span>
+              </div>
+            <% end %>
+
+            <%= if @editing_product.size_range do %>
+              <div style="color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: var(--space-2);">
+                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                  Sizes:
+                </strong>
+                <span>{@editing_product.size_range}</span>
               </div>
             <% end %>
 
