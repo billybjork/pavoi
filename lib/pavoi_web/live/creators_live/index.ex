@@ -524,7 +524,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("toggle_tag", %{"creator-id" => creator_id, "tag-id" => tag_id}, socket) do
     creator_id = String.to_integer(creator_id)
     selected_tag_ids = socket.assigns[:picker_selected_tag_ids] || []
-    from_modal = socket.assigns.tag_picker_source == :modal
+    _from_modal = socket.assigns.tag_picker_source == :modal
 
     # Update the tag assignment
     new_selected_tag_ids =

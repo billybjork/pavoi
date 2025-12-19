@@ -33,11 +33,19 @@ defmodule Pavoi.Application do
     result = Supervisor.start_link(children, opts)
 
     # Run stream reconciliation after startup
-    # This marks any orphaned "capturing" streams as ended
+    # This restarts captures for orphaned streams or marks them as ended
     spawn(fn ->
       # Give the app a moment to fully start
       Process.sleep(5_000)
-      Pavoi.TiktokLive.StreamReconciler.run()
+
+      try do
+        count = Pavoi.TiktokLive.StreamReconciler.run()
+        Logger.info("Stream reconciliation completed, processed #{count} jobs/streams")
+      rescue
+        e ->
+          Logger.error("Stream reconciliation failed: #{Exception.message(e)}")
+          Logger.error(Exception.format_stacktrace(__STACKTRACE__))
+      end
     end)
 
     result

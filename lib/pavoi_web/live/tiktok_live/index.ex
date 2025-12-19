@@ -211,6 +211,21 @@ defmodule PavoiWeb.TiktokLive.Index do
     {:noreply, assign(socket, :live_streams, updated_streams)}
   end
 
+  @impl true
+  def handle_info({:tiktok_live_event, stream_id, %{type: :comment}}, socket) do
+    # Update the comment count for this stream in the list
+    updated_streams =
+      Enum.map(socket.assigns.live_streams, fn stream ->
+        if stream.id == stream_id do
+          %{stream | total_comments: (stream.total_comments || 0) + 1}
+        else
+          stream
+        end
+      end)
+
+    {:noreply, assign(socket, :live_streams, updated_streams)}
+  end
+
   # Catch-all for other global events we don't need to handle
   @impl true
   def handle_info({:tiktok_live_event, _stream_id, _event}, socket) do
