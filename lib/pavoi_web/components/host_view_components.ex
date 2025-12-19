@@ -236,37 +236,41 @@ defmodule PavoiWeb.HostViewComponents do
           {get_effective_name(@session_product)}
         </h1>
 
-        <%!-- Pricing + Variants --%>
-        <div class="host-product-pricing-row">
-          <%!-- Pricing --%>
-          <div class="host-product-pricing">
-            <% prices = get_effective_prices(@session_product) %>
-            <%= if prices.sale do %>
-              <span class="host-product-price--sale">
-                {format_price(prices.sale)}
-              </span>
-              <span class="host-product-price--original">
-                {format_price(prices.original)}
-              </span>
-            <% else %>
-              <span class="host-product-price">
-                {format_price(prices.original)}
-              </span>
-            <% end %>
+        <%!-- Sizes (if available) --%>
+        <%= if @product.size_range do %>
+          <div class="host-product-sizes">
+            {@product.size_range}
           </div>
+        <% end %>
 
-          <%!-- Variants toggle button --%>
-          <%= if @variants && length(@variants) > 0 do %>
-            <button
-              type="button"
-              class="host-variants-toggle"
-              phx-click={
-                Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")
-              }
-            >
-              <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
-              <span class="host-variants-toggle__icon"></span>
-            </button>
+        <%!-- Variants toggle button --%>
+        <%= if @variants && length(@variants) > 0 do %>
+          <button
+            type="button"
+            class="host-variants-toggle"
+            phx-click={
+              Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")
+            }
+          >
+            <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
+            <span class="host-variants-toggle__icon"></span>
+          </button>
+        <% end %>
+
+        <%!-- Pricing (far right) --%>
+        <div class="host-product-pricing">
+          <% prices = get_effective_prices(@session_product) %>
+          <%= if prices.sale do %>
+            <span class="host-product-price--sale">
+              {format_price(prices.sale)}
+            </span>
+            <span class="host-product-price--original">
+              {format_price(prices.original)}
+            </span>
+          <% else %>
+            <span class="host-product-price">
+              {format_price(prices.original)}
+            </span>
           <% end %>
         </div>
       </div>
