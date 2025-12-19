@@ -28,6 +28,7 @@ defmodule Pavoi.Communications.Templates do
     logo_url = "#{base_url}/images/pavoi-logo-email.png"
     font_url = "#{base_url}/fonts/MierA-Regular.woff"
     font_bold_url = "#{base_url}/fonts/MierA-DemiBold.woff"
+    unsubscribe_url = unsubscribe_url(creator)
 
     """
     <!DOCTYPE html>
@@ -100,8 +101,11 @@ defmodule Pavoi.Communications.Templates do
 
         <!-- Footer -->
         <div style="text-align: center; padding: 20px 30px; background: #f9f9f9; border-top: 1px solid #eee;">
-          <p style="margin: 0; color: #888; font-size: 12px;">
+          <p style="margin: 0 0 10px; color: #888; font-size: 12px;">
             You're receiving this email because you received a product sample from us on TikTok Shop.
+          </p>
+          <p style="margin: 0; color: #888; font-size: 12px;">
+            <a href="#{html_escape(unsubscribe_url)}" style="color: #888; text-decoration: underline;">Unsubscribe</a>
           </p>
         </div>
       </div>
@@ -115,6 +119,7 @@ defmodule Pavoi.Communications.Templates do
   """
   def welcome_email_text(creator, lark_invite_url) do
     name = get_display_name(creator)
+    unsubscribe_url = unsubscribe_url(creator)
 
     """
     Free Jewelry. Real Earnings. You're In.
@@ -139,6 +144,7 @@ defmodule Pavoi.Communications.Templates do
 
     ---
     You're receiving this email because you received a product sample from us on TikTok Shop.
+    Unsubscribe: #{unsubscribe_url}
     """
   end
 
@@ -188,5 +194,10 @@ defmodule Pavoi.Communications.Templates do
 
   defp base_url do
     PavoiWeb.Endpoint.url()
+  end
+
+  defp unsubscribe_url(creator) do
+    token = Pavoi.Outreach.generate_unsubscribe_token(creator.id)
+    "#{base_url()}/unsubscribe/#{token}"
   end
 end

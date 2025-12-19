@@ -123,7 +123,8 @@ defmodule Pavoi.Creators do
   defp apply_outreach_status_filter(query, nil), do: query
   defp apply_outreach_status_filter(query, ""), do: query
 
-  defp apply_outreach_status_filter(query, status) when status in ["pending", "sent", "skipped"] do
+  defp apply_outreach_status_filter(query, status)
+       when status in ["pending", "sent", "skipped", "unsubscribed"] do
     where(query, [c], c.outreach_status == ^status)
   end
 

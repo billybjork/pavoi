@@ -18,7 +18,7 @@ defmodule Pavoi.Creators.Creator do
   import Ecto.Changeset
 
   @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)
-  @outreach_statuses ~w(pending approved sent skipped)
+  @outreach_statuses ~w(pending approved sent skipped unsubscribed)
 
   schema "creators" do
     # Identity

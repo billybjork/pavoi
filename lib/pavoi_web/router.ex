@@ -49,6 +49,13 @@ defmodule PavoiWeb.Router do
     post "/sendgrid", SendgridWebhookController, :handle
   end
 
+  # Public unsubscribe page (unauthenticated - accessed from email links)
+  scope "/", PavoiWeb do
+    pipe_through :browser
+
+    get "/unsubscribe/:token", UnsubscribeController, :unsubscribe
+  end
+
   # Main application routes (protected in production)
   scope "/", PavoiWeb do
     pipe_through [:browser, :protected]
