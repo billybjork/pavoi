@@ -14,6 +14,7 @@ defmodule PavoiWeb.HostViewComponents do
 
   alias Pavoi.Sessions
   alias Pavoi.Sessions.SessionProduct
+  alias Pavoi.Storage
 
   @doc """
   Main host content component that renders the complete host view.
@@ -163,6 +164,17 @@ defmodule PavoiWeb.HostViewComponents do
         </svg>
       </div>
       <div class="host-session-panel__body">
+        <%= if @session.notes_image_url do %>
+          <div class="host-session-panel__image">
+            <img
+              src={Storage.public_url(@session.notes_image_url)}
+              alt="Session notes image"
+              loading="lazy"
+              id="session-notes-image"
+              phx-hook="ImageLightbox"
+            />
+          </div>
+        <% end %>
         <%= if length(@notes_items) > 0 do %>
           <div class="host-session-panel__notes-grid">
             <%= for item <- @notes_items do %>

@@ -76,8 +76,8 @@
 
 .host-session-panel__body {
   padding: 0 var(--space-4) var(--space-4);
-  max-height: 20vh;
-  overflow: hidden;
+  max-height: 50vh;
+  overflow-y: auto;
   opacity: 1;
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -116,6 +116,26 @@
   line-height: 1.4;
   color: var(--color-text-primary);
   white-space: pre-line; /* Preserve line breaks within paragraphs */
+}
+
+/* Session notes image - displayed above notes grid */
+.host-session-panel__image {
+  margin-bottom: var(--space-3);
+  text-align: center;
+}
+
+.host-session-panel__image img {
+  max-width: 100%;
+  max-height: 30vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background-color: var(--color-panel-bg);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.host-session-panel__image img:hover {
+  opacity: 0.9;
 }
 
 /* ==========================================================================
@@ -862,4 +882,59 @@
 
 body:has(.host-container) .app-navbar {
   display: none;
+}
+
+/* ==========================================================================
+   IMAGE LIGHTBOX
+   Fullscreen overlay for viewing session notes image
+   ========================================================================== */
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: var(--space-4);
+  animation: lightbox-fade-in 0.2s ease;
+}
+
+@keyframes lightbox-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.image-lightbox__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.image-lightbox__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.image-lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
 }

@@ -97,6 +97,7 @@ defmodule Pavoi.Sessions do
       |> offset(^((page - 1) * per_page))
       |> preload([
         :brand,
+        session_streams: :stream,
         session_products: [
           product: [
             product_images: ^ordered_images,

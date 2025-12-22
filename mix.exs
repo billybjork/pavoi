@@ -25,7 +25,7 @@ defmodule Pavoi.MixProject do
   def application do
     [
       mod: {Pavoi.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :ex_aws]
     ]
   end
 
@@ -78,7 +78,11 @@ defmodule Pavoi.MixProject do
 
       # TikTok Live stream capture
       {:websockex, "~> 0.4.3"},
-      {:protobuf, "~> 0.12.0"}
+      {:protobuf, "~> 0.12.0"},
+
+      # S3-compatible storage (Railway Buckets)
+      {:ex_aws, "~> 2.5"},
+      {:ex_aws_s3, "~> 2.5"}
     ]
   end
 

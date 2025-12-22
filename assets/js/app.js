@@ -31,11 +31,32 @@ import topbar from "../vendor/topbar"
 // Colocated hooks - empty for now (phoenix-colocated generates this in dev mode)
 const colocatedHooks = {}
 
+// S3-compatible uploader for external uploads (Railway Buckets)
+const Uploaders = {}
+Uploaders.S3 = function(entries, onViewError) {
+  entries.forEach(entry => {
+    const xhr = new XMLHttpRequest()
+    onViewError(() => xhr.abort())
+    xhr.onload = () => xhr.status === 200 ? entry.progress(100) : entry.error()
+    xhr.onerror = () => entry.error()
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100)
+        if (percent < 100) entry.progress(percent)
+      }
+    })
+    xhr.open("PUT", entry.meta.url, true)
+    xhr.setRequestHeader("Content-Type", entry.file.type)
+    xhr.send(entry.file)
+  })
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
   hooks: {...Hooks, ...colocatedHooks},
+  uploaders: Uploaders,
 })
 
 // Show progress bar on live navigation and form submits

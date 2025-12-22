@@ -11,8 +11,8 @@ defmodule Pavoi.Repo.Migrations.AddUniqueIndexOnCapturingStreams do
   def change do
     # Only allow one "capturing" stream per room_id at a time
     create unique_index(:tiktok_streams, [:room_id],
-      where: "status = 'capturing'",
-      name: :tiktok_streams_room_id_capturing_unique
-    )
+             where: "status = 'capturing'",
+             name: :tiktok_streams_room_id_capturing_unique
+           )
   end
 end

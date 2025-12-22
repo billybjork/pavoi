@@ -12,8 +12,10 @@ defmodule Pavoi.TiktokLive.Comment do
     field :comment_text, :string
     field :commented_at, :utc_datetime
     field :raw_event, :map, default: %{}
+    field :parsed_product_number, :integer
 
     belongs_to :stream, Pavoi.TiktokLive.Stream
+    belongs_to :session_product, Pavoi.Sessions.SessionProduct
 
     timestamps()
   end
@@ -28,9 +30,12 @@ defmodule Pavoi.TiktokLive.Comment do
       :tiktok_nickname,
       :comment_text,
       :commented_at,
-      :raw_event
+      :raw_event,
+      :session_product_id,
+      :parsed_product_number
     ])
     |> validate_required([:stream_id, :tiktok_user_id, :comment_text, :commented_at])
     |> foreign_key_constraint(:stream_id)
+    |> foreign_key_constraint(:session_product_id)
   end
 end

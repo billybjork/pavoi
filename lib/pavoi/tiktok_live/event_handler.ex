@@ -19,7 +19,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
   require Logger
 
   alias Pavoi.Repo
-  alias Pavoi.TiktokLive.{Comment, Stream, StreamStat}
+  alias Pavoi.TiktokLive.{Comment, Stream, StreamProduct, StreamStat}
 
   @batch_size 50
   @batch_flush_interval_ms 1_000
@@ -297,18 +297,56 @@ defmodule Pavoi.TiktokLive.EventHandler do
     state
   end
 
-  defp update_seen_msg_ids(seen_msg_ids, nil), do: seen_msg_ids
+  # Shopping/Product events - save products to database
+  defp process_event(%{type: :shopping, products: products}, state)
+       when is_list(products) and length(products) > 0 do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-  defp update_seen_msg_ids(seen_msg_ids, msg_id) do
-    # Reset if we've accumulated too many (duplicates come in quick succession anyway)
-    seen = if MapSet.size(seen_msg_ids) >= @max_seen_msg_ids, do: MapSet.new(), else: seen_msg_ids
-    MapSet.put(seen, msg_id)
+    # Save each product to the database
+    Enum.each(products, fn product ->
+      upsert_stream_product(state.stream_id, product, now)
+    end)
+
+    Logger.info("Saved #{length(products)} products for stream #{state.stream_id}")
+    broadcast_to_stream(state.stream_id, {:shopping, products})
+    state
+  end
+
+  defp process_event(%{type: :shopping} = event, state) do
+    Logger.debug("Shopping event with no products for stream #{state.stream_id}")
+    broadcast_to_stream(state.stream_id, {:shopping, event})
+    state
+  end
+
+  defp process_event(%{type: :live_intro} = event, state) do
+    Logger.info("Live intro for stream #{state.stream_id}: #{inspect(event[:description])}")
+    broadcast_to_stream(state.stream_id, {:live_intro, event})
+    state
+  end
+
+  defp process_event(%{type: :envelope} = event, state) do
+    broadcast_to_stream(state.stream_id, {:envelope, event})
+    state
+  end
+
+  defp process_event(%{type: :raw_shopping} = event, state) do
+    Logger.info("Raw shopping (#{event.message_type}) for stream #{state.stream_id}")
+    broadcast_to_stream(state.stream_id, {:raw_shopping, event})
+    state
   end
 
   defp process_event(%{type: type} = event, state) do
     Logger.debug("Unhandled event type: #{type}")
     broadcast_to_stream(state.stream_id, {type, event})
     state
+  end
+
+  defp update_seen_msg_ids(seen_msg_ids, nil), do: seen_msg_ids
+
+  defp update_seen_msg_ids(seen_msg_ids, msg_id) do
+    # Reset if we've accumulated too many (duplicates come in quick succession anyway)
+    seen = if MapSet.size(seen_msg_ids) >= @max_seen_msg_ids, do: MapSet.new(), else: seen_msg_ids
+    MapSet.put(seen, msg_id)
   end
 
   # Batch operations
@@ -397,6 +435,27 @@ defmodule Pavoi.TiktokLive.EventHandler do
     stream
     |> Stream.changeset(%{field => value})
     |> Repo.update()
+  end
+
+  defp upsert_stream_product(_stream_id, %{tiktok_product_id: nil}, _now), do: :ok
+  defp upsert_stream_product(_stream_id, %{tiktok_product_id: ""}, _now), do: :ok
+
+  defp upsert_stream_product(stream_id, product, now) do
+    attrs = %{
+      stream_id: stream_id,
+      tiktok_product_id: product.tiktok_product_id,
+      title: product[:title],
+      price_cents: product[:price_cents],
+      image_url: product[:image_url],
+      first_seen_at: now,
+      showcase_count: 1
+    }
+
+    Repo.insert(
+      StreamProduct.changeset(%StreamProduct{}, attrs),
+      on_conflict: [inc: [showcase_count: 1]],
+      conflict_target: [:stream_id, :tiktok_product_id]
+    )
   end
 
   defp broadcast_to_stream(stream_id, event) do

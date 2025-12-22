@@ -26,6 +26,9 @@ defmodule Pavoi.TiktokLive.Stream do
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
+    has_many :stream_products, Pavoi.TiktokLive.StreamProduct, foreign_key: :stream_id
+    has_many :session_streams, Pavoi.TiktokLive.SessionStream, foreign_key: :stream_id
+    has_many :sessions, through: [:session_streams, :session]
 
     timestamps()
   end

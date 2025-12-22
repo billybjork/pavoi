@@ -113,6 +113,11 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :has_comments, :boolean, default: false
   attr :comment_search_query, :string, default: ""
   attr :stream_stats, :list, default: []
+  attr :linked_sessions, :list, default: []
+  attr :suggested_sessions, :list, default: []
+  attr :all_sessions, :list, default: []
+  attr :session_search_query, :string, default: ""
+  attr :product_interest, :list, default: []
 
   def stream_detail_modal(assigns) do
     ~H"""
@@ -190,6 +195,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
             </button>
             <button
               type="button"
+              class={["tab", @active_tab == "sessions" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="sessions"
+            >
+              Sessions
+              <%= if length(@linked_sessions) > 0 do %>
+                <span class="tab__badge">{length(@linked_sessions)}</span>
+              <% end %>
+            </button>
+            <button
+              type="button"
               class={["tab", @active_tab == "stats" && "tab--active"]}
               phx-click="change_tab"
               phx-value-tab="stats"
@@ -213,6 +229,14 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   comments={@comments}
                   has_comments={@has_comments}
                   search_query={@comment_search_query}
+                />
+              <% "sessions" -> %>
+                <.sessions_tab
+                  linked_sessions={@linked_sessions}
+                  suggested_sessions={@suggested_sessions}
+                  all_sessions={@all_sessions}
+                  search_query={@session_search_query}
+                  product_interest={@product_interest}
                 />
               <% "stats" -> %>
                 <.stats_tab stream_stats={@stream_stats} />
@@ -268,6 +292,141 @@ defmodule PavoiWeb.TiktokLiveComponents do
           </p>
         </div>
       <% end %>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the sessions tab for linking sessions to streams.
+  """
+  attr :linked_sessions, :list, default: []
+  attr :suggested_sessions, :list, default: []
+  attr :all_sessions, :list, default: []
+  attr :search_query, :string, default: ""
+  attr :product_interest, :list, default: []
+
+  def sessions_tab(assigns) do
+    ~H"""
+    <div class="sessions-tab">
+      <div class="sessions-tab__columns">
+        <div class="sessions-tab__column">
+          <h3 class="sessions-tab__heading">Linked Sessions</h3>
+
+          <%= if Enum.empty?(@linked_sessions) do %>
+            <div class="empty-state empty-state--sm">
+              <p class="empty-state__title">No sessions linked</p>
+              <p class="empty-state__description">
+                Link a session to track product mentions in comments
+              </p>
+            </div>
+          <% else %>
+            <div class="linked-sessions-list">
+              <%= for session <- @linked_sessions do %>
+                <div class="linked-session-item">
+                  <div class="linked-session-item__info">
+                    <span class="linked-session-item__name">{session.name}</span>
+                    <span class="linked-session-item__meta">
+                      {length(session.session_products)} products
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="button button--sm button--ghost-error"
+                    phx-click="unlink_session"
+                    phx-value-session-id={session.id}
+                  >
+                    Unlink
+                  </button>
+                </div>
+              <% end %>
+            </div>
+
+            <%= if length(@product_interest) > 0 do %>
+              <h4 class="sessions-tab__subheading">Product Interest</h4>
+              <div class="product-interest-list">
+                <%= for item <- @product_interest do %>
+                  <div class="product-interest-item">
+                    <span class="product-interest-item__number">#{item.product_number}</span>
+                    <span class="product-interest-item__name">{item.product_name || "Unknown"}</span>
+                    <span class="product-interest-item__count">{item.comment_count} mentions</span>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+
+        <div class="sessions-tab__column">
+          <%= if length(@suggested_sessions) > 0 do %>
+            <h3 class="sessions-tab__heading">Suggested Sessions</h3>
+            <p class="sessions-tab__subtext">Based on showcased products</p>
+
+            <div class="suggested-sessions-list">
+              <%= for suggestion <- @suggested_sessions do %>
+                <div class="suggested-session-item">
+                  <div class="suggested-session-item__info">
+                    <span class="suggested-session-item__name">{suggestion.session.name}</span>
+                    <span class="suggested-session-item__match">
+                      {suggestion.matched_count}/{suggestion.total_count} products match
+                      ({format_match_score(suggestion.match_score)})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="button button--sm button--primary"
+                    phx-click="link_session"
+                    phx-value-session-id={suggestion.session.id}
+                    phx-value-source="suggestion"
+                  >
+                    Link
+                  </button>
+                </div>
+              <% end %>
+            </div>
+
+            <h3 class="sessions-tab__heading sessions-tab__heading--mt">Or Search</h3>
+          <% else %>
+            <h3 class="sessions-tab__heading">Link a Session</h3>
+          <% end %>
+
+          <div class="sessions-tab__search">
+            <.search_input
+              value={@search_query}
+              on_change="search_sessions"
+              placeholder="Search sessions..."
+            />
+          </div>
+
+          <%= if Enum.empty?(@all_sessions) do %>
+            <div class="empty-state empty-state--sm">
+              <p class="empty-state__description">
+                No available sessions found
+              </p>
+            </div>
+          <% else %>
+            <div class="available-sessions-list">
+              <%= for session <- @all_sessions do %>
+                <div class="available-session-item">
+                  <div class="available-session-item__info">
+                    <span class="available-session-item__name">{session.name}</span>
+                    <span class="available-session-item__meta">
+                      {length(session.session_products)} products
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="button button--sm button--primary"
+                    phx-click="link_session"
+                    phx-value-session-id={session.id}
+                  >
+                    Link
+                  </button>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
     </div>
     """
   end
@@ -435,4 +594,10 @@ defmodule PavoiWeb.TiktokLiveComponents do
       ]
     }
   end
+
+  defp format_match_score(score) when is_float(score) do
+    "#{round(score * 100)}%"
+  end
+
+  defp format_match_score(_), do: "0%"
 end

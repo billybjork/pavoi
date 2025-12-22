@@ -60,6 +60,20 @@
                 {length(session.session_products)} products
               </div>
 
+              <%= if length(session.session_streams) > 0 do %>
+                <a
+                  href={~p"/streams"}
+                  class="session-card__meta-item session-card__meta-item--link"
+                  phx-click="stop_propagation"
+                >
+                  <.icon name="hero-video-camera" class="size-4" />
+                  {length(session.session_streams)} linked {if length(session.session_streams) ==
+                                                                 1,
+                                                               do: "stream",
+                                                               else: "streams"}
+                </a>
+              <% end %>
+
               <div class="session-card__meta-item">
                 <.icon name="hero-clock" class="size-4" />
                 Modified: {format_relative_time(session.updated_at)}
@@ -215,6 +229,17 @@
           <%!-- Product details (visible when expanded) --%>
           <div class="session-card__products-wrapper">
             <div class="session-card__products-inner">
+              <%= if session.notes_image_url do %>
+                <div class="session-card__notes-image" phx-click="stop_propagation">
+                  <img
+                    src={Storage.public_url(session.notes_image_url)}
+                    alt="Session notes image"
+                    loading="lazy"
+                    id={"session-#{session.id}-notes-image"}
+                    phx-hook="ImageLightbox"
+                  />
+                </div>
+              <% end %>
               <%!-- Product list --%>
               <div
                 id={"session-#{session.id}-products"}
@@ -390,10 +415,39 @@
           label="Session Notes"
           placeholder="Any additional notes about this session"
         />
+
+        <div class="session-notes-image">
+          <label class="session-notes-image__label">Session Image (optional)</label>
+          <.live_file_input upload={@uploads.notes_image} class="session-notes-image__input" />
+
+          <%= for entry <- @uploads.notes_image.entries do %>
+            <div class="session-notes-image__preview">
+              <.live_img_preview entry={entry} class="session-notes-image__preview-img" />
+              <div class="session-notes-image__preview-info">
+                <span class="session-notes-image__preview-name">{entry.client_name}</span>
+                <progress value={entry.progress} max="100" class="session-notes-image__progress">
+                  {entry.progress}%
+                </progress>
+              </div>
+              <button
+                type="button"
+                class="session-notes-image__remove"
+                phx-click="cancel_notes_image_upload"
+                phx-value-ref={entry.ref}
+              >
+                &times;
+              </button>
+            </div>
+            <%= for err <- upload_errors(@uploads.notes_image, entry) do %>
+              <p class="session-notes-image__error">{error_to_string(err)}</p>
+            <% end %>
+          <% end %>
+        </div>
       </.form>
       
 <!-- Product Selection Section (outside the form) -->
       <div class="product-selection-section">
+        <span class="label">Products</span>
         <.product_grid
           products={@streams.new_session_products}
           mode={:select}
@@ -473,6 +527,52 @@
           label="Session Notes"
           placeholder="Any additional notes about this session"
         />
+
+        <div class="session-notes-image">
+          <label class="session-notes-image__label">Session Image (optional)</label>
+
+          <%= if @editing_session.notes_image_url && Enum.empty?(@uploads.notes_image.entries) do %>
+            <div class="session-notes-image__current">
+              <img
+                src={Storage.public_url(@editing_session.notes_image_url)}
+                alt="Current session image"
+                class="session-notes-image__current-img"
+              />
+              <button
+                type="button"
+                class="session-notes-image__remove-current"
+                phx-click="remove_notes_image"
+              >
+                Remove image
+              </button>
+            </div>
+          <% else %>
+            <.live_file_input upload={@uploads.notes_image} class="session-notes-image__input" />
+          <% end %>
+
+          <%= for entry <- @uploads.notes_image.entries do %>
+            <div class="session-notes-image__preview">
+              <.live_img_preview entry={entry} class="session-notes-image__preview-img" />
+              <div class="session-notes-image__preview-info">
+                <span class="session-notes-image__preview-name">{entry.client_name}</span>
+                <progress value={entry.progress} max="100" class="session-notes-image__progress">
+                  {entry.progress}%
+                </progress>
+              </div>
+              <button
+                type="button"
+                class="session-notes-image__remove"
+                phx-click="cancel_notes_image_upload"
+                phx-value-ref={entry.ref}
+              >
+                &times;
+              </button>
+            </div>
+            <%= for err <- upload_errors(@uploads.notes_image, entry) do %>
+              <p class="session-notes-image__error">{error_to_string(err)}</p>
+            <% end %>
+          <% end %>
+        </div>
       </.form>
     </div>
 

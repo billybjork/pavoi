@@ -160,7 +160,16 @@ defmodule PavoiWeb.SessionHostLive.Index do
 
   @impl true
   def handle_event("toggle_session_panel", _params, socket) do
-    {:noreply, update(socket, :session_panel_collapsed, &(!&1))}
+    new_collapsed = !socket.assigns.session_panel_collapsed
+
+    # Broadcast to controller so toggle stays in sync
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "session:#{socket.assigns.session_id}:ui",
+      {:session_notes_toggle, !new_collapsed}
+    )
+
+    {:noreply, assign(socket, :session_panel_collapsed, new_collapsed)}
   end
 
   @impl true

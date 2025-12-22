@@ -18,6 +18,7 @@ import ConfirmDelete from "./hooks/confirm_delete"
 import TagPickerPosition from "./hooks/tag_picker_position"
 import ColumnResize from "./hooks/column_resize"
 import TagOverflow from "./hooks/tag_overflow"
+import ImageLightbox from "./hooks/image_lightbox"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -37,7 +38,8 @@ const Hooks = {
   ConfirmDelete,
   TagPickerPosition,
   ColumnResize,
-  TagOverflow
+  TagOverflow,
+  ImageLightbox
 }
 
 export default Hooks

@@ -66,6 +66,7 @@ defmodule PavoiWeb.SessionsLive.Index do
   alias Pavoi.Catalog.Product
   alias Pavoi.Sessions
   alias Pavoi.Sessions.{Session, SessionProduct}
+  alias Pavoi.Storage
 
   import PavoiWeb.AIComponents
   import PavoiWeb.ProductComponents
@@ -142,6 +143,12 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:current_generation, nil)
       |> assign(:current_product_name, nil)
       |> assign(:show_generation_modal, false)
+      |> allow_upload(:notes_image,
+        accept: ~w(.jpg .jpeg .png .webp .gif),
+        max_entries: 1,
+        max_file_size: 5_000_000,
+        external: &presign_notes_image/2
+      )
 
     {:ok, socket}
   end
@@ -549,6 +556,22 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Generate slug from name
     slug = Sessions.slugify(session_params["name"])
     session_params = Map.put(session_params, "slug", slug)
+
+    # Handle image upload - consume uploaded entries and get the key
+    # For external uploads, the metadata from presign function is the first arg
+    # We store just the key, not a URL, since we need to generate presigned URLs for display
+    image_key =
+      consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
+        {:ok, meta.key}
+      end)
+      |> List.first()
+
+    session_params =
+      if image_key do
+        Map.put(session_params, "notes_image_url", image_key)
+      else
+        session_params
+      end
 
     # Extract selected product IDs in order (preserves paste/selection order)
     selected_ids = socket.assigns.selected_product_order
@@ -1035,6 +1058,22 @@ defmodule PavoiWeb.SessionsLive.Index do
     slug = Sessions.slugify(session_params["name"])
     session_params = Map.put(session_params, "slug", slug)
 
+    # Handle image upload - consume uploaded entries and get the key
+    # For external uploads, the metadata from presign function is the first arg
+    # We store just the key, not a URL, since we need to generate presigned URLs for display
+    image_key =
+      consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
+        {:ok, meta.key}
+      end)
+      |> List.first()
+
+    session_params =
+      if image_key do
+        Map.put(session_params, "notes_image_url", image_key)
+      else
+        session_params
+      end
+
     case Sessions.update_session(socket.assigns.editing_session, session_params) do
       {:ok, _session} ->
         socket =
@@ -1246,6 +1285,59 @@ defmodule PavoiWeb.SessionsLive.Index do
     {:noreply, assign(socket, :show_generation_modal, false)}
   end
 
+  @impl true
+  def handle_event("cancel_notes_image_upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :notes_image, ref)}
+  end
+
+  @impl true
+  def handle_event("remove_notes_image", _params, socket) do
+    # Clear the notes_image_url from the editing session
+    if socket.assigns.editing_session do
+      case Sessions.update_session(socket.assigns.editing_session, %{notes_image_url: nil}) do
+        {:ok, updated_session} ->
+          socket =
+            socket
+            |> reload_sessions()
+            |> assign(:editing_session, updated_session)
+            |> assign(:session_edit_form, to_form(Session.changeset(updated_session, %{})))
+            |> put_flash(:info, "Session image removed")
+
+          {:noreply, socket}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to remove image")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Presign function for external S3 uploads
+  defp presign_notes_image(entry, socket) do
+    # Generate a unique key for the image
+    # Use session ID if editing, otherwise use a temp identifier
+    session_id =
+      if socket.assigns.editing_session do
+        socket.assigns.editing_session.id
+      else
+        "new-#{System.unique_integer([:positive])}"
+      end
+
+    # Generate unique filename with timestamp
+    timestamp = DateTime.utc_now() |> DateTime.to_unix()
+    extension = Path.extname(entry.client_name) |> String.downcase()
+    key = "sessions/#{session_id}/notes-image-#{timestamp}#{extension}"
+
+    case Storage.presign_upload(key, entry.client_type) do
+      {:ok, url} ->
+        {:ok, %{uploader: "S3", key: key, url: url}, socket}
+
+      {:error, reason} ->
+        {:error, %{reason: reason}, socket}
+    end
+  end
+
   # Helper functions
 
   # Reloads just one session in the list without a full database reload
@@ -1268,6 +1360,12 @@ defmodule PavoiWeb.SessionsLive.Index do
         assign(socket, :sessions, updated_sessions)
     end
   end
+
+  # Template helper for upload error messages
+  def error_to_string(:too_large), do: "File is too large (max 5MB)"
+  def error_to_string(:not_accepted), do: "Invalid file type"
+  def error_to_string(:too_many_files), do: "Only one image allowed"
+  def error_to_string(err), do: "Upload error: #{inspect(err)}"
 
   # Template helper to get primary image from product
   def primary_image(product) do

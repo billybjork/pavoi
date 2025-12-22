@@ -381,6 +381,51 @@ defmodule Pavoi.TiktokLive.BridgeClient do
     broadcast_event(unique_id, %{type: :stream_ended})
   end
 
+  # Shopping/Product events
+  defp handle_bridge_event(%{"type" => "shopping", "uniqueId" => unique_id, "data" => data}) do
+    products = parse_products(data)
+    Logger.info("Shopping event for @#{unique_id}: #{length(products)} products")
+
+    broadcast_event(unique_id, %{
+      type: :shopping,
+      products: products,
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
+  defp handle_bridge_event(%{"type" => "liveIntro", "uniqueId" => unique_id, "data" => data}) do
+    broadcast_event(unique_id, %{
+      type: :live_intro,
+      id: data["id"],
+      description: data["description"],
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
+  defp handle_bridge_event(%{"type" => "envelope", "uniqueId" => unique_id, "data" => data}) do
+    broadcast_event(unique_id, %{
+      type: :envelope,
+      coins: data["coins"],
+      can_open: data["canOpen"],
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
+  defp handle_bridge_event(%{"type" => "rawShopping", "uniqueId" => unique_id, "data" => data}) do
+    Logger.info("Raw shopping message for @#{unique_id}: #{data["messageType"]}")
+
+    broadcast_event(unique_id, %{
+      type: :raw_shopping,
+      message_type: data["messageType"],
+      payload_base64: data["payload"],
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
   defp handle_bridge_event(event) do
     Logger.debug("Unknown bridge event: #{inspect(event)}")
   end
@@ -426,4 +471,24 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
   defp cancel_heartbeat(nil), do: :ok
   defp cancel_heartbeat(ref), do: Process.cancel_timer(ref)
+
+  # Product parsing helpers
+
+  defp parse_products(%{"products" => products}) when is_list(products) do
+    Enum.map(products, &parse_product/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp parse_products(_), do: []
+
+  defp parse_product(%{"tiktokProductId" => product_id} = p) when is_binary(product_id) do
+    %{
+      tiktok_product_id: product_id,
+      title: p["title"],
+      price_cents: p["price"],
+      image_url: p["imageUrl"]
+    }
+  end
+
+  defp parse_product(_), do: nil
 end

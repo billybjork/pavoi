@@ -132,6 +132,8 @@ defmodule Pavoi.Catalog.SizeExtractor do
     Enum.find_value(attributes, &extract_size_from_tiktok_attr/1)
   end
 
+  defp extract_from_tiktok_attributes(_), do: nil
+
   defp extract_size_from_tiktok_attr(attr) do
     attr_name = attr["attribute_name"] || attr["name"] || ""
     value = attr["value_name"] || attr["value"] || ""
@@ -140,8 +142,6 @@ defmodule Pavoi.Catalog.SizeExtractor do
       {value, detect_size_type(attr_name, value), :tiktok_attributes}
     end
   end
-
-  defp extract_from_tiktok_attributes(_), do: nil
 
   defp extract_from_sku(nil), do: nil
   defp extract_from_sku(""), do: nil

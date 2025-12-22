@@ -10,6 +10,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
+  alias Pavoi.Sessions
   alias Pavoi.TiktokLive, as: TiktokLiveContext
 
   import PavoiWeb.TiktokLiveComponents
@@ -52,6 +53,12 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:capture_loading, false)
       |> assign(:capture_error, nil)
       |> assign(:scanning, false)
+      # Session linking state
+      |> assign(:linked_sessions, [])
+      |> assign(:suggested_sessions, [])
+      |> assign(:all_sessions, [])
+      |> assign(:session_search_query, "")
+      |> assign(:product_interest, [])
 
     {:ok, socket}
   end
@@ -122,6 +129,11 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
+      |> assign(:linked_sessions, [])
+      |> assign(:suggested_sessions, [])
+      |> assign(:all_sessions, [])
+      |> assign(:session_search_query, "")
+      |> assign(:product_interest, [])
       |> push_patch(to: ~p"/streams?#{params}")
 
     {:noreply, socket}
@@ -166,6 +178,65 @@ defmodule PavoiWeb.TiktokLive.Index do
       socket
       |> assign(:comment_search_query, query)
       |> load_comments()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("link_session", %{"session-id" => session_id} = params, socket) do
+    stream_id = socket.assigns.selected_stream.id
+    session_id = String.to_integer(session_id)
+
+    # If linking from a suggestion, mark as "auto" linked
+    linked_by = if params["source"] == "suggestion", do: "auto", else: "manual"
+
+    case TiktokLiveContext.link_stream_to_session(stream_id, session_id, linked_by: linked_by) do
+      {:ok, _} ->
+        linked = TiktokLiveContext.get_linked_sessions(stream_id)
+        suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
+        product_interest = load_product_interest(stream_id, linked)
+
+        socket =
+          socket
+          |> assign(:linked_sessions, linked)
+          |> assign(:suggested_sessions, suggested)
+          |> assign(:product_interest, product_interest)
+          |> put_flash(:info, "Session linked and comments parsed")
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to link session")}
+    end
+  end
+
+  @impl true
+  def handle_event("unlink_session", %{"session-id" => session_id}, socket) do
+    stream_id = socket.assigns.selected_stream.id
+    session_id = String.to_integer(session_id)
+
+    TiktokLiveContext.unlink_stream_from_session(stream_id, session_id)
+
+    linked = TiktokLiveContext.get_linked_sessions(stream_id)
+    suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
+    product_interest = load_product_interest(stream_id, linked)
+
+    socket =
+      socket
+      |> assign(:linked_sessions, linked)
+      |> assign(:suggested_sessions, suggested)
+      |> assign(:product_interest, product_interest)
+      |> put_flash(:info, "Session unlinked")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("search_sessions", %{"value" => query}, socket) do
+    socket =
+      socket
+      |> assign(:session_search_query, query)
+      |> load_available_sessions()
 
     {:noreply, socket}
   end
@@ -551,6 +622,18 @@ defmodule PavoiWeb.TiktokLive.Index do
     assign(socket, :stream_stats, stats)
   end
 
+  defp load_tab_data(socket, "sessions", stream_id) do
+    linked = TiktokLiveContext.get_linked_sessions(stream_id)
+    suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
+    product_interest = load_product_interest(stream_id, linked)
+
+    socket
+    |> assign(:linked_sessions, linked)
+    |> assign(:suggested_sessions, suggested)
+    |> assign(:product_interest, product_interest)
+    |> load_available_sessions()
+  end
+
   defp load_tab_data(socket, _tab, _stream_id), do: socket
 
   defp load_comments(socket, opts \\ []) do
@@ -653,4 +736,31 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp default_value?({:page, 1}), do: true
   defp default_value?({:tab, "comments"}), do: true
   defp default_value?(_), do: false
+
+  defp load_available_sessions(socket) do
+    linked_ids = Enum.map(socket.assigns.linked_sessions, & &1.id)
+    search_query = socket.assigns.session_search_query
+
+    sessions =
+      Sessions.list_sessions_with_details_paginated(
+        search_query: search_query,
+        page: 1,
+        per_page: 10
+      )
+
+    # Filter out already linked sessions
+    available = Enum.reject(sessions.sessions, fn s -> s.id in linked_ids end)
+
+    assign(socket, :all_sessions, available)
+  end
+
+  defp load_product_interest(stream_id, linked_sessions) do
+    case linked_sessions do
+      [session | _] ->
+        TiktokLiveContext.get_product_interest_summary(stream_id, session.id)
+
+      [] ->
+        []
+    end
+  end
 end

@@ -266,10 +266,17 @@ defmodule PavoiWeb.SessionControllerLive.Index do
     {:noreply, socket}
   end
 
+  # Handle session notes toggle from host view
+  @impl true
+  def handle_info({:session_notes_toggle, visible}, socket) do
+    {:noreply, assign(socket, :session_notes_visible, visible)}
+  end
+
   ## Private Helpers
 
   defp subscribe_to_session(session_id) do
     Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:state")
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:ui")
   end
 
   defp load_initial_state(socket) do

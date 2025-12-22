@@ -98,6 +98,17 @@
   color: var(--color-text-secondary);
 }
 
+.session-card__meta-item--link {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.session-card__meta-item--link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
 .session-card__notes {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
@@ -247,6 +258,35 @@
 .session-card__products-inner {
   position: relative;
   width: 100%;
+}
+
+/* Session notes image in expanded view */
+.session-card__notes-image {
+  margin-bottom: var(--space-4);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Fade in and slide down when expanded */
+.session-card__content-switcher--expanded .session-card__notes-image {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.15s;
+}
+
+.session-card__notes-image img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.session-card__notes-image img:hover {
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
 }
 
 /* Collapse button wrapper - positioned in header at bottom right */

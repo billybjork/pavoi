@@ -29,8 +29,10 @@ defmodule Pavoi.TiktokLive do
 
   import Ecto.Query, warn: false
 
+  alias Pavoi.Catalog.Product
   alias Pavoi.Repo
-  alias Pavoi.TiktokLive.{Client, Comment, Stream, StreamStat}
+  alias Pavoi.Sessions.{Session, SessionProduct}
+  alias Pavoi.TiktokLive.{Client, Comment, SessionStream, Stream, StreamProduct, StreamStat}
   alias Pavoi.Workers.{TiktokLiveMonitorWorker, TiktokLiveStreamWorker}
 
   ## Streams
@@ -486,5 +488,330 @@ defmodule Pavoi.TiktokLive do
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  ## Session-Stream Linking
+
+  @doc """
+  Links a stream to a session.
+
+  ## Options
+
+  - `:linked_by` - "manual" (default) or "auto"
+  - `:parse_comments` - If true (default), parses comments for product numbers
+
+  Returns `{:ok, session_stream}` or `{:error, changeset}`.
+  """
+  def link_stream_to_session(stream_id, session_id, opts \\ []) do
+    linked_by = Keyword.get(opts, :linked_by, "manual")
+    parse_comments = Keyword.get(opts, :parse_comments, true)
+
+    result =
+      %SessionStream{}
+      |> SessionStream.changeset(%{
+        stream_id: stream_id,
+        session_id: session_id,
+        linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
+        linked_by: linked_by
+      })
+      |> Repo.insert()
+
+    case result do
+      {:ok, session_stream} ->
+        if parse_comments do
+          parse_comments_for_session(stream_id, session_id)
+        end
+
+        {:ok, session_stream}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Unlinks a stream from a session.
+
+  Also clears parsed product associations from comments.
+  """
+  def unlink_stream_from_session(stream_id, session_id) do
+    # Clear session_product_id from comments for this stream+session combo
+    clear_parsed_products_for_link(stream_id, session_id)
+
+    from(ss in SessionStream,
+      where: ss.stream_id == ^stream_id and ss.session_id == ^session_id
+    )
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Gets all sessions linked to a stream.
+  """
+  def get_linked_sessions(stream_id) do
+    from(ss in SessionStream,
+      where: ss.stream_id == ^stream_id,
+      join: s in assoc(ss, :session),
+      preload: [session: {s, :session_products}],
+      order_by: [desc: ss.linked_at]
+    )
+    |> Repo.all()
+    |> Enum.map(& &1.session)
+  end
+
+  @doc """
+  Gets all streams linked to a session.
+  """
+  def get_linked_streams(session_id) do
+    from(ss in SessionStream,
+      where: ss.session_id == ^session_id,
+      join: st in assoc(ss, :stream),
+      preload: [stream: st],
+      order_by: [desc: ss.linked_at]
+    )
+    |> Repo.all()
+    |> Enum.map(& &1.stream)
+  end
+
+  ## Comment Parsing
+
+  @doc """
+  Parses product numbers from comments and links them to session products.
+
+  Patterns recognized:
+  - Hash patterns: #25, #3
+  - Standalone numbers: 25, 3 (1-3 digits)
+
+  Only parses comments for the given stream.
+  """
+  def parse_comments_for_session(stream_id, session_id) do
+    # Get session products to build position map
+    session_products =
+      from(sp in SessionProduct,
+        where: sp.session_id == ^session_id,
+        select: {sp.position, sp.id}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    max_position =
+      if Enum.empty?(session_products), do: 0, else: Enum.max(Map.keys(session_products))
+
+    # Get all comments for this stream that haven't been parsed yet
+    comments =
+      from(c in Comment,
+        where: c.stream_id == ^stream_id and is_nil(c.session_product_id),
+        select: [:id, :comment_text]
+      )
+      |> Repo.all()
+
+    # Parse and update each comment
+    parsed_count =
+      Enum.reduce(comments, 0, fn comment, count ->
+        case parse_product_number(comment.comment_text, max_position) do
+          {:ok, product_number} ->
+            session_product_id = Map.get(session_products, product_number)
+
+            from(c in Comment, where: c.id == ^comment.id)
+            |> Repo.update_all(
+              set: [
+                parsed_product_number: product_number,
+                session_product_id: session_product_id
+              ]
+            )
+
+            count + 1
+
+          :no_match ->
+            count
+        end
+      end)
+
+    {:ok, parsed_count}
+  end
+
+  @doc """
+  Parses a product number from comment text.
+
+  Returns `{:ok, number}` or `:no_match`.
+  """
+  def parse_product_number(text, max_position) when max_position > 0 do
+    # Patterns in order of specificity:
+    # 1. Hash pattern: #25 (most specific)
+    # 2. Standalone number with word boundaries
+    patterns = [
+      # #25, #3 - hash prefix (most specific)
+      ~r/(?:^|[^a-zA-Z0-9])#(\d{1,3})(?:[^0-9]|$)/,
+      # Standalone number: 25, 3 (word boundaries)
+      ~r/(?:^|[^0-9])(\d{1,3})(?:[^0-9]|$)/
+    ]
+
+    result =
+      Enum.find_value(patterns, fn pattern ->
+        case Regex.run(pattern, text) do
+          [_, number_str] ->
+            number = String.to_integer(number_str)
+
+            # Validate: must be positive and within session range
+            if number > 0 and number <= max_position do
+              {:ok, number}
+            else
+              nil
+            end
+
+          _ ->
+            nil
+        end
+      end)
+
+    result || :no_match
+  end
+
+  def parse_product_number(_text, _max_position), do: :no_match
+
+  defp clear_parsed_products_for_link(stream_id, session_id) do
+    # Get session product IDs for this session
+    session_product_ids =
+      from(sp in SessionProduct,
+        where: sp.session_id == ^session_id,
+        select: sp.id
+      )
+      |> Repo.all()
+
+    # Clear only comments that were linked to this session's products
+    from(c in Comment,
+      where: c.stream_id == ^stream_id,
+      where: c.session_product_id in ^session_product_ids
+    )
+    |> Repo.update_all(set: [session_product_id: nil, parsed_product_number: nil])
+  end
+
+  ## Product Interest Analytics
+
+  @doc """
+  Gets product interest summary for a stream.
+
+  Returns counts of comments per product number for the given session.
+  """
+  def get_product_interest_summary(stream_id, session_id) do
+    from(c in Comment,
+      where: c.stream_id == ^stream_id,
+      where: not is_nil(c.parsed_product_number),
+      join: sp in SessionProduct,
+      on: sp.session_id == ^session_id and sp.position == c.parsed_product_number,
+      left_join: p in assoc(sp, :product),
+      group_by: [c.parsed_product_number, sp.id, p.name],
+      select: %{
+        product_number: c.parsed_product_number,
+        session_product_id: sp.id,
+        product_name: p.name,
+        comment_count: count(c.id)
+      },
+      order_by: [desc: count(c.id)]
+    )
+    |> Repo.all()
+  end
+
+  ## Session Suggestions (based on product overlap)
+
+  @doc """
+  Returns suggested sessions for a stream based on product overlap.
+
+  Matching algorithm:
+  1. Get all TikTok product IDs showcased in the stream
+  2. Find internal products where those IDs exist in tiktok_product_ids array
+  3. Find sessions containing those products
+  4. Score each session: matched_products / total_session_products
+
+  ## Options
+
+  - `:limit` - Maximum suggestions to return (default: 5)
+
+  Returns a list of maps with :session, :matched_count, :total_count, :match_score
+  """
+  def get_suggested_sessions(stream_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 5)
+
+    # Get TikTok product IDs showcased in this stream
+    stream_product_ids = get_stream_product_ids(stream_id)
+
+    if Enum.empty?(stream_product_ids) do
+      []
+    else
+      suggest_sessions_by_products(stream_product_ids, stream_id, limit)
+    end
+  end
+
+  defp get_stream_product_ids(stream_id) do
+    from(sp in StreamProduct,
+      where: sp.stream_id == ^stream_id,
+      select: sp.tiktok_product_id
+    )
+    |> Repo.all()
+  end
+
+  defp suggest_sessions_by_products(tiktok_product_ids, stream_id, limit) do
+    # Find internal products matching these TikTok IDs
+    # Uses array overlap operator (&&) for tiktok_product_ids array
+    # Also checks the single tiktok_product_id field
+    matching_product_ids =
+      from(p in Product,
+        where:
+          fragment("? && ?", p.tiktok_product_ids, ^tiktok_product_ids) or
+            p.tiktok_product_id in ^tiktok_product_ids,
+        select: p.id
+      )
+      |> Repo.all()
+
+    if Enum.empty?(matching_product_ids) do
+      []
+    else
+      # Get already linked session IDs to exclude
+      linked_session_ids = get_linked_session_ids(stream_id)
+
+      # Find sessions containing matching products and count matches
+      from(s in Session,
+        join: sp in SessionProduct,
+        on: sp.session_id == s.id,
+        where: sp.product_id in ^matching_product_ids,
+        where: s.id not in ^linked_session_ids,
+        group_by: s.id,
+        select: %{
+          session: s,
+          matched_count: count(sp.id, :distinct)
+        },
+        order_by: [desc: count(sp.id, :distinct)],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Enum.map(fn %{session: session, matched_count: matched_count} ->
+        # Get total products in session
+        total_count = get_session_product_count(session.id)
+
+        %{
+          session: session,
+          matched_count: matched_count,
+          total_count: total_count,
+          match_score: if(total_count > 0, do: matched_count / total_count, else: 0)
+        }
+      end)
+    end
+  end
+
+  defp get_linked_session_ids(stream_id) do
+    from(ss in SessionStream,
+      where: ss.stream_id == ^stream_id,
+      select: ss.session_id
+    )
+    |> Repo.all()
+  end
+
+  defp get_session_product_count(session_id) do
+    from(sp in SessionProduct,
+      where: sp.session_id == ^session_id,
+      select: count(sp.id)
+    )
+    |> Repo.one() || 0
   end
 end

@@ -19,6 +19,17 @@ import { WebcastPushConnection } from 'tiktok-live-connector';
 
 const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
+const DEBUG_RAW_EVENTS = process.env.DEBUG_RAW_EVENTS === 'true';
+
+// Shopping-related message types to capture via rawData
+const SHOPPING_MESSAGE_TYPES = [
+  'WebcastOecLiveShoppingMessage',
+  'WebcastVideoLiveGoodsOrderMessage',
+  'WebcastVideoLiveGoodsRcmdMessage',
+  'WebcastVideoLiveCouponRcmdMessage',
+  'WebcastLiveEcomMessage',
+  'WebcastLiveShoppingMessage'
+];
 
 // Active TikTok connections: Map<uniqueId, connection>
 const connections = new Map();
@@ -48,6 +59,104 @@ function broadcastEvent(event) {
 }
 
 /**
+ * Extract product information from shopping events.
+ *
+ * TikTok shopping events contain various structures depending on the event type.
+ * Common structures include:
+ * - products/productList arrays with product details
+ * - Nested productInfo objects
+ *
+ * We normalize these into a consistent format.
+ */
+function extractProducts(data) {
+  const products = [];
+
+  // Try to find products in common locations
+  const productSources = [
+    data?.products,
+    data?.productList,
+    data?.product ? [data.product] : null,
+    data?.productInfo ? [data.productInfo] : null
+  ];
+
+  for (const source of productSources) {
+    if (Array.isArray(source)) {
+      for (const p of source) {
+        const product = extractProductDetails(p);
+        if (product) {
+          products.push(product);
+        }
+      }
+    }
+  }
+
+  // Log for debugging if we have data but couldn't extract products
+  if (DEBUG_RAW_EVENTS && products.length === 0 && data) {
+    console.log('Shopping event structure (for debugging):', JSON.stringify(data, null, 2).slice(0, 500));
+  }
+
+  return products;
+}
+
+/**
+ * Extract normalized product details from a product object.
+ */
+function extractProductDetails(p) {
+  if (!p) return null;
+
+  // Try various field name conventions
+  const productId = (
+    p.productId ||
+    p.product_id ||
+    p.id ||
+    p.productInfo?.productId ||
+    p.productInfo?.id
+  )?.toString();
+
+  if (!productId) return null;
+
+  return {
+    tiktokProductId: productId,
+    title: p.title || p.name || p.productName || p.productInfo?.title || null,
+    price: extractPrice(p),
+    imageUrl: p.imageUrl || p.image || p.coverUrl || p.productInfo?.imageUrl || null,
+    sellerId: (p.sellerId || p.seller_id)?.toString() || null
+  };
+}
+
+/**
+ * Extract price in cents from various price formats.
+ */
+function extractPrice(p) {
+  // Try to find price in various locations and formats
+  const priceValue = (
+    p.price ||
+    p.priceInfo?.price ||
+    p.salePrice ||
+    p.originalPrice
+  );
+
+  if (priceValue == null) return null;
+
+  // If already a number, assume it might be in cents or dollars
+  if (typeof priceValue === 'number') {
+    // If less than 1000, probably dollars, convert to cents
+    return priceValue < 1000 ? Math.round(priceValue * 100) : priceValue;
+  }
+
+  // If string, try to parse
+  if (typeof priceValue === 'string') {
+    const cleaned = priceValue.replace(/[^0-9.]/g, '');
+    const parsed = parseFloat(cleaned);
+    if (!isNaN(parsed)) {
+      return Math.round(parsed * 100);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Connect to a TikTok Live stream
  */
 async function connectToStream(uniqueId) {
@@ -62,11 +171,7 @@ async function connectToStream(uniqueId) {
       processInitialData: true,
       enableExtendedGiftInfo: true,
       enableWebsocketUpgrade: true,
-      requestPollingIntervalMs: 2000,
-      // Use default sign server (Euler Stream) or configure custom:
-      // signProviderOptions: {
-      //   host: process.env.SIGN_SERVER_URL || 'https://tiktok.eulerstream.com'
-      // }
+      requestPollingIntervalMs: 2000
     });
 
     // Set up event handlers
@@ -190,6 +295,68 @@ async function connectToStream(uniqueId) {
         uniqueId,
         data
       });
+    });
+
+    // Shopping/Product events
+    connection.on('oecLiveShopping', (data) => {
+      console.log(`[${uniqueId}] Shopping event received`);
+
+      // Extract product information from the shopping event
+      const products = extractProducts(data);
+
+      broadcastEvent({
+        type: 'shopping',
+        uniqueId,
+        data: {
+          products: products,
+          raw: data
+        }
+      });
+    });
+
+    connection.on('liveIntro', (data) => {
+      broadcastEvent({
+        type: 'liveIntro',
+        uniqueId,
+        data: {
+          id: data.id,
+          description: data.description
+        }
+      });
+    });
+
+    connection.on('envelope', (data) => {
+      broadcastEvent({
+        type: 'envelope',
+        uniqueId,
+        data: {
+          coins: data.coins,
+          canOpen: data.canOpen,
+          timestamp: data.timestamp
+        }
+      });
+    });
+
+    // Raw data handler for shopping messages and debug logging
+    connection.on('rawData', (messageTypeName, binary) => {
+      // Debug mode: log all message types
+      if (DEBUG_RAW_EVENTS) {
+        console.log(`[${uniqueId}] Raw message type: ${messageTypeName}`);
+      }
+
+      // Forward shopping-related messages
+      if (SHOPPING_MESSAGE_TYPES.includes(messageTypeName)) {
+        console.log(`[${uniqueId}] Raw shopping message: ${messageTypeName}`);
+        broadcastEvent({
+          type: 'rawShopping',
+          uniqueId,
+          data: {
+            messageType: messageTypeName,
+            payload: Buffer.from(binary).toString('base64'),
+            timestamp: Date.now()
+          }
+        });
+      }
     });
 
     // Connect
