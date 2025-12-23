@@ -2,21 +2,24 @@
 
 ## Discovery Date: 2024-12-23
 
-## Current Status
+## Current Status (Updated 2025-12-23)
 
-### Verified Working (on current token)
-- `/order/202309/orders/search` - ✅ WORKS
+### ✅ All Scopes Working!
+Token reauthorized with new scopes. All affiliate APIs confirmed working.
 
-### Verified Paths (need scope activation)
-- `/affiliate_seller/202406/marketplace_creators/search` - Path correct, returns 105005 (scope not granted)
-- `/affiliate_seller/202406/marketplace_creators/{creator_user_id}` - Path correct (not yet tested)
+### Working Endpoints
+| Endpoint | Method | Status |
+|----------|--------|--------|
+| `/order/202309/orders/search` | POST | ✅ 473k+ orders |
+| `/affiliate_seller/202406/marketplace_creators/search` | POST | ✅ Works! |
+| `/affiliate_seller/202406/marketplace_creators/{creator_user_id}` | GET | ✅ Ready |
+| `/affiliate_seller/202405/open_collaborations` | POST | ✅ Needs ProductId |
+| `/affiliate_seller/202405/target_collaborations` | POST | ✅ Needs Name |
 
-### Action Required
-The `seller.creator_marketplace.read` scope is approved but not yet on the access token.
-To activate:
-1. Verify scope is enabled in TikTok Partner Center app settings
-2. Generate new auth URL and reauthorize: `Pavoi.TiktokShop.generate_authorization_url()`
-3. The OAuth flow should grant the new scopes
+### Sample Results
+- Creator search returns 12 creators per page
+- High-GMV filter found creator with **$179,363 GMV**
+- Keyword search works (e.g., "beauty" creators)
 
 ---
 
