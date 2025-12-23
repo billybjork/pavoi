@@ -1019,8 +1019,12 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   defp sync_job_active?(worker) do
+    # Oban stores worker names without the "Elixir." prefix
+    # inspect() returns "Pavoi.Workers.Foo", to_string() returns "Elixir.Pavoi.Workers.Foo"
+    worker_name = inspect(worker)
+
     from(j in Oban.Job,
-      where: j.worker == ^to_string(worker),
+      where: j.worker == ^worker_name,
       where: j.state in ["executing", "available", "scheduled"]
     )
     |> Pavoi.Repo.exists?()

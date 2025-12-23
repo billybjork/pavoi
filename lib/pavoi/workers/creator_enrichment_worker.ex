@@ -48,8 +48,13 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
     # Step 1: Sync sample orders to link creators to their tiktok_user_id
     # This runs first so newly-linked creators can be enriched in step 2
-    sample_sync_pages = Map.get(args, "sample_sync_pages", 50)
+    # Default to 20 pages (~2000 orders) to avoid rate limits when combined with enrichment
+    sample_sync_pages = Map.get(args, "sample_sync_pages", 20)
     {:ok, sample_stats} = sync_sample_orders(max_pages: sample_sync_pages)
+
+    # Brief pause between sample sync and enrichment to avoid rate limits
+    # Both use TikTok APIs that may share rate limit buckets
+    Process.sleep(5_000)
 
     # Step 2: Enrich creators with marketplace data (followers, GMV, etc.)
     batch_size = Map.get(args, "batch_size", @batch_size)
