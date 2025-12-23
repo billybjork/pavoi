@@ -138,9 +138,11 @@ defmodule Pavoi.Storage do
 
   defp get_content_type(headers, url) do
     # Try to get content-type from headers, fallback to guessing from URL
-    case List.keyfind(headers, "content-type", 0) do
-      {_, content_type} -> content_type
-      nil -> guess_content_type(url)
+    # Req returns headers as a map with list values
+    case Map.get(headers, "content-type") do
+      [content_type | _] -> content_type
+      content_type when is_binary(content_type) -> content_type
+      _ -> guess_content_type(url)
     end
   end
 
