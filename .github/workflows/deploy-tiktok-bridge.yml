@@ -1,0 +1,23 @@
+name: Deploy TikTok Bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/tiktok-bridge/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: |
+          cd services/tiktok-bridge
+          railway up --service tiktok-bridge
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
