@@ -184,6 +184,35 @@ defmodule Pavoi.Storage do
   end
 
   @doc """
+  Downloads a file from storage by its key.
+
+  Returns the binary content of the file.
+
+  ## Parameters
+
+  - `key` - The object key (path within the bucket)
+
+  ## Returns
+
+  - `{:ok, binary}` - The file content on success
+  - `{:error, reason}` - If download fails
+  """
+  @spec download(String.t()) :: {:ok, binary()} | {:error, term()}
+  def download(key) do
+    case public_url(key) do
+      nil ->
+        {:error, :storage_not_configured}
+
+      url ->
+        case Req.get(url, finch: Pavoi.Finch, receive_timeout: 30_000) do
+          {:ok, %{status: 200, body: body}} -> {:ok, body}
+          {:ok, %{status: status}} -> {:error, {:http_error, status}}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  @doc """
   Extracts the storage key from a stored URL.
 
   Useful for regenerating presigned URLs from stored notes_image_url values.

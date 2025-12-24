@@ -189,6 +189,51 @@ defmodule Pavoi.StreamReport do
   end
 
   @doc """
+  Sends a complete stream report to Slack, including cover image if available.
+
+  This is the main entry point for sending reports. It:
+  1. Uploads the cover image (if available) with the report as initial_comment
+  2. Or sends just the Block Kit message if no cover image
+
+  Returns `:ok` on success, `{:error, reason}` on failure.
+  """
+  def send_to_slack(report_data) do
+    alias Pavoi.Communications.Slack
+    alias Pavoi.Storage
+
+    with {:ok, blocks} <- format_slack_blocks(report_data) do
+      stream = report_data.stream
+
+      case stream.cover_image_key do
+        nil ->
+          # No cover image, just send the message
+          Slack.send_message(blocks)
+
+        key ->
+          # Try to upload cover image, fall back to message-only if it fails
+          case Storage.download(key) do
+            {:ok, image_binary} ->
+              filename = "stream_#{stream.id}_cover.jpg"
+
+              case Slack.upload_image(image_binary, filename, title: "Stream Cover") do
+                {:ok, _file_id} ->
+                  # Image uploaded, now send the report message
+                  Slack.send_message(blocks)
+
+                {:error, reason} ->
+                  Logger.warning("Failed to upload cover image: #{inspect(reason)}, sending report without image")
+                  Slack.send_message(blocks)
+              end
+
+            {:error, reason} ->
+              Logger.warning("Failed to download cover image: #{inspect(reason)}, sending report without image")
+              Slack.send_message(blocks)
+          end
+      end
+    end
+  end
+
+  @doc """
   Formats report data into Slack Block Kit blocks.
 
   Returns `{:ok, blocks}` where blocks is a list of Slack block structures.
@@ -228,6 +273,7 @@ defmodule Pavoi.StreamReport do
 
   defp header_block(stream) do
     ended_at = format_ended_at(stream.ended_at)
+    detail_url = "https://app.pavoi.com/streams?s=#{stream.id}"
 
     [
       %{
@@ -237,7 +283,7 @@ defmodule Pavoi.StreamReport do
       %{
         type: "context",
         elements: [
-          %{type: "mrkdwn", text: "Ended #{ended_at}"}
+          %{type: "mrkdwn", text: "Ended #{ended_at}  •  <#{detail_url}|View Details>"}
         ]
       }
     ]
@@ -280,10 +326,12 @@ defmodule Pavoi.StreamReport do
 
   defp products_block(products) do
     lines =
-      Enum.map(products, fn p ->
+      products
+      |> Enum.with_index(1)
+      |> Enum.map(fn {p, rank} ->
         # Extract a short, meaningful product name
         name = shorten_product_name(p.product_name || "Unknown")
-        "`##{p.product_number}` #{name} — *#{p.comment_count}*"
+        "`##{rank}` #{name} — *#{p.comment_count}*"
       end)
 
     text = ":shopping_bags: *Top Products in Comments*\n" <> Enum.join(lines, "\n")
@@ -301,8 +349,6 @@ defmodule Pavoi.StreamReport do
   end
 
   defp flash_sales_block(flash_sales) do
-    total_flash_comments = Enum.reduce(flash_sales, 0, fn fs, acc -> acc + fs.count end)
-
     lines =
       flash_sales
       |> Enum.take(3)
@@ -310,15 +356,21 @@ defmodule Pavoi.StreamReport do
         "\"#{truncate(fs.text, 40)}\" — *#{format_number(fs.count)}x*"
       end)
 
-    text =
-      ":zap: *Flash Sales* (#{format_number(total_flash_comments)} comments)\n" <>
-        Enum.join(lines, "\n")
+    text = ":zap: *Flash Sales*\n" <> Enum.join(lines, "\n")
 
     %{type: "section", text: %{type: "mrkdwn", text: text}}
   end
 
   defp sentiment_block(analysis) do
-    %{type: "section", text: %{type: "mrkdwn", text: ":bulb: *Insights*\n#{analysis}"}}
+    # Convert markdown-style formatting to Slack mrkdwn:
+    # - Main bullets: "- " → "• "
+    # - Sub-bullets (indented): "  - " → "      ◦ "
+    formatted =
+      analysis
+      |> String.replace(~r/^  - /m, "      ◦ ")
+      |> String.replace(~r/^- /m, "• ")
+
+    %{type: "section", text: %{type: "mrkdwn", text: ":bulb: *Insights*\n#{formatted}"}}
   end
 
   defp format_number(nil), do: "0"
