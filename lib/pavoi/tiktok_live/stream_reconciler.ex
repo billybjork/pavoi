@@ -126,6 +126,12 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
         )
     end
 
+    # Ensure stream is in capturing state (may have been marked ended by stale events)
+    {:ok, _stream} =
+      stream
+      |> Stream.changeset(%{status: :capturing, ended_at: nil})
+      |> Repo.update()
+
     # Now enqueue a fresh worker to establish a new connection
     %{stream_id: stream.id, unique_id: stream.unique_id}
     |> TiktokLiveStreamWorker.new()

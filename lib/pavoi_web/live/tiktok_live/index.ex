@@ -312,6 +312,30 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
+  def handle_info({:tiktok_live_event, stream_id, %{type: :connected}}, socket) do
+    # A stream connected/reconnected - update the list to show current status
+    socket =
+      socket
+      |> assign(:page, 1)
+      |> load_streams()
+
+    # If we're viewing this stream, reload its details
+    if socket.assigns.selected_stream && socket.assigns.selected_stream.id == stream_id do
+      stream = TiktokLiveContext.get_stream!(stream_id)
+      summary = TiktokLiveContext.get_stream_summary(stream_id)
+
+      socket =
+        socket
+        |> assign(:selected_stream, stream)
+        |> assign(:stream_summary, summary)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_info({:tiktok_live_event, stream_id, %{type: :viewer_count} = event}, socket) do
     # Update the viewer count for this stream in the list
     updated_streams =
@@ -404,6 +428,25 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
+  def handle_info({:tiktok_live_stream_event, {:connected}}, socket) do
+    # Stream reconnected - refresh its data to show updated status
+    if socket.assigns.selected_stream do
+      stream = TiktokLiveContext.get_stream!(socket.assigns.selected_stream.id)
+      summary = TiktokLiveContext.get_stream_summary(stream.id)
+
+      socket =
+        socket
+        |> assign(:selected_stream, stream)
+        |> assign(:stream_summary, summary)
+        |> load_streams()
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_info({:tiktok_live_stream_event, {:stream_ended}}, socket) do
     # Stream we're viewing ended
     if socket.assigns.selected_stream do
@@ -415,6 +458,7 @@ defmodule PavoiWeb.TiktokLive.Index do
         |> assign(:selected_stream, stream)
         |> assign(:stream_summary, summary)
         |> maybe_unsubscribe_from_stream()
+        |> load_streams()
 
       {:noreply, socket}
     else
