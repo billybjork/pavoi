@@ -566,47 +566,43 @@ defmodule Pavoi.TiktokLive do
 
   Returns a map of stream_id => %{positive_percent: N, negative_percent: N}
   """
+  def get_streams_sentiment_summary([]), do: %{}
+
   def get_streams_sentiment_summary(stream_ids) when is_list(stream_ids) do
-    if Enum.empty?(stream_ids) do
-      %{}
-    else
-      results =
-        from(c in Comment,
-          where: c.stream_id in ^stream_ids,
-          where: not is_nil(c.sentiment),
-          where: c.category != :flash_sale,
-          group_by: [c.stream_id, c.sentiment],
-          select: %{stream_id: c.stream_id, sentiment: c.sentiment, count: count(c.id)}
-        )
-        |> Repo.all()
+    from(c in Comment,
+      where: c.stream_id in ^stream_ids,
+      where: not is_nil(c.sentiment),
+      where: c.category != :flash_sale,
+      group_by: [c.stream_id, c.sentiment],
+      select: %{stream_id: c.stream_id, sentiment: c.sentiment, count: count(c.id)}
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.stream_id)
+    |> Enum.flat_map(&build_stream_sentiment_summary/1)
+    |> Map.new()
+  end
 
-      # Group by stream_id and calculate percentages
-      results
-      |> Enum.group_by(& &1.stream_id)
-      |> Enum.map(fn {stream_id, sentiments} ->
-        total = Enum.reduce(sentiments, 0, fn s, acc -> acc + s.count end)
+  defp build_stream_sentiment_summary({stream_id, sentiments}) do
+    total = Enum.reduce(sentiments, 0, fn s, acc -> acc + s.count end)
+    build_sentiment_percentages(stream_id, sentiments, total)
+  end
 
-        positive =
-          Enum.find_value(sentiments, 0, fn s -> if s.sentiment == :positive, do: s.count end)
+  defp build_sentiment_percentages(_stream_id, _sentiments, 0), do: []
 
-        negative =
-          Enum.find_value(sentiments, 0, fn s -> if s.sentiment == :negative, do: s.count end)
+  defp build_sentiment_percentages(stream_id, sentiments, total) do
+    positive = get_sentiment_count(sentiments, :positive)
+    negative = get_sentiment_count(sentiments, :negative)
 
-        summary =
-          if total > 0 do
-            %{
-              positive_percent: round(positive / total * 100),
-              negative_percent: round(negative / total * 100)
-            }
-          else
-            nil
-          end
+    summary = %{
+      positive_percent: round(positive / total * 100),
+      negative_percent: round(negative / total * 100)
+    }
 
-        {stream_id, summary}
-      end)
-      |> Enum.reject(fn {_, v} -> is_nil(v) end)
-      |> Map.new()
-    end
+    [{stream_id, summary}]
+  end
+
+  defp get_sentiment_count(sentiments, target) do
+    Enum.find_value(sentiments, 0, fn s -> if s.sentiment == target, do: s.count end)
   end
 
   ## Statistics

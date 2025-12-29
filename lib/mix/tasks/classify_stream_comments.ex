@@ -97,96 +97,108 @@ defmodule Mix.Tasks.ClassifyStreamComments do
       Mix.shell().info("All streams already have classified comments!")
       return_stats(%{streams: 0, comments: 0})
     else
-      total_unclassified =
-        Enum.reduce(streams_to_process, 0, fn s, acc -> acc + s.unclassified end)
+      process_found_streams(streams_to_process, dry_run, batch_size)
+    end
+  end
 
-      Mix.shell().info("")
+  defp process_found_streams(streams_to_process, dry_run, batch_size) do
+    total_unclassified =
+      Enum.reduce(streams_to_process, 0, fn s, acc -> acc + s.unclassified end)
 
-      Mix.shell().info(
-        "Found #{length(streams_to_process)} streams with #{total_unclassified} unclassified comments"
-      )
+    print_streams_summary(streams_to_process, total_unclassified)
 
-      Mix.shell().info("")
+    if dry_run do
+      print_dry_run_preview(streams_to_process)
+      return_stats(%{streams: length(streams_to_process), comments: total_unclassified})
+    else
+      results = process_streams_batch(streams_to_process, batch_size)
+      print_summary(results)
+    end
+  end
 
-      # Estimate cost
-      estimated_cost = total_unclassified * 0.03 / 1500
-      Mix.shell().info("Estimated cost: $#{Float.round(estimated_cost, 2)}")
-      Mix.shell().info("")
+  defp print_streams_summary(streams_to_process, total_unclassified) do
+    Mix.shell().info("")
 
-      if dry_run do
-        Mix.shell().info("[DRY RUN] Would process:")
+    Mix.shell().info(
+      "Found #{length(streams_to_process)} streams with #{total_unclassified} unclassified comments"
+    )
 
-        Enum.each(streams_to_process, fn s ->
-          Mix.shell().info("  Stream ##{s.stream.id}: #{s.unclassified} comments to classify")
-        end)
+    Mix.shell().info("")
 
-        return_stats(%{streams: length(streams_to_process), comments: total_unclassified})
-      else
-        # Process each stream
-        results =
-          Enum.reduce(streams_to_process, %{success: 0, failed: 0, comments: 0}, fn s, acc ->
-            Mix.shell().info("Processing stream ##{s.stream.id} (#{s.unclassified} comments)...")
+    estimated_cost = total_unclassified * 0.03 / 1500
+    Mix.shell().info("Estimated cost: $#{Float.round(estimated_cost, 2)}")
+    Mix.shell().info("")
+  end
 
-            case process_stream_internal(s.stream.id, batch_size) do
-              {:ok, result} ->
-                Mix.shell().info(
-                  "  Classified: #{result.classified}, Flash sales: #{result.flash_sale}"
-                )
+  defp print_dry_run_preview(streams_to_process) do
+    Mix.shell().info("[DRY RUN] Would process:")
 
-                %{
-                  acc
-                  | success: acc.success + 1,
-                    comments: acc.comments + result.classified + result.flash_sale
-                }
+    Enum.each(streams_to_process, fn s ->
+      Mix.shell().info("  Stream ##{s.stream.id}: #{s.unclassified} comments to classify")
+    end)
+  end
 
-              {:error, reason} ->
-                Mix.shell().error("  Failed: #{inspect(reason)}")
-                %{acc | failed: acc.failed + 1}
-            end
-          end)
+  defp process_streams_batch(streams_to_process, batch_size) do
+    Enum.reduce(streams_to_process, %{success: 0, failed: 0, comments: 0}, fn s, acc ->
+      Mix.shell().info("Processing stream ##{s.stream.id} (#{s.unclassified} comments)...")
+      process_single_stream_result(s.stream.id, batch_size, acc)
+    end)
+  end
 
-        print_summary(results)
-      end
+  defp process_single_stream_result(stream_id, batch_size, acc) do
+    case process_stream_internal(stream_id, batch_size) do
+      {:ok, result} ->
+        Mix.shell().info("  Classified: #{result.classified}, Flash sales: #{result.flash_sale}")
+        %{acc | success: acc.success + 1, comments: acc.comments + result.classified + result.flash_sale}
+
+      {:error, reason} ->
+        Mix.shell().error("  Failed: #{inspect(reason)}")
+        %{acc | failed: acc.failed + 1}
     end
   end
 
   defp process_stream(stream_id, dry_run, batch_size) do
-    stream = TiktokLive.get_stream(stream_id)
+    case TiktokLive.get_stream(stream_id) do
+      nil ->
+        Mix.shell().error("Stream ##{stream_id} not found")
+        return_stats(%{streams: 0, comments: 0})
 
-    if is_nil(stream) do
-      Mix.shell().error("Stream ##{stream_id} not found")
-      return_stats(%{streams: 0, comments: 0})
-    else
-      total = TiktokLive.count_stream_comments(stream_id)
-      classified = TiktokLive.count_classified_comments(stream_id)
-      unclassified = total - classified
+      _stream ->
+        do_process_stream(stream_id, dry_run, batch_size)
+    end
+  end
 
-      Mix.shell().info(
-        "Stream ##{stream_id}: #{total} comments, #{classified} classified, #{unclassified} unclassified"
-      )
+  defp do_process_stream(stream_id, dry_run, batch_size) do
+    total = TiktokLive.count_stream_comments(stream_id)
+    classified = TiktokLive.count_classified_comments(stream_id)
+    unclassified = total - classified
 
-      if unclassified == 0 do
-        Mix.shell().info("All comments already classified!")
+    Mix.shell().info(
+      "Stream ##{stream_id}: #{total} comments, #{classified} classified, #{unclassified} unclassified"
+    )
+
+    classify_if_needed(stream_id, unclassified, dry_run, batch_size)
+  end
+
+  defp classify_if_needed(_stream_id, 0, _dry_run, _batch_size) do
+    Mix.shell().info("All comments already classified!")
+    return_stats(%{streams: 1, comments: 0})
+  end
+
+  defp classify_if_needed(_stream_id, unclassified, true, _batch_size) do
+    Mix.shell().info("[DRY RUN] Would classify #{unclassified} comments")
+    return_stats(%{streams: 1, comments: unclassified})
+  end
+
+  defp classify_if_needed(stream_id, _unclassified, false, batch_size) do
+    case process_stream_internal(stream_id, batch_size) do
+      {:ok, result} ->
+        Mix.shell().info("Classified: #{result.classified}, Flash sales: #{result.flash_sale}")
+        return_stats(%{streams: 1, comments: result.classified + result.flash_sale})
+
+      {:error, reason} ->
+        Mix.shell().error("Failed: #{inspect(reason)}")
         return_stats(%{streams: 1, comments: 0})
-      else
-        if dry_run do
-          Mix.shell().info("[DRY RUN] Would classify #{unclassified} comments")
-          return_stats(%{streams: 1, comments: unclassified})
-        else
-          case process_stream_internal(stream_id, batch_size) do
-            {:ok, result} ->
-              Mix.shell().info(
-                "Classified: #{result.classified}, Flash sales: #{result.flash_sale}"
-              )
-
-              return_stats(%{streams: 1, comments: result.classified + result.flash_sale})
-
-            {:error, reason} ->
-              Mix.shell().error("Failed: #{inspect(reason)}")
-              return_stats(%{streams: 1, comments: 0})
-          end
-        end
-      end
     end
   end
 

@@ -76,23 +76,18 @@ defmodule Pavoi.AI.CommentClassifier do
     )
 
     # Process in batches
+    total_batches = ceil(length(comments) / batch_size)
+
     results =
       comments
       |> Enum.chunk_every(batch_size)
       |> Enum.with_index(1)
-      |> Enum.reduce({:ok, 0}, fn {batch, batch_num}, acc ->
-        case acc do
-          {:ok, count} ->
-            total_batches = ceil(length(comments) / batch_size)
-            Logger.debug("Processing batch #{batch_num}/#{total_batches}")
+      |> Enum.reduce_while({:ok, 0}, fn {batch, batch_num}, {:ok, count} ->
+        Logger.debug("Processing batch #{batch_num}/#{total_batches}")
 
-            case classify_and_save_batch(batch) do
-              {:ok, batch_count} -> {:ok, count + batch_count}
-              {:error, reason} -> {:error, reason}
-            end
-
-          error ->
-            error
+        case classify_and_save_batch(batch) do
+          {:ok, batch_count} -> {:cont, {:ok, count + batch_count}}
+          {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
 
@@ -172,9 +167,8 @@ defmodule Pavoi.AI.CommentClassifier do
 
   defp do_classify_batch(comments) do
     with {:ok, client} <- build_client(),
-         {:ok, response} <- call_api(client, comments),
-         {:ok, classifications} <- parse_response(response, comments) do
-      {:ok, classifications}
+         {:ok, response} <- call_api(client, comments) do
+      parse_response(response, comments)
     end
   end
 
