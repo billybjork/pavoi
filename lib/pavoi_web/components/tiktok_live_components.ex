@@ -142,7 +142,18 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <td>
                 <div class="streams-table__title">
                   <span class="streams-table__title-text">{format_stream_title(stream)}</span>
-                  <span class="streams-table__username">@{stream.unique_id}</span>
+                  <%= if stream.status == :capturing do %>
+                    <a
+                      href={"https://www.tiktok.com/@#{stream.unique_id}/live"}
+                      target="_blank"
+                      class="streams-table__username streams-table__username--link"
+                      onclick="event.stopPropagation()"
+                    >
+                      @{stream.unique_id}
+                    </a>
+                  <% else %>
+                    <span class="streams-table__username">@{stream.unique_id}</span>
+                  <% end %>
                 </div>
               </td>
               <td>
@@ -216,7 +227,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <div class="stream-modal-header__info">
                 <div class="stream-modal-header__title">
                   <h2 class="modal__title">{format_stream_title(@stream)}</h2>
-                  <span class="text-secondary">@{@stream.unique_id}</span>
+                  <%= if @stream.status == :capturing do %>
+                    <a
+                      href={"https://www.tiktok.com/@#{@stream.unique_id}/live"}
+                      target="_blank"
+                      class="stream-modal-header__username-link"
+                    >
+                      @{@stream.unique_id}
+                    </a>
+                  <% else %>
+                    <span class="text-secondary">@{@stream.unique_id}</span>
+                  <% end %>
                 </div>
                 <div class="stream-modal-header__status">
                   <div class="stream-modal-header__status-left">
