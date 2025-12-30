@@ -957,7 +957,6 @@ defmodule PavoiWeb.CreatorComponents do
                 current={@sort_by}
                 dir={@sort_dir}
                 on_sort={@on_sort}
-                class="text-right"
               />
               <.sort_header
                 label="GMV"
@@ -965,7 +964,6 @@ defmodule PavoiWeb.CreatorComponents do
                 current={@sort_by}
                 dir={@sort_dir}
                 on_sort={@on_sort}
-                class="text-right"
               />
               <.sort_header
                 label="Samples"
@@ -973,7 +971,6 @@ defmodule PavoiWeb.CreatorComponents do
                 current={@sort_by}
                 dir={@sort_dir}
                 on_sort={@on_sort}
-                class="text-right"
               />
               <.sort_header
                 label="Videos"
@@ -981,7 +978,6 @@ defmodule PavoiWeb.CreatorComponents do
                 current={@sort_by}
                 dir={@sort_dir}
                 on_sort={@on_sort}
-                class="text-right"
               />
             <% end %>
           </tr>
@@ -1165,7 +1161,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="TikTok follower count · Creator Profiles sync"
               time_filtered={@time_filter_active}
             />
@@ -1176,7 +1171,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Total gross merchandise value · Creator Profiles sync"
               time_filtered={@time_filter_active}
             />
@@ -1187,7 +1181,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Average video views · Creator Profiles sync"
             />
             <%!-- 9. Samples --%>
@@ -1197,7 +1190,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Sample products sent · Shop Orders sync"
             />
             <%!-- 10. Videos Posted --%>
@@ -1207,7 +1199,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Affiliate videos posted · Manual CSV (may be stale)"
               manual_import={true}
             />
@@ -1218,7 +1209,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Total commission earned · Manual CSV (may be stale)"
               manual_import={true}
             />
@@ -1229,7 +1219,6 @@ defmodule PavoiWeb.CreatorComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
               tooltip="Most recent sample received · Shop Orders sync"
             />
           </tr>
@@ -1245,7 +1234,7 @@ defmodule PavoiWeb.CreatorComponents do
               ]}
             >
               <%!-- 1. Checkbox --%>
-              <td class="col-checkbox" phx-click="stop_propagation">
+              <td data-column-id="checkbox" class="col-checkbox" phx-click="stop_propagation">
                 <input
                   type="checkbox"
                   checked={@selected_ids && MapSet.member?(@selected_ids, creator.id)}
@@ -1254,11 +1243,11 @@ defmodule PavoiWeb.CreatorComponents do
                 />
               </td>
               <%!-- 2. Status --%>
-              <td class="text-center">
+              <td data-column-id="status" class="text-center">
                 <.engagement_status_badge creator={creator} />
               </td>
               <%!-- 3. Avatar + Username + Nickname --%>
-              <td>
+              <td data-column-id="username">
                 <div class="creator-cell">
                   <.creator_avatar creator={creator} size="sm" />
                   <div class="creator-cell__info">
@@ -1285,13 +1274,13 @@ defmodule PavoiWeb.CreatorComponents do
                 </div>
               </td>
               <%!-- 4. Email --%>
-              <td class="text-secondary">{creator.email || "-"}</td>
+              <td data-column-id="email" class="text-secondary">{creator.email || "-"}</td>
               <%!-- 5. Tags --%>
-              <td class="col-tags" phx-click="stop_propagation">
+              <td data-column-id="tags" class="col-tags" phx-click="stop_propagation">
                 <.tag_cell creator={creator} />
               </td>
               <%!-- 6. Followers --%>
-              <td class={["text-right", @time_filter_active && "col-time-filtered"]}>
+              <td data-column-id="followers" class={["text-right", @time_filter_active && "col-time-filtered"]}>
                 <%= if @delta_period && creator.snapshot_delta do %>
                   <.metric_with_delta
                     current={creator.follower_count}
@@ -1305,7 +1294,7 @@ defmodule PavoiWeb.CreatorComponents do
                 <% end %>
               </td>
               <%!-- 7. Total GMV --%>
-              <td class={["text-right", @time_filter_active && "col-time-filtered"]}>
+              <td data-column-id="gmv" class={["text-right", @time_filter_active && "col-time-filtered"]}>
                 <%= if @delta_period && creator.snapshot_delta do %>
                   <.metric_with_delta
                     current={creator.total_gmv_cents}
@@ -1319,15 +1308,15 @@ defmodule PavoiWeb.CreatorComponents do
                 <% end %>
               </td>
               <%!-- 8. Avg Views --%>
-              <td class="text-right">{format_number(creator.avg_video_views)}</td>
+              <td data-column-id="avg_views" class="text-right">{format_number(creator.avg_video_views)}</td>
               <%!-- 9. Samples --%>
-              <td class="text-right">{creator.sample_count || 0}</td>
+              <td data-column-id="samples" class="text-right">{creator.sample_count || 0}</td>
               <%!-- 10. Videos Posted --%>
-              <td class="text-right">{creator.video_count || 0}</td>
+              <td data-column-id="videos_posted" class="text-right">{creator.video_count || 0}</td>
               <%!-- 11. Commission --%>
-              <td class="text-right">{format_gmv(creator.total_commission_cents)}</td>
+              <td data-column-id="commission" class="text-right">{format_gmv(creator.total_commission_cents)}</td>
               <%!-- 12. Last Sample --%>
-              <td class="text-right text-secondary">
+              <td data-column-id="last_sample" class="text-right text-secondary">
                 {format_relative_time(creator.last_sample_at)}
               </td>
             </tr>
@@ -1346,7 +1335,6 @@ defmodule PavoiWeb.CreatorComponents do
   attr :current, :string, default: nil
   attr :dir, :string, default: "asc"
   attr :on_sort, :string, default: nil
-  attr :class, :string, default: nil
   attr :tooltip, :string, default: nil
   attr :time_filtered, :boolean, default: false
   attr :manual_import, :boolean, default: false
@@ -1365,7 +1353,6 @@ defmodule PavoiWeb.CreatorComponents do
     <th
       class={[
         "sortable-header",
-        @class,
         @is_active && "sortable-header--active",
         @time_filtered && "sortable-header--time-filtered",
         @manual_import && "sortable-header--manual-import"

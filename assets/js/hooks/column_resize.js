@@ -36,16 +36,11 @@ export default {
   initializeColumns() {
     const headers = this.getResizableHeaders()
 
-    // Set table-layout to fixed for predictable sizing
-    this.el.style.tableLayout = "fixed"
-
-    // Assign column IDs if not present
+    // Assign column IDs if not present (table-layout and th positioning handled in CSS)
     headers.forEach((th, index) => {
       if (!th.dataset.columnId) {
         th.dataset.columnId = `col-${index}`
       }
-      // Make headers position relative for handle positioning
-      th.style.position = "relative"
     })
   },
 
@@ -66,7 +61,6 @@ export default {
     headers.forEach(th => {
       const columnId = th.dataset.columnId
       if (columnId && saved[columnId]) {
-        // Use !important to override CSS nth-child width rules
         th.style.setProperty('width', `${saved[columnId]}px`, 'important')
       }
     })
@@ -180,8 +174,6 @@ export default {
     const { th, startX, startWidth } = this.resizing
     const delta = clientX - startX
     const newWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + delta)
-
-    // Use setProperty with !important to override CSS nth-child rules
     th.style.setProperty('width', `${newWidth}px`, 'important')
   },
 

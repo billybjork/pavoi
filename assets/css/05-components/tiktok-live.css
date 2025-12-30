@@ -149,12 +149,8 @@
   height: 24px;
 }
 
-.streams-table__th-thumbnail {
-  width: 80px !important;
-}
-
-.streams-table__td-thumbnail {
-  padding: var(--space-2) var(--space-3) !important;
+.streams-table td[data-column-id="thumbnail"] {
+  padding: var(--space-2) var(--space-3);
   vertical-align: middle;
 }
 
@@ -187,6 +183,11 @@
   z-index: 10;
 }
 
+/* Sortable headers have padding on the button inside, not the th */
+.streams-table .sortable-header {
+  padding: 0;
+}
+
 .streams-table td {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -208,25 +209,17 @@
   background: var(--color-bg-hover);
 }
 
-/* Column widths */
-.streams-table th:nth-child(1),
-.streams-table td:nth-child(1) { width: 85px; }  /* Thumbnail */
-.streams-table th:nth-child(2),
-.streams-table td:nth-child(2) { width: 265px; } /* Title */
-.streams-table th:nth-child(3),
-.streams-table td:nth-child(3) { width: 105px; } /* Status */
-.streams-table th:nth-child(4),
-.streams-table td:nth-child(4) { width: 195px; } /* Started */
-.streams-table th:nth-child(5),
-.streams-table td:nth-child(5) { width: 130px; } /* Duration */
-.streams-table th:nth-child(6),
-.streams-table td:nth-child(6) { width: 140px; } /* Viewers */
-.streams-table th:nth-child(7),
-.streams-table td:nth-child(7) { width: 120px; } /* GMV */
-.streams-table th:nth-child(8),
-.streams-table td:nth-child(8) { width: 135px; } /* Comments */
-.streams-table th:nth-child(9),
-.streams-table td:nth-child(9) { width: 125px; } /* Sentiment */
+/* Column widths (using data-column-id for robustness) */
+.streams-table th[data-column-id="thumbnail"] { width: 75px; }
+.streams-table th[data-column-id="title"] { width: 220px; }
+.streams-table th[data-column-id="status"] { width: 100px; }
+.streams-table th[data-column-id="started"] { width: 165px; }
+.streams-table th[data-column-id="duration"] { width: 125px; }
+.streams-table th[data-column-id="viewers"] { width: 110px; }
+.streams-table th[data-column-id="products"] { width: 135px; }
+.streams-table th[data-column-id="gmv"] { width: 105px; }
+.streams-table th[data-column-id="comments"] { width: 130px; }
+.streams-table th[data-column-id="sentiment"] { width: 140px; }
 
 /* Text alignment helpers */
 .streams-table .text-right {
@@ -237,24 +230,8 @@
   color: var(--color-text-secondary);
 }
 
-/* Column resize - headers need relative positioning for handles */
-.streams-table th {
-  position: relative;
-}
-
-/* Resize handle styles (reuses column-resize-handle from creators-index.css) */
-.streams-table.is-resizing {
-  cursor: col-resize;
-  user-select: none;
-}
-
-.streams-table.is-resizing td,
-.streams-table.is-resizing th {
-  user-select: none;
-}
-
-/* Title column needs special handling for two-line content (2nd column now) */
-.streams-table td:nth-child(2) {
+/* Title column needs special handling for two-line content */
+.streams-table td[data-column-id="title"] {
   white-space: normal;
 }
 
@@ -683,12 +660,12 @@
 
 @media (max-width: 480px) {
   /* Hide thumbnail, duration, and viewers columns on very small screens */
-  .streams-table th:nth-child(1),
-  .streams-table td:nth-child(1),
-  .streams-table th:nth-child(5),
-  .streams-table td:nth-child(5),
-  .streams-table th:nth-child(6),
-  .streams-table td:nth-child(6) {
+  .streams-table th[data-column-id="thumbnail"],
+  .streams-table td[data-column-id="thumbnail"],
+  .streams-table th[data-column-id="duration"],
+  .streams-table td[data-column-id="duration"],
+  .streams-table th[data-column-id="viewers"],
+  .streams-table td[data-column-id="viewers"] {
     display: none;
   }
 

@@ -45,22 +45,6 @@
   transition: all 0.2s ease;
 }
 
-/* Bulk Actions Inline (in page header) */
-.bulk-actions-inline {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.bulk-actions__count {
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-secondary);
-  padding-right: var(--space-2);
-  border-right: 1px solid var(--color-border);
-  margin-right: var(--space-1);
-}
-
 /* Scroll container - handles scrolling and visual frame */
 .creators-scroll-container {
   height: calc(100vh - 220px); /* viewport minus navbar and page header */
@@ -75,6 +59,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
+  table-layout: fixed;
 }
 
 .creator-table th {
@@ -85,123 +70,37 @@
   background: var(--color-surface-secondary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
-  /* Sticky header within scroll container */
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-/* Checkbox column width (shared) */
-.creator-table th.col-checkbox,
-.creator-table td.col-checkbox { width: 40px; min-width: 40px; }
-
 /* =============================================================================
-   CRM MODE - with checkbox (default now)
-   Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos
-   ============================================================================= */
-.creator-table.mode-crm th:nth-child(1),
-.creator-table.mode-crm td:nth-child(1) { width: 45px; }   /* Checkbox */
-.creator-table.mode-crm th:nth-child(2),
-.creator-table.mode-crm td:nth-child(2) { width: 145px; }  /* Username */
-.creator-table.mode-crm th:nth-child(3),
-.creator-table.mode-crm td:nth-child(3) { width: 155px; }  /* Name */
-.creator-table.mode-crm th:nth-child(4),
-.creator-table.mode-crm td:nth-child(4) { width: 205px; }  /* Email */
-.creator-table.mode-crm th:nth-child(5),
-.creator-table.mode-crm td:nth-child(5) { width: 135px; }  /* Phone */
-.creator-table.mode-crm th:nth-child(6),
-.creator-table.mode-crm td:nth-child(6) { width: 150px; }  /* Tags */
-.creator-table.mode-crm th:nth-child(7),
-.creator-table.mode-crm td:nth-child(7) { width: 125px; }  /* Followers */
-.creator-table.mode-crm th:nth-child(8),
-.creator-table.mode-crm td:nth-child(8) { width: 100px; }  /* GMV */
-.creator-table.mode-crm th:nth-child(9),
-.creator-table.mode-crm td:nth-child(9) { width: 120px; }  /* Samples */
-.creator-table.mode-crm th:nth-child(10),
-.creator-table.mode-crm td:nth-child(10) { width: 115px; } /* Videos */
-
-/* =============================================================================
-   OUTREACH MODE - with checkbox (pending status)
-   Columns: Checkbox, Username, Name, Email, Phone, SMS Consent, Status, Added, [Sent]
-   ============================================================================= */
-.creator-table.mode-outreach.has-checkbox th:nth-child(1),
-.creator-table.mode-outreach.has-checkbox td:nth-child(1) { width: 45px; }   /* Checkbox */
-.creator-table.mode-outreach.has-checkbox th:nth-child(2),
-.creator-table.mode-outreach.has-checkbox td:nth-child(2) { width: 140px; }  /* Username */
-.creator-table.mode-outreach.has-checkbox th:nth-child(3),
-.creator-table.mode-outreach.has-checkbox td:nth-child(3) { width: 165px; }  /* Name */
-.creator-table.mode-outreach.has-checkbox th:nth-child(4),
-.creator-table.mode-outreach.has-checkbox td:nth-child(4) { width: 245px; }  /* Email */
-.creator-table.mode-outreach.has-checkbox th:nth-child(5),
-.creator-table.mode-outreach.has-checkbox td:nth-child(5) { width: 140px; }  /* Phone */
-.creator-table.mode-outreach.has-checkbox th:nth-child(6),
-.creator-table.mode-outreach.has-checkbox td:nth-child(6) { width: 165px; }  /* SMS Consent */
-.creator-table.mode-outreach.has-checkbox th:nth-child(7),
-.creator-table.mode-outreach.has-checkbox td:nth-child(7) { width: 120px; }  /* Status */
-.creator-table.mode-outreach.has-checkbox th:nth-child(8),
-.creator-table.mode-outreach.has-checkbox td:nth-child(8) { width: 120px; }  /* Added */
-.creator-table.mode-outreach.has-checkbox th:nth-child(9),
-.creator-table.mode-outreach.has-checkbox td:nth-child(9) { width: 125px; }  /* Sent (when visible) */
-
-/* =============================================================================
-   OUTREACH MODE - without checkbox (sent/skipped status)
-   Columns: Username, Name, Email, Phone, SMS Consent, Status, Added, [Sent]
-   ============================================================================= */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(1),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(1) { width: 140px; }  /* Username */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(2),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(2) { width: 165px; }  /* Name */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(3),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(3) { width: 245px; }  /* Email */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(4),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(4) { width: 140px; }  /* Phone */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(5),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(5) { width: 165px; }  /* SMS Consent */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(6),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(6) { width: 120px; }  /* Status */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(7),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(7) { width: 120px; }  /* Added */
-.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(8),
-.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
-
-/* =============================================================================
-   UNIFIED MODE - 12 columns
-   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Avg Views, Samples, Videos, Commission, Last Sample
+   UNIFIED MODE - 12 columns (using data-column-id for robustness)
    ============================================================================= */
 
-.creator-table.mode-unified th:nth-child(1),
-.creator-table.mode-unified td:nth-child(1) { width: 55px; }   /* Checkbox */
-.creator-table.mode-unified th:nth-child(2),
-.creator-table.mode-unified td:nth-child(2) { width: 120px; }  /* Status */
-.creator-table.mode-unified th:nth-child(3),
-.creator-table.mode-unified td:nth-child(3) { width: 260px; }  /* Creator */
-.creator-table.mode-unified th:nth-child(4),
-.creator-table.mode-unified td:nth-child(4) { width: 240px; }  /* Email */
-.creator-table.mode-unified th:nth-child(5),
-.creator-table.mode-unified td:nth-child(5) { width: 175px; }  /* Tags */
-.creator-table.mode-unified th:nth-child(6),
-.creator-table.mode-unified td:nth-child(6) { width: 125px; }  /* Followers */
-.creator-table.mode-unified th:nth-child(7),
-.creator-table.mode-unified td:nth-child(7) { width: 115px; }  /* GMV */
-.creator-table.mode-unified th:nth-child(8),
-.creator-table.mode-unified td:nth-child(8) { width: 150px; }  /* Avg Views */
-.creator-table.mode-unified th:nth-child(9),
-.creator-table.mode-unified td:nth-child(9) { width: 135px; }  /* Samples */
-.creator-table.mode-unified th:nth-child(10),
-.creator-table.mode-unified td:nth-child(10) { width: 140px; } /* Videos */
-.creator-table.mode-unified th:nth-child(11),
-.creator-table.mode-unified td:nth-child(11) { width: 175px; } /* Commission */
-.creator-table.mode-unified th:nth-child(12),
-.creator-table.mode-unified td:nth-child(12) { width: 175px; } /* Last Sample */
+.creator-table.mode-unified th[data-column-id="checkbox"] { width: 55px; }
+.creator-table.mode-unified th[data-column-id="status"] { width: 130px; }
+.creator-table.mode-unified th[data-column-id="username"] { width: 260px; }
+.creator-table.mode-unified th[data-column-id="email"] { width: 240px; }
+.creator-table.mode-unified th[data-column-id="tags"] { width: 175px; }
+.creator-table.mode-unified th[data-column-id="followers"] { width: 125px; }
+.creator-table.mode-unified th[data-column-id="gmv"] { width: 125px; }
+.creator-table.mode-unified th[data-column-id="avg_views"] { width: 150px; }
+.creator-table.mode-unified th[data-column-id="samples"] { width: 135px; }
+.creator-table.mode-unified th[data-column-id="videos_posted"] { width: 140px; }
+.creator-table.mode-unified th[data-column-id="commission"] { width: 175px; }
+.creator-table.mode-unified th[data-column-id="last_sample"] { width: 140px; }
 
 /* Center align Status column in unified mode */
-.creator-table.mode-unified th:nth-child(2),
-.creator-table.mode-unified td:nth-child(2) {
+.creator-table.mode-unified th[data-column-id="status"],
+.creator-table.mode-unified td[data-column-id="status"] {
   text-align: center;
 }
 
-/* Sortable headers */
-.sortable-header {
+/* Sortable headers - padding is on the button inside, not the th */
+.sortable-header,
+.creator-table .sortable-header {
   padding: 0;
 }
 
@@ -220,12 +119,6 @@
   cursor: pointer;
   transition: color 0.15s ease;
   text-align: left;
-}
-
-/* Right-aligned sortable headers */
-.sortable-header.text-right .sortable-header__btn {
-  justify-content: flex-end;
-  text-align: right;
 }
 
 .sortable-header__btn:hover {
@@ -258,9 +151,6 @@
 .sortable-header--active .sortable-header__icon {
   opacity: 1;
 }
-
-/* Note: Removed justify-content: flex-end for headers - all headers are left-aligned */
-/* Data cells use .text-right class for right-alignment */
 
 .creator-table td {
   padding: var(--space-3) var(--space-4);
@@ -450,25 +340,6 @@
     flex: 0 0 auto;
   }
 
-  .filter-tabs--inline {
-    gap: var(--space-1);
-  }
-
-  .filter-tab--compact {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
-  }
-
-  .outreach-today-stat--compact {
-    padding: var(--space-1) var(--space-2);
-  }
-
-  .view-toggle__btn {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
-  }
-
-  /* Consistent sizing for all filter triggers at this breakpoint */
   .creators-index .time-filter__trigger,
   .creators-index .tag-filter__trigger {
     font-size: var(--text-sm);
@@ -533,189 +404,23 @@
     padding: 0;
   }
 
-  .view-toggle {
-    flex-shrink: 0;
-  }
-
-  .view-toggle__btn {
-    padding: 0 var(--space-2);
-    height: 28px;
-    font-size: var(--text-xs);
-  }
-
-  .filter-tabs--inline {
-    flex-shrink: 1;
-    min-width: 0;
-  }
-
-  .filter-tab--compact {
-    padding: 0 var(--space-1-5);
-    height: 28px;
-    font-size: var(--text-xs);
-    gap: var(--space-1);
-  }
-
-  .filter-tab__badge {
-    min-width: 14px;
-    height: 14px;
-    padding: 0 3px;
-    font-size: 9px;
+  .preset-btn {
+    padding: 3px 6px;
+    font-size: 10px;
   }
 }
 
 /* ============================================
-   OUTREACH MODE STYLES
+   TIME PRESET FILTER
    ============================================ */
 
-/* View Toggle */
-.view-toggle {
-  display: inline-flex;
-  gap: var(--space-1);
-  align-items: center;
-}
-
-.view-toggle__btn {
-  padding: 0 var(--space-3);
-  height: 36px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.5;
-}
-
-.view-toggle__btn:hover {
-  background: var(--color-surface-secondary);
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
-}
-
-.view-toggle__btn--active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.view-toggle__btn--active:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-/* Inline Filter Tabs (in header) */
-.filter-tabs--inline {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.filter-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  height: 36px; /* Match .input--sm height used in other pages */
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  line-height: 1.5;
-}
-
-.filter-tab--compact {
-  padding: 0 var(--space-3);
-  height: 36px;
-  font-size: var(--text-sm);
-}
-
-.filter-tab:hover {
-  background: var(--color-surface-secondary);
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
-}
-
-.filter-tab--active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.filter-tab--active:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-/* Compact Today Stat (in header) */
-.outreach-today-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  height: 36px; /* Match .input--sm height used in other pages */
-  background: var(--color-surface-secondary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  line-height: 1.5;
-}
-
-.outreach-today-stat--compact {
-  padding: 0 var(--space-3);
-  height: 36px;
-}
-
-.outreach-today-stat__label {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-medium);
-}
-
-.outreach-today-stat__value {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-}
-
-.filter-tab__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 var(--space-1-5);
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  line-height: 1;
-}
-
-.filter-tab--active .filter-tab__badge {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Time Preset Filter - Compact with hover expand */
 .time-preset-filter {
   position: relative;
   display: flex;
   align-items: center;
-  height: 30px; /* Fixed height to prevent layout shift */
+  height: 30px;
 }
 
-/* Trigger - always visible (icon when no filter, value when filter active) */
 .time-preset-filter__trigger {
   display: flex;
   align-items: center;
@@ -740,14 +445,12 @@
   height: 16px;
 }
 
-/* Active filter value shown in trigger */
 .time-preset-filter__active-value {
   font-size: 11px;
   font-weight: var(--font-semibold);
   color: var(--color-primary);
 }
 
-/* Content - hidden by default, shown on hover or when filter active */
 .time-preset-filter__content {
   position: absolute;
   right: 0;
@@ -768,14 +471,12 @@
   z-index: 10;
 }
 
-/* Show on hover */
 .time-preset-filter:hover .time-preset-filter__content {
   opacity: 1;
   visibility: visible;
   transform: translateX(0);
 }
 
-/* Hide trigger when content visible */
 .time-preset-filter:hover .time-preset-filter__trigger {
   opacity: 0;
   visibility: hidden;
@@ -842,28 +543,8 @@
   background: var(--color-surface-primary);
 }
 
-/* Mobile - always show when filter active, otherwise just icon */
-@media (max-width: 640px) {
-  .time-preset-filter .filter-label {
-    display: none;
-  }
-
-  .preset-btn {
-    padding: 3px 6px;
-    font-size: 10px;
-  }
-}
-
-.bulk-actions__count {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-medium);
-  margin-right: var(--space-1);
-}
-
-/* Outreach Table Additions */
+/* Checkbox column styling */
 .creator-table .col-checkbox {
-  width: 40px;
   padding: var(--space-2);
   text-align: center;
   vertical-align: middle;
@@ -883,22 +564,6 @@
 
 .creator-table .row--selected:hover {
   background: rgba(59, 130, 246, 0.08);
-}
-
-.creator-table .creator-name {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
-.creator-table .creator-name__username {
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
-}
-
-.creator-table .creator-name__real {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
 }
 
 .creator-table .badge {
@@ -955,49 +620,7 @@
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* Center align SMS Consent and Status columns in outreach mode only */
-.creator-table.mode-outreach.has-checkbox th:nth-child(6),
-.creator-table.mode-outreach.has-checkbox td:nth-child(6),
-.creator-table.mode-outreach.has-checkbox th:nth-child(7),
-.creator-table.mode-outreach.has-checkbox td:nth-child(7) {
-  text-align: center;
-}
-
 /* Dark mode adjustments */
-.dark .view-toggle__btn {
-  background: transparent;
-  border-color: var(--color-border);
-}
-
-.dark .view-toggle__btn:hover {
-  background: var(--color-surface-secondary);
-}
-
-.dark .view-toggle__btn--active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.dark .view-toggle__btn--active:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.dark .filter-tab {
-  border-color: var(--color-border);
-}
-
-.dark .filter-tab:hover {
-  background: var(--color-surface-secondary);
-}
-
-.dark .filter-tab--active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
 .dark .creator-table .badge--success {
   background: rgba(34, 197, 94, 0.2);
   color: rgb(134, 239, 172);
@@ -1008,16 +631,6 @@
   background: rgba(251, 191, 36, 0.2);
   color: rgb(253, 224, 71);
   border-color: rgba(251, 191, 36, 0.3);
-}
-
-.dark .outreach-today-stat {
-  background: var(--color-surface-secondary);
-  border-color: var(--color-border);
-}
-
-.dark .bulk-actions-bar {
-  background: var(--color-surface-secondary);
-  border-color: var(--color-border);
 }
 
 /* ============================================
@@ -1072,21 +685,15 @@
   background: var(--color-primary);
 }
 
-/* While actively resizing */
-.creator-table.is-resizing {
+/* While actively resizing (works for any table with ColumnResize hook) */
+table.is-resizing {
   cursor: col-resize;
   user-select: none;
 }
 
-/* Prevent text selection during resize */
-.creator-table.is-resizing td,
-.creator-table.is-resizing th {
+table.is-resizing td,
+table.is-resizing th {
   user-select: none;
-}
-
-/* Ensure headers have relative positioning for handles */
-.creator-table th {
-  position: relative;
 }
 
 

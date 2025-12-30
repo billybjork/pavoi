@@ -120,7 +120,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
       <table id="streams-table" class="streams-table" phx-hook="ColumnResize" data-table-id="streams">
         <thead>
           <tr>
-            <th data-column-id="thumbnail" class="streams-table__th-thumbnail"></th>
+            <th data-column-id="thumbnail"></th>
             <th data-column-id="title">Title</th>
             <th data-column-id="status">Status</th>
             <.sort_header
@@ -136,7 +136,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
             />
             <.sort_header
               label="Viewers"
@@ -144,16 +143,14 @@ defmodule PavoiWeb.TiktokLiveComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
             />
-            <th data-column-id="products" class="text-right">Products</th>
+            <th data-column-id="products">Products</th>
             <.sort_header
               label="GMV"
               field="gmv"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
             />
             <.sort_header
               label="Comments"
@@ -161,9 +158,8 @@ defmodule PavoiWeb.TiktokLiveComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              class="text-right"
             />
-            <th data-column-id="sentiment" class="text-center">Sentiment</th>
+            <th data-column-id="sentiment">Sentiment</th>
           </tr>
         </thead>
         <tbody>
@@ -173,10 +169,10 @@ defmodule PavoiWeb.TiktokLiveComponents do
               phx-value-id={stream.id}
               class={[@on_row_click && "cursor-pointer hover:bg-hover"]}
             >
-              <td class="streams-table__td-thumbnail">
+              <td data-column-id="thumbnail">
                 <.stream_thumbnail url={Stream.cover_image_url(stream)} />
               </td>
-              <td>
+              <td data-column-id="title">
                 <div class="streams-table__title">
                   <span class="streams-table__title-text">{format_stream_title(stream)}</span>
                   <%= if stream.status == :capturing do %>
@@ -193,34 +189,34 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   <% end %>
                 </div>
               </td>
-              <td>
+              <td data-column-id="status">
                 <.stream_status_badge status={stream.status} />
               </td>
-              <td class="text-secondary">
+              <td data-column-id="started" class="text-secondary">
                 {format_stream_time(stream.started_at)}
               </td>
-              <td class="text-right text-secondary">
+              <td data-column-id="duration" class="text-right text-secondary">
                 {format_duration(stream.started_at, stream.ended_at)}
               </td>
-              <td class="text-right">
+              <td data-column-id="viewers" class="text-right">
                 <%= if stream.status == :capturing do %>
                   <span class="text-live">{format_number(stream.viewer_count_current)}</span>
                 <% else %>
                   {format_number(stream.viewer_count_peak)}
                 <% end %>
               </td>
-              <td class="text-right">
+              <td data-column-id="products" class="text-right">
                 <.stream_product_count stream={stream} />
               </td>
-              <td class="text-right">
+              <td data-column-id="gmv" class="text-right">
                 <%= if stream.gmv_cents do %>
                   <span class="text-green-500">{format_gmv(stream.gmv_cents)}</span>
                 <% else %>
                   <span class="text-secondary">—</span>
                 <% end %>
               </td>
-              <td class="text-right">{format_number(stream.total_comments)}</td>
-              <td class="text-center">
+              <td data-column-id="comments" class="text-right">{format_number(stream.total_comments)}</td>
+              <td data-column-id="sentiment" class="text-center">
                 <.stream_sentiment_indicator sentiment={Map.get(@streams_sentiment, stream.id)} />
               </td>
             </tr>
