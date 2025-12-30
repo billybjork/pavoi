@@ -76,6 +76,9 @@
 /* ============================================================================
    SOFT BADGE VARIANTS
    Subtle, bordered style for tables and dense UI. Use with .badge--soft base.
+
+   Colors are hardcoded rgba values (not tokens) because they need specific
+   opacity levels for the "soft" appearance. Dark mode overrides are at the end.
    ============================================================================ */
 
 .badge--soft {
