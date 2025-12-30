@@ -20,7 +20,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Workers.CreatorEnrichmentWorker
   alias Pavoi.Workers.CreatorOutreachWorker
 
-  import PavoiWeb.CreatorComponents
   import PavoiWeb.CreatorTagComponents
   import PavoiWeb.CreatorTableComponents
   import PavoiWeb.ViewHelpers

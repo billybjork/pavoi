@@ -215,7 +215,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   <span class="text-secondary">—</span>
                 <% end %>
               </td>
-              <td data-column-id="comments" class="text-right">{format_number(stream.total_comments)}</td>
+              <td data-column-id="comments" class="text-right">
+                {format_number(stream.total_comments)}
+              </td>
               <td data-column-id="sentiment" class="text-center">
                 <.stream_sentiment_indicator sentiment={Map.get(@streams_sentiment, stream.id)} />
               </td>

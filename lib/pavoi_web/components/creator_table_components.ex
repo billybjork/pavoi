@@ -10,7 +10,6 @@ defmodule PavoiWeb.CreatorTableComponents do
   import PavoiWeb.CreatorTagComponents
 
   alias Pavoi.Creators.Creator
-  alias Pavoi.Outreach.OutreachLog
   alias Phoenix.LiveView.JS
 
   use Phoenix.VerifiedRoutes,
@@ -642,7 +641,10 @@ defmodule PavoiWeb.CreatorTableComponents do
                 <.tag_cell creator={creator} />
               </td>
               <%!-- 6. Followers --%>
-              <td data-column-id="followers" class={["text-right", @time_filter_active && "col-time-filtered"]}>
+              <td
+                data-column-id="followers"
+                class={["text-right", @time_filter_active && "col-time-filtered"]}
+              >
                 <%= if @delta_period && creator.snapshot_delta do %>
                   <.metric_with_delta
                     current={creator.follower_count}
@@ -656,7 +658,10 @@ defmodule PavoiWeb.CreatorTableComponents do
                 <% end %>
               </td>
               <%!-- 7. Total GMV --%>
-              <td data-column-id="gmv" class={["text-right", @time_filter_active && "col-time-filtered"]}>
+              <td
+                data-column-id="gmv"
+                class={["text-right", @time_filter_active && "col-time-filtered"]}
+              >
                 <%= if @delta_period && creator.snapshot_delta do %>
                   <.metric_with_delta
                     current={creator.total_gmv_cents}
@@ -670,13 +675,17 @@ defmodule PavoiWeb.CreatorTableComponents do
                 <% end %>
               </td>
               <%!-- 8. Avg Views --%>
-              <td data-column-id="avg_views" class="text-right">{format_number(creator.avg_video_views)}</td>
+              <td data-column-id="avg_views" class="text-right">
+                {format_number(creator.avg_video_views)}
+              </td>
               <%!-- 9. Samples --%>
               <td data-column-id="samples" class="text-right">{creator.sample_count || 0}</td>
               <%!-- 10. Videos Posted --%>
               <td data-column-id="videos_posted" class="text-right">{creator.video_count || 0}</td>
               <%!-- 11. Commission --%>
-              <td data-column-id="commission" class="text-right">{format_gmv(creator.total_commission_cents)}</td>
+              <td data-column-id="commission" class="text-right">
+                {format_gmv(creator.total_commission_cents)}
+              </td>
               <%!-- 12. Last Sample --%>
               <td data-column-id="last_sample" class="text-right text-secondary">
                 {format_relative_time(creator.last_sample_at)}
