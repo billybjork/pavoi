@@ -1024,17 +1024,15 @@
 }
 
 /* =============================================================================
-   LARK PRESET SELECTION
+   TEMPLATE SELECTION
    ============================================================================= */
-
-/* Selection Mode */
-.lark-presets-select {
+.template-select-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.lark-preset-option {
+.template-select-option {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -1042,45 +1040,33 @@
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.lark-preset-option:hover {
+.template-select-option:hover {
   background-color: var(--color-bg-hover);
 }
 
-.lark-preset-option--selected {
+.template-select-option--selected {
   border-color: var(--color-primary);
   background-color: rgba(59, 130, 246, 0.08);
 }
 
-.lark-preset-option input[type="radio"] {
+.template-select-option input[type="radio"] {
   margin: 0;
   accent-color: var(--color-primary);
 }
 
-.lark-preset-option__label {
+.template-select-option__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
 }
 
-/* Edit Mode */
-.lark-presets-edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.lark-preset-edit-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.lark-preset-label {
-  font-weight: var(--font-medium);
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
+.template-select-option__label .badge {
+  font-size: var(--text-xs);
 }
 
 /* =============================================================================

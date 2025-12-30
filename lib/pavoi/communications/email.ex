@@ -8,28 +8,30 @@ defmodule Pavoi.Communications.Email do
 
   import Swoosh.Email
 
-  alias Pavoi.Communications.Templates
+  alias Pavoi.Communications.{EmailTemplate, TemplateRenderer}
   alias Pavoi.Creators.Creator
   alias Pavoi.Mailer
 
   @doc """
-  Sends a welcome email to a creator.
+  Sends an email to a creator using a database-stored template.
 
-  Returns {:ok, %Swoosh.Email{}} on success, {:error, reason} on failure.
+  Returns {:ok, message_id} on success, {:error, reason} on failure.
   """
-  def send_welcome_email(creator, lark_invite_url) do
+  def send_templated_email(creator, %EmailTemplate{} = template) do
     features = get_features()
     original_email = creator.email
     to_email = recipient_email(original_email, features)
     to_name = Creator.full_name(creator) || creator.tiktok_username || "Creator"
 
+    {rendered_subject, rendered_html, rendered_text} = TemplateRenderer.render(template, creator)
+
     email =
       new()
       |> to({to_name, to_email})
       |> from(from_address())
-      |> subject(Templates.welcome_email_subject())
-      |> html_body(Templates.welcome_email_html(creator, lark_invite_url))
-      |> text_body(Templates.welcome_email_text(creator, lark_invite_url))
+      |> subject(rendered_subject)
+      |> html_body(rendered_html)
+      |> text_body(rendered_text)
 
     case Mailer.deliver(email) do
       {:ok, metadata} ->

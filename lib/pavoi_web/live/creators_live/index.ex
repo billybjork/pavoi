@@ -13,6 +13,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   alias Pavoi.Catalog
   alias Pavoi.Communications
+  alias Pavoi.Communications.EmailTemplate
+  alias Pavoi.Communications.TemplateRenderer
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
   alias Pavoi.Outreach
@@ -26,28 +28,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   import PavoiWeb.ViewHelpers
 
   @tag_colors ~w(amber blue green red purple gray)
-
-  # Lark community invite link presets
-  @lark_presets %{
-    jewelry: %{
-      key: "lark_preset_jewelry",
-      label: "Jewelry",
-      default_url:
-        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=381ve559-aa4d-4a1d-9412-6bee35821e1i"
-    },
-    active: %{
-      key: "lark_preset_active",
-      label: "Active",
-      default_url:
-        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=308u55cf-7f36-4516-a0b7-a102361a1c2n"
-    },
-    top_creators: %{
-      key: "lark_preset_top_creators",
-      label: "Top Creators",
-      default_url:
-        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=3c9q707a-24bf-449a-9ee9-aef46e73e7es"
-    }
-  }
 
   @impl true
   def mount(_params, _session, socket) do
@@ -96,13 +76,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
       |> assign(:show_status_filter, false)
-      |> assign(:all_selected_pending, false)
+      |> assign(:pending_selected_count, 0)
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
-      |> assign(:lark_presets, %{})
-      |> assign(:selected_lark_preset, :jewelry)
-      |> assign(:lark_edit_mode, false)
-      |> assign(:lark_edit_form, %{})
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
       |> assign(:outreach_email_enabled, Keyword.get(features, :outreach_email_enabled, true))
       |> assign(:show_send_modal, false)
@@ -131,6 +107,15 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:time_preset, "all")
       # Data freshness state
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at())
+      # Page tab (creators vs templates)
+      |> assign(:page_tab, "creators")
+      # Email template management (for Templates tab)
+      |> assign(:templates, [])
+      |> assign(:editing_template, nil)
+      |> assign(:template_form, nil)
+      |> assign(:preview_template, nil)
+      |> assign(:preview_subject, nil)
+      |> assign(:preview_html, nil)
 
     {:ok, socket}
   end
@@ -343,7 +328,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, selected)
-      |> compute_all_selected_pending()
+      |> compute_pending_selected_count()
 
     {:noreply, socket}
   end
@@ -355,7 +340,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, all_ids)
-      |> compute_all_selected_pending()
+      |> compute_pending_selected_count()
 
     {:noreply, socket}
   end
@@ -365,7 +350,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, MapSet.new())
-      |> assign(:all_selected_pending, false)
+      |> assign(:pending_selected_count, 0)
 
     {:noreply, socket}
   end
@@ -405,130 +390,34 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("select_lark_preset", %{"preset" => preset_id}, socket) do
-    preset_atom = String.to_existing_atom(preset_id)
-    {:noreply, assign(socket, :selected_lark_preset, preset_atom)}
-  end
-
-  @impl true
   def handle_event("select_template", %{"id" => template_id}, socket) do
     {:noreply, assign(socket, :selected_template_id, String.to_integer(template_id))}
   end
 
   @impl true
-  def handle_event("toggle_lark_edit_mode", _params, socket) do
-    if socket.assigns.lark_edit_mode do
-      # Exiting edit mode - discard changes
-      {:noreply,
-       socket
-       |> assign(:lark_edit_mode, false)
-       |> assign(:lark_edit_form, %{})}
-    else
-      # Entering edit mode - initialize form with current values
-      edit_form =
-        socket.assigns.lark_presets
-        |> Enum.map(fn {id, preset} -> {id, preset.url} end)
-        |> Map.new()
-
-      {:noreply,
-       socket
-       |> assign(:lark_edit_mode, true)
-       |> assign(:lark_edit_form, edit_form)}
-    end
-  end
-
-  @impl true
-  def handle_event("update_lark_preset_url", %{"preset" => preset_id, "url" => url}, socket) do
-    preset_atom = String.to_existing_atom(preset_id)
-    edit_form = Map.put(socket.assigns.lark_edit_form, preset_atom, url)
-    {:noreply, assign(socket, :lark_edit_form, edit_form)}
-  end
-
-  @impl true
-  def handle_event("save_lark_presets", _params, socket) do
-    # Persist each edited URL to settings
-    Enum.each(socket.assigns.lark_edit_form, fn {preset_id, url} ->
-      key = @lark_presets[preset_id].key
-      Settings.set_setting(key, String.trim(url))
-    end)
-
-    # Reload presets and exit edit mode
-    {:noreply,
-     socket
-     |> assign(:lark_presets, load_lark_presets())
-     |> assign(:lark_edit_mode, false)
-     |> assign(:lark_edit_form, %{})
-     |> put_flash(:info, "Lark presets updated")}
-  end
-
-  @impl true
-  def handle_event("cancel_lark_edit", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:lark_edit_mode, false)
-     |> assign(:lark_edit_form, %{})}
-  end
-
-  @impl true
   def handle_event("send_outreach", _params, socket) do
-    selected_preset = socket.assigns.selected_lark_preset
-    lark_url = socket.assigns.lark_presets[selected_preset].url
-    template_id = socket.assigns.selected_template_id
-
-    cond do
-      is_nil(template_id) ->
-        {:noreply, put_flash(socket, :error, "Please select an email template")}
-
-      String.trim(lark_url) == "" ->
-        {:noreply, put_flash(socket, :error, "Selected Lark group has no URL configured")}
-
-      true ->
-        creator_ids = MapSet.to_list(socket.assigns.selected_ids)
-        # Pass the preset name (e.g., "jewelry") instead of the URL
-        # The worker generates a join token URL for emails
-        lark_preset = Atom.to_string(selected_preset)
-        {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_preset, template_id)
-
-        # Check if this was triggered from single-select (creator modal is open)
-        if socket.assigns.selected_creator do
-          # Single-select: reload creator and stay on modal
-          updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
-
-          socket =
-            socket
-            |> assign(:show_send_modal, false)
-            |> assign(:selected_ids, MapSet.new())
-            |> assign(:selected_creator, updated_creator)
-            |> assign(:page, 1)
-            |> put_flash(
-              :info,
-              "Queued welcome message for @#{updated_creator.tiktok_username || "creator"}"
-            )
-            |> load_creators()
-            |> load_outreach_stats()
-
-          {:noreply, socket}
-        else
-          # Batch select: navigate to sent filter
-          socket =
-            socket
-            |> assign(:show_send_modal, false)
-            |> assign(:selected_ids, MapSet.new())
-            |> assign(:all_selected_pending, false)
-            |> put_flash(:info, "Queued #{count} outreach messages for sending")
-            |> push_patch(to: ~p"/creators?status=sent")
-
-          {:noreply, socket}
-        end
+    with {:ok, template_id} <- validate_template_selected(socket),
+         {:ok, pending_ids} <- get_pending_creator_ids(socket) do
+      {:ok, count} = CreatorOutreachWorker.enqueue_batch(pending_ids, template_id)
+      {:noreply, handle_outreach_success(socket, count)}
+    else
+      {:error, message} -> {:noreply, put_flash(socket, :error, message)}
     end
   end
 
   @impl true
   def handle_event("skip_selected", _params, socket) do
-    creator_ids = MapSet.to_list(socket.assigns.selected_ids)
+    selected_ids = socket.assigns.selected_ids
+    creators = socket.assigns.creators
 
-    if length(creator_ids) > 0 do
-      count = Outreach.mark_creators_skipped(creator_ids)
+    # Filter to only pending creators
+    pending_ids =
+      creators
+      |> Enum.filter(&(MapSet.member?(selected_ids, &1.id) && &1.outreach_status == "pending"))
+      |> Enum.map(& &1.id)
+
+    if pending_ids != [] do
+      count = Outreach.mark_creators_skipped(pending_ids)
 
       socket =
         socket
@@ -540,48 +429,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
       {:noreply, socket}
     else
-      {:noreply, put_flash(socket, :error, "Please select at least one creator")}
-    end
-  end
-
-  @impl true
-  def handle_event("skip_single", _params, socket) do
-    creator = socket.assigns.selected_creator
-
-    if creator && creator.outreach_status == "pending" do
-      Outreach.mark_creators_skipped([creator.id])
-
-      # Reload creator with updated outreach_status
-      updated_creator = Creators.get_creator_for_modal!(creator.id)
-
-      socket =
-        socket
-        |> assign(:selected_creator, updated_creator)
-        |> assign(:page, 1)
-        |> put_flash(:info, "Skipped @#{creator.tiktok_username || "creator"}")
-        |> load_creators()
-        |> load_outreach_stats()
-
-      {:noreply, socket}
-    else
-      {:noreply, put_flash(socket, :error, "Creator is not in pending status")}
-    end
-  end
-
-  @impl true
-  def handle_event("show_send_modal_single", _params, socket) do
-    creator = socket.assigns.selected_creator
-
-    if creator && creator.outreach_status == "pending" do
-      # Use selected_ids to pass the single creator to the existing send modal
-      socket =
-        socket
-        |> assign(:selected_ids, MapSet.new([creator.id]))
-        |> assign(:show_send_modal, true)
-
-      {:noreply, socket}
-    else
-      {:noreply, put_flash(socket, :error, "Creator is not in pending status")}
+      {:noreply, put_flash(socket, :error, "No pending creators selected")}
     end
   end
 
@@ -930,6 +778,156 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   # =============================================================================
+  # PAGE TAB NAVIGATION
+  # =============================================================================
+
+  @impl true
+  def handle_event("change_page_tab", %{"tab" => tab}, socket) do
+    params = build_query_params(socket, page_tab: tab)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
+  def handle_event("go_to_templates", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_send_modal, false)
+
+    params = build_query_params(socket, page_tab: "templates")
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  # =============================================================================
+  # EMAIL TEMPLATE MANAGEMENT
+  # =============================================================================
+
+  @impl true
+  def handle_event("preview_template", %{"id" => id}, socket) do
+    template = Communications.get_email_template!(id)
+    {subject, html} = TemplateRenderer.render_preview(template)
+
+    socket =
+      socket
+      |> assign(:preview_template, template)
+      |> assign(:preview_subject, subject)
+      |> assign(:preview_html, html)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_template_preview", _params, socket) do
+    socket =
+      socket
+      |> assign(:preview_template, nil)
+      |> assign(:preview_subject, nil)
+      |> assign(:preview_html, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("set_default_template", %{"id" => id}, socket) do
+    template = Communications.get_email_template!(id)
+    {:ok, _} = Communications.set_default_template(template)
+    templates = Communications.list_all_email_templates()
+
+    socket =
+      socket
+      |> assign(:templates, templates)
+      |> put_flash(:info, "\"#{template.name}\" is now the default template")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("delete_template", %{"id" => id}, socket) do
+    template = Communications.get_email_template!(id)
+    {:ok, _} = Communications.delete_email_template(template)
+    templates = Communications.list_all_email_templates()
+
+    socket =
+      socket
+      |> assign(:templates, templates)
+      |> put_flash(:info, "Template deleted")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("new_template", _params, socket) do
+    template = %EmailTemplate{}
+    changeset = Communications.change_email_template(template)
+
+    socket =
+      socket
+      |> assign(:editing_template, template)
+      |> assign(:template_form, to_form(changeset))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("edit_template", %{"id" => id}, socket) do
+    template = Communications.get_email_template!(id)
+    changeset = Communications.change_email_template(template)
+
+    socket =
+      socket
+      |> assign(:editing_template, template)
+      |> assign(:template_form, to_form(changeset))
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_template_form", _params, socket) do
+    socket =
+      socket
+      |> assign(:editing_template, nil)
+      |> assign(:template_form, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_template", %{"email_template" => params}, socket) do
+    changeset =
+      socket.assigns.editing_template
+      |> Communications.change_email_template(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :template_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("save_template", %{"email_template" => params}, socket) do
+    result =
+      if socket.assigns.editing_template.id do
+        Communications.update_email_template(socket.assigns.editing_template, params)
+      else
+        Communications.create_email_template(params)
+      end
+
+    case result do
+      {:ok, _template} ->
+        templates = Communications.list_all_email_templates()
+
+        socket =
+          socket
+          |> assign(:templates, templates)
+          |> assign(:editing_template, nil)
+          |> assign(:template_form, nil)
+          |> put_flash(:info, "Template saved successfully")
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :template_form, to_form(changeset))}
+    end
+  end
+
+  # =============================================================================
   # INFINITE SCROLL IMPLEMENTATION
   # =============================================================================
   #
@@ -964,6 +962,50 @@ defmodule PavoiWeb.CreatorsLive.Index do
     # The actual data loading happens in handle_info (Phase 2)
     send(self(), :load_more_creators)
     {:noreply, assign(socket, :loading_creators, true)}
+  end
+
+  # Outreach helpers
+  defp validate_template_selected(socket) do
+    case socket.assigns.selected_template_id do
+      nil -> {:error, "Please select an email template"}
+      template_id -> {:ok, template_id}
+    end
+  end
+
+  defp get_pending_creator_ids(socket) do
+    pending_ids =
+      socket.assigns.creators
+      |> Enum.filter(&(MapSet.member?(socket.assigns.selected_ids, &1.id) && &1.outreach_status == "pending"))
+      |> Enum.map(& &1.id)
+
+    case pending_ids do
+      [] -> {:error, "No pending creators selected"}
+      ids -> {:ok, ids}
+    end
+  end
+
+  defp handle_outreach_success(socket, count) do
+    if socket.assigns.selected_creator do
+      # Single-select: reload creator and stay on modal
+      updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
+
+      socket
+      |> assign(:show_send_modal, false)
+      |> assign(:selected_ids, MapSet.new())
+      |> assign(:selected_creator, updated_creator)
+      |> assign(:page, 1)
+      |> put_flash(:info, "Queued email for @#{updated_creator.tiktok_username || "creator"}")
+      |> load_creators()
+      |> load_outreach_stats()
+    else
+      # Batch select: navigate to sent filter
+      socket
+      |> assign(:show_send_modal, false)
+      |> assign(:selected_ids, MapSet.new())
+      |> assign(:pending_selected_count, 0)
+      |> put_flash(:info, "Queued #{count} emails for sending")
+      |> push_patch(to: ~p"/creators?status=sent")
+    end
   end
 
   # Time preset helpers
@@ -1175,6 +1217,18 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   defp apply_params(socket, params) do
     delta_period = parse_delta_period(params["period"])
+    new_page_tab = params["pt"] || "creators"
+    old_page_tab = socket.assigns.page_tab
+
+    # Preserve selection when only switching tabs (not changing filters/search/page)
+    {selected_ids, pending_count} =
+      if new_page_tab != old_page_tab do
+        # Switching tabs - preserve selection
+        {socket.assigns.selected_ids, socket.assigns.pending_selected_count}
+      else
+        # Normal navigation - clear selection
+        {MapSet.new(), 0}
+      end
 
     socket
     |> assign(:search_query, params["q"] || "")
@@ -1183,12 +1237,25 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
-    |> assign(:selected_ids, MapSet.new())
-    |> assign(:all_selected_pending, false)
+    |> assign(:selected_ids, selected_ids)
+    |> assign(:pending_selected_count, pending_count)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
     |> assign(:delta_period, delta_period)
     |> assign(:time_preset, derive_time_preset_from_delta(delta_period))
+    |> assign(:page_tab, new_page_tab)
+    |> maybe_load_templates(new_page_tab)
   end
+
+  # Load templates when switching to templates tab
+  defp maybe_load_templates(socket, "templates") do
+    if socket.assigns.templates == [] do
+      assign(socket, :templates, Communications.list_all_email_templates())
+    else
+      socket
+    end
+  end
+
+  defp maybe_load_templates(socket, _), do: socket
 
   defp parse_delta_period(nil), do: nil
   defp parse_delta_period(""), do: nil
@@ -1315,20 +1382,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp load_outreach_stats(socket) do
     stats = Outreach.get_outreach_stats()
     sent_today = Outreach.count_sent_today()
-    lark_presets = load_lark_presets()
 
     socket
     |> assign(:outreach_stats, stats)
     |> assign(:sent_today, sent_today)
-    |> assign(:lark_presets, lark_presets)
-  end
-
-  defp load_lark_presets do
-    Enum.map(@lark_presets, fn {id, preset} ->
-      url = Settings.get_setting(preset.key) || preset.default_url
-      {id, %{label: preset.label, url: url, key: preset.key}}
-    end)
-    |> Map.new()
   end
 
   defp maybe_add_opt(opts, _key, nil), do: opts
@@ -1345,7 +1402,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
     tab: :tab,
     outreach_status: :status,
     filter_tag_ids: :tags,
-    delta_period: :period
+    delta_period: :period,
+    page_tab: :pt
   }
 
   defp build_query_params(socket, overrides) do
@@ -1359,7 +1417,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       tab: socket.assigns.active_tab,
       status: socket.assigns.outreach_status,
       tags: format_tag_ids(socket.assigns.filter_tag_ids),
-      period: socket.assigns.delta_period
+      period: socket.assigns.delta_period,
+      pt: socket.assigns.page_tab
     }
 
     overrides
@@ -1395,24 +1454,25 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp default_value?({:sort, nil}), do: true
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true
+  defp default_value?({:pt, "creators"}), do: true
   # Note: nil is now the default for status (show all), so specific statuses are kept in URL
   defp default_value?(_), do: false
 
-  # Computes whether all selected creators have "pending" outreach status
-  # Used to show/hide Skip and Send Welcome bulk actions
-  defp compute_all_selected_pending(socket) do
+  # Computes how many selected creators have "pending" outreach status
+  # Used to show/hide Skip and Send Email bulk actions (shown when count > 0)
+  defp compute_pending_selected_count(socket) do
     selected_ids = socket.assigns.selected_ids
     creators = socket.assigns.creators
 
-    all_pending =
+    count =
       if MapSet.size(selected_ids) == 0 do
-        false
+        0
       else
         selected_creators = Enum.filter(creators, &MapSet.member?(selected_ids, &1.id))
-        Enum.all?(selected_creators, &(&1.outreach_status == "pending"))
+        Enum.count(selected_creators, &(&1.outreach_status == "pending"))
       end
 
-    assign(socket, :all_selected_pending, all_pending)
+    assign(socket, :pending_selected_count, count)
   end
 
   defp maybe_load_selected_creator(socket, params) do

@@ -118,6 +118,34 @@ defmodule PavoiWeb.CreatorTableComponents do
   end
 
   @doc """
+  Renders page-level tabs for Creators/Templates navigation.
+  """
+  attr :active_tab, :string, default: "creators"
+
+  def page_tabs(assigns) do
+    ~H"""
+    <div class="page-tabs">
+      <button
+        type="button"
+        class={["page-tab", @active_tab == "creators" && "page-tab--active"]}
+        phx-click="change_page_tab"
+        phx-value-tab="creators"
+      >
+        Creators
+      </button>
+      <button
+        type="button"
+        class={["page-tab", @active_tab == "templates" && "page-tab--active"]}
+        phx-click="change_page_tab"
+        phx-value-tab="templates"
+      >
+        Templates
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
   Renders the status filter dropdown for filtering by outreach status.
   """
   attr :current_status, :string, default: nil
@@ -1100,14 +1128,6 @@ defmodule PavoiWeb.CreatorTableComponents do
                 <% end %>
               </div>
               <div class="creator-modal-header__actions">
-                <%= if @creator.outreach_status == "pending" do %>
-                  <.button variant="outline" size="sm" phx-click="skip_single">
-                    Skip
-                  </.button>
-                  <.button variant="primary" size="sm" phx-click="show_send_modal_single">
-                    Send Welcome
-                  </.button>
-                <% end %>
                 <.button
                   variant="outline"
                   size="sm"

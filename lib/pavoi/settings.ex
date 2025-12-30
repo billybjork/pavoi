@@ -252,6 +252,66 @@ defmodule Pavoi.Settings do
     end
   end
 
+  # =============================================================================
+  # Enrichment Rate Limit Tracking
+  # =============================================================================
+
+  @doc """
+  Gets the last time enrichment was rate limited.
+  Returns nil if never rate limited.
+  """
+  def get_enrichment_last_rate_limited_at do
+    case Repo.get_by(SystemSetting, key: "enrichment_last_rate_limited_at") do
+      nil -> nil
+      setting -> parse_datetime(setting.value)
+    end
+  end
+
+  @doc """
+  Gets the current rate limit streak (consecutive rate limits).
+  Returns 0 if no streak.
+  """
+  def get_enrichment_rate_limit_streak do
+    case Repo.get_by(SystemSetting, key: "enrichment_rate_limit_streak") do
+      nil -> 0
+      setting -> String.to_integer(setting.value)
+    end
+  end
+
+  @doc """
+  Records a rate limit event. Increments the streak counter.
+  """
+  def record_enrichment_rate_limit do
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+    streak = get_enrichment_rate_limit_streak() + 1
+
+    upsert_setting("enrichment_last_rate_limited_at", now, "datetime")
+    upsert_setting("enrichment_rate_limit_streak", Integer.to_string(streak), "integer")
+
+    streak
+  end
+
+  @doc """
+  Resets the rate limit streak after a successful enrichment run.
+  """
+  def reset_enrichment_rate_limit_streak do
+    upsert_setting("enrichment_rate_limit_streak", "0", "integer")
+  end
+
+  defp upsert_setting(key, value, value_type) do
+    case Repo.get_by(SystemSetting, key: key) do
+      nil ->
+        %SystemSetting{}
+        |> SystemSetting.changeset(%{key: key, value: value, value_type: value_type})
+        |> Repo.insert()
+
+      setting ->
+        setting
+        |> SystemSetting.changeset(%{value: value})
+        |> Repo.update()
+    end
+  end
+
   defp parse_datetime(nil), do: nil
 
   defp parse_datetime(value) when is_binary(value) do

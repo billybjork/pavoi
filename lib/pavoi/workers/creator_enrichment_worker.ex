@@ -36,16 +36,36 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   alias Pavoi.TiktokShop
 
   # Number of creators to enrich per run
-  # With 10k API requests/day limit and 4 runs/day, 2000/run = 8000/day
-  @batch_size 2000
+  # Small batches (75) complete in ~22 seconds, avoiding rate limits
+  # Runs every 30 min = 48 runs/day × 75 = 3600 creators/day max
+  @batch_size 75
   # Delay between API calls (ms) to avoid rate limiting
-  # 300ms is safe and keeps batch runtime ~10 minutes
   @api_delay_ms 300
   @rate_limit_max_consecutive 3
-  @rate_limit_backoff_seconds 15 * 60
+  # Initial backoff seconds (will be multiplied exponentially)
+  @rate_limit_initial_backoff_seconds 15 * 60
+  # Max backoff (2 hours)
+  @rate_limit_max_backoff_seconds 2 * 60 * 60
+  # Cooldown period - don't start if we rate-limited within this window
+  @rate_limit_cooldown_seconds 10 * 60
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
+    # Check if we're still in cooldown from a recent rate limit
+    case check_rate_limit_cooldown() do
+      {:cooldown, seconds_remaining} ->
+        Logger.info(
+          "[Enrichment] Still in cooldown (#{seconds_remaining}s remaining), skipping this run"
+        )
+
+        :ok
+
+      :ok ->
+        do_perform(args)
+    end
+  end
+
+  defp do_perform(args) do
     Phoenix.PubSub.broadcast(Pavoi.PubSub, "creator:enrichment", {:enrichment_started})
 
     # Step 1: Sync sample orders to link creators to their tiktok_user_id
@@ -66,6 +86,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         case enrich_creators(batch_size) do
           {:ok, enrich_stats} ->
             Settings.update_enrichment_last_sync_at()
+            # Reset rate limit streak on successful completion
+            Settings.reset_enrichment_rate_limit_streak()
 
             Logger.info("""
             Creator enrichment completed
@@ -78,6 +100,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
                  - Not found: #{enrich_stats.not_found}
                  - Errors: #{enrich_stats.errors}
                  - Skipped (no username): #{enrich_stats.skipped}
+                 - Remaining to enrich: #{enrich_stats.remaining}
             """)
 
             combined_stats = Map.merge(sample_stats, enrich_stats)
@@ -113,8 +136,12 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
   defp handle_enrichment_error(reason) do
     if rate_limited_reason?(reason) do
+      # Record the rate limit and get exponential backoff duration
+      streak = Settings.record_enrichment_rate_limit()
+      backoff_seconds = calculate_backoff(streak)
+
       Logger.warning(
-        "Creator enrichment rate limited. Backing off for #{@rate_limit_backoff_seconds} seconds."
+        "Creator enrichment rate limited (streak: #{streak}). Backing off for #{div(backoff_seconds, 60)} minutes."
       )
 
       Phoenix.PubSub.broadcast(
@@ -123,7 +150,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         {:enrichment_failed, :rate_limited}
       )
 
-      {:snooze, @rate_limit_backoff_seconds}
+      {:snooze, backoff_seconds}
     else
       Logger.error("Creator enrichment failed: #{inspect(reason)}")
 
@@ -134,6 +161,31 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       )
 
       {:error, reason}
+    end
+  end
+
+  defp calculate_backoff(streak) do
+    # Exponential backoff: 15min, 30min, 60min, 120min (max)
+    # Formula: initial * 2^(streak-1), capped at max
+    base = @rate_limit_initial_backoff_seconds
+    multiplier = :math.pow(2, min(streak - 1, 3)) |> round()
+    min(base * multiplier, @rate_limit_max_backoff_seconds)
+  end
+
+  defp check_rate_limit_cooldown do
+    case Settings.get_enrichment_last_rate_limited_at() do
+      nil ->
+        :ok
+
+      last_rate_limited_at ->
+        now = DateTime.utc_now()
+        seconds_since = DateTime.diff(now, last_rate_limited_at, :second)
+
+        if seconds_since < @rate_limit_cooldown_seconds do
+          {:cooldown, @rate_limit_cooldown_seconds - seconds_since}
+        else
+          :ok
+        end
     end
   end
 
@@ -537,10 +589,15 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   defp phone_is_masked?(phone), do: String.contains?(phone, "*")
 
   defp enrich_creators(batch_size) do
+    # Get total count of creators needing enrichment for progress tracking
+    total_needing_enrichment = count_creators_needing_enrichment()
     creators = get_creators_to_enrich(batch_size)
-    Logger.info("Found #{length(creators)} creators to enrich")
 
-    initial_stats = %{enriched: 0, not_found: 0, errors: 0, skipped: 0}
+    Logger.info(
+      "Found #{length(creators)} creators to enrich this batch (#{total_needing_enrichment} total remaining)"
+    )
+
+    initial_stats = %{enriched: 0, not_found: 0, errors: 0, skipped: 0, remaining: 0}
 
     initial_state = %{
       stats: initial_stats,
@@ -550,6 +607,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     }
 
     final_state = Enum.reduce_while(creators, initial_state, &process_creator/2)
+
+    # Calculate remaining after this batch
+    remaining = max(0, total_needing_enrichment - final_state.stats.enriched)
+    final_stats = Map.put(final_state.stats, :remaining, remaining)
 
     case final_state.halted_reason do
       :rate_limited ->
@@ -561,8 +622,21 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         {:error, final_state.last_rate_limit_reason || :rate_limited}
 
       nil ->
-        {:ok, final_state.stats}
+        {:ok, final_stats}
     end
+  end
+
+  defp count_creators_needing_enrichment do
+    seven_days_ago = DateTime.add(DateTime.utc_now(), -7, :day)
+
+    query =
+      from(c in Creator,
+        where: not is_nil(c.tiktok_username) and c.tiktok_username != "",
+        where: is_nil(c.last_enriched_at) or c.last_enriched_at < ^seven_days_ago,
+        select: count(c.id)
+      )
+
+    Repo.one(query) || 0
   end
 
   defp process_creator(%Creator{tiktok_username: nil}, state) do

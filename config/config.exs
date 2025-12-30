@@ -59,9 +59,10 @@ config :pavoi, Oban,
        {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker},
        # Monitor TikTok live status every 2 minutes
        {"*/2 * * * *", Pavoi.Workers.TiktokLiveMonitorWorker},
-       # Enrich creator profiles from TikTok Marketplace API every 6 hours
-       # 2000 creators/run × 4 runs/day = 8000/day (under 10k API limit)
-       {"0 */6 * * *", Pavoi.Workers.CreatorEnrichmentWorker}
+       # Enrich creator profiles from TikTok Marketplace API every 30 minutes
+       # Small batches (75) complete quickly, avoiding rate limits
+       # 48 runs/day × 75 = 3600 creators/day (with margin for rate limit pauses)
+       {"*/30 * * * *", Pavoi.Workers.CreatorEnrichmentWorker}
      ]}
   ],
   queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2, slack: 3]
