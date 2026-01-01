@@ -13,8 +13,7 @@
   }
 
   /* Force scan button to wrap to next line */
-  .tiktok-live-index .page-header > button,
-  .tiktok-live-index .capture-form {
+  .tiktok-live-index .page-header > button {
     flex-basis: 100%;
     margin-left: 0;
   }
@@ -312,10 +311,6 @@
 
 .tiktok-live-index .page-header__filters form {
   min-width: 0;
-}
-
-.tiktok-live-index .capture-form {
-  margin-left: auto;
 }
 
 /* Scroll container - handles scrolling and visual frame */
@@ -689,25 +684,6 @@
 }
 
 /* =============================================================================
-   TEST CAPTURE FORM
-   ============================================================================= */
-
-.capture-form {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.capture-form input {
-  width: 140px;
-}
-
-.capture-error {
-  color: var(--color-accent-red);
-  font-size: var(--text-sm);
-}
-
-/* =============================================================================
    LIVE INDICATORS
    ============================================================================= */
 
@@ -1069,8 +1045,6 @@
   gap: var(--space-4);
   margin-bottom: var(--space-4);
   border-bottom: 2px solid var(--color-border-secondary);
-  /* Fixed height to prevent shift when actions appear/disappear */
-  min-height: 52px;
 }
 
 .page-tabs__tabs {
@@ -1082,8 +1056,12 @@
   display: flex;
   align-items: center;
   margin-bottom: var(--space-2);
-  /* Ensure consistent height even when empty */
-  min-height: 32px;
+}
+
+/* Keep action buttons compact to match tab height */
+.page-tabs__actions .button {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
 }
 
 .page-tab {
@@ -1116,9 +1094,18 @@
 }
 
 .analytics-stream-selector__label {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
   white-space: nowrap;
+}
+
+.analytics-stream-selector .filter-select {
+  height: 28px;
+  min-width: 100px;
+  font-size: var(--text-xs);
+  line-height: 26px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* =============================================================================
@@ -1506,32 +1493,12 @@
 }
 
 @media (max-width: 640px) {
-  .page-tabs {
-    flex-wrap: wrap;
-    gap: var(--space-2);
-  }
-
   .page-tabs__tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .page-tabs__actions {
-    width: 100%;
-    margin-bottom: var(--space-2);
-  }
-
-  .page-tabs__actions .capture-form {
-    width: 100%;
-  }
-
-  .analytics-stream-selector {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
   .page-tab {
-    padding: var(--space-2) var(--space-3);
     white-space: nowrap;
   }
 

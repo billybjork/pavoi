@@ -3,6 +3,9 @@
   stream_scan_syncing={@scanning}
   stream_last_scan_at={@last_scan_at}
   stream_scan_enabled={not @dev_mode}
+  capture_input={@capture_input}
+  capture_loading={@capture_loading}
+  capture_error={@capture_error}
 />
 
 <div class="container container--xl region tiktok-live-index">
@@ -10,32 +13,6 @@
     <:actions>
       <%= case @page_tab do %>
         <% "streams" -> %>
-          <%= if @dev_mode do %>
-            <form phx-submit="start_capture" class="capture-form">
-              <input
-                type="text"
-                name="unique_id"
-                placeholder="@username"
-                class="input input--sm"
-                value={@capture_input}
-                disabled={@capture_loading}
-              />
-              <button
-                type="submit"
-                class="button button--sm button--primary"
-                disabled={@capture_loading}
-              >
-                <%= if @capture_loading do %>
-                  Connecting...
-                <% else %>
-                  Capture
-                <% end %>
-              </button>
-              <%= if @capture_error do %>
-                <span class="capture-error">{@capture_error}</span>
-              <% end %>
-            </form>
-          <% end %>
         <% "analytics" -> %>
           <div class="analytics-stream-selector">
             <span class="analytics-stream-selector__label">Showing analytics for:</span>

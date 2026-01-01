@@ -175,6 +175,23 @@
   margin-top: var(--space-3);
 }
 
+/* Capture form in navbar menu */
+.navbar__capture-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.navbar__capture-form .input {
+  width: 100%;
+}
+
+.navbar__capture-error {
+  color: var(--color-accent-red);
+  font-size: var(--text-xs);
+}
+
 /* Mobile responsive - tighter spacing for narrower viewports */
 @media (max-width: 768px) {
   .navbar {

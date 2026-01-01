@@ -416,6 +416,9 @@ defmodule PavoiWeb.CoreComponents do
   attr :stream_scan_syncing, :boolean, default: false
   attr :stream_last_scan_at, :any, default: nil
   attr :stream_scan_enabled, :boolean, default: true
+  attr :capture_input, :string, default: ""
+  attr :capture_loading, :boolean, default: false
+  attr :capture_error, :string, default: nil
 
   def nav_tabs(assigns) do
     ~H"""
@@ -515,6 +518,29 @@ defmodule PavoiWeb.CoreComponents do
                   else: "Never"}
               </div>
             </div>
+          <% end %>
+          <%= if @current_page == :streams and not @stream_scan_enabled do %>
+            <form phx-submit="start_capture" class="navbar__capture-form">
+              <input
+                type="text"
+                name="unique_id"
+                placeholder="@username"
+                class="input input--sm"
+                value={@capture_input}
+                disabled={@capture_loading}
+              />
+              <.button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={@capture_loading}
+              >
+                {if @capture_loading, do: "Connecting...", else: "Capture"}
+              </.button>
+              <%= if @capture_error do %>
+                <span class="navbar__capture-error">{@capture_error}</span>
+              <% end %>
+            </form>
           <% end %>
           <%= if @current_page == :creators do %>
             <div class="navbar__sync-group">
