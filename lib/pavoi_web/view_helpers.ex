@@ -307,4 +307,62 @@ defmodule PavoiWeb.ViewHelpers do
       _ -> nil
     end
   end
+
+  @doc """
+  Renders a template preview HTML suitable for an iframe srcdoc.
+
+  For email templates, returns the HTML body directly.
+  For page templates, injects the consent form and wraps with minimal styles.
+  """
+  def template_preview_html(%{type: "page"} = template) do
+    form_config = template.form_config || %{}
+    button_text = form_config["button_text"] || "JOIN THE PROGRAM"
+    email_label = form_config["email_label"] || "Email"
+    phone_label = form_config["phone_label"] || "Phone Number"
+    phone_placeholder = form_config["phone_placeholder"] || "(555) 123-4567"
+
+    # Static form HTML with inline styles (matches the inline-styled template)
+    form_html = """
+    <form style="margin-top: 20px;">
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #2E4042;">#{email_label}</label>
+        <input type="email" value="creator@example.com" readonly style="width: 100%; padding: 12px 16px; font-family: Georgia, serif; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; color: #666;" />
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #2E4042;">#{phone_label}</label>
+        <input type="tel" placeholder="#{phone_placeholder}" style="width: 100%; padding: 12px 16px; font-family: Georgia, serif; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #2E4042;" />
+      </div>
+      <p style="font-size: 12px; color: #888; line-height: 1.5; margin: 16px 0 24px;">
+        By clicking "#{button_text}", you consent to receive SMS messages from Pavoi
+        at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
+        Reply STOP to unsubscribe.
+      </p>
+      <button type="button" style="width: 100%; padding: 16px 32px; font-family: Georgia, serif; font-size: 15px; letter-spacing: 1px; background: #2E4042; color: #fff; border: none; cursor: pointer; border-radius: 4px;">#{button_text}</button>
+    </form>
+    """
+
+    html_with_form =
+      Regex.replace(
+        ~r/<div[^>]*data-form-type="consent"[^>]*>[\s\S]*?<\/div>/i,
+        template.html_body || "",
+        form_html
+      )
+
+    # Wrap with minimal reset styles for iframe rendering
+    """
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+      </style>
+    </head>
+    <body>#{html_with_form}</body>
+    </html>
+    """
+  end
+
+  def template_preview_html(template) do
+    template.html_body
+  end
 end

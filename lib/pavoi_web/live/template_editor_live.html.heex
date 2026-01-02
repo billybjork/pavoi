@@ -21,7 +21,11 @@
           />
         </div>
 
-        <div class="template-editor-field template-editor-field--grow">
+        <%!-- Subject field only for email templates --%>
+        <div
+          :if={@template_type == "email"}
+          class="template-editor-field template-editor-field--grow"
+        >
           <label for="email_template_subject">Subject</label>
           <input
             type="text"
@@ -63,20 +67,27 @@
       </div>
     </header>
 
-    <%!-- Hidden field for HTML body (updated by GrapesJS hook) --%>
+    <%!-- Hidden fields --%>
     <input
       type="hidden"
       id="email_template_html_body"
       name="email_template[html_body]"
       value={@form[:html_body].value}
     />
+    <input type="hidden" name="email_template[type]" value={@template_type} />
+    <input
+      type="hidden"
+      name="email_template[form_config]"
+      value={Jason.encode!(@form[:form_config].value || %{})}
+    />
 
-    <%!-- GrapesJS editor container --%>
+    <%!-- GrapesJS editor container with template type --%>
     <div
       id="template-editor-container"
       phx-hook="TemplateEditor"
       phx-update="ignore"
       data-html-content={@form[:html_body].value}
+      data-template-type={@template_type}
       class="template-editor-container"
     >
     </div>

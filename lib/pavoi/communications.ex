@@ -14,18 +14,35 @@ defmodule Pavoi.Communications do
   Lists all active email templates, ordered by name.
   """
   def list_email_templates do
-    from(t in EmailTemplate,
-      where: t.is_active == true,
-      order_by: [asc: t.name]
-    )
-    |> Repo.all()
+    list_templates_by_type("email")
   end
 
   @doc """
   Lists all email templates including inactive ones.
   """
   def list_all_email_templates do
-    from(t in EmailTemplate, order_by: [asc: t.name])
+    list_all_templates_by_type("email")
+  end
+
+  @doc """
+  Lists active templates of a specific type, ordered by name.
+  """
+  def list_templates_by_type(type) when type in ["email", "page"] do
+    from(t in EmailTemplate,
+      where: t.type == ^type and t.is_active == true,
+      order_by: [asc: t.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all templates of a specific type including inactive ones, ordered by name.
+  """
+  def list_all_templates_by_type(type) when type in ["email", "page"] do
+    from(t in EmailTemplate,
+      where: t.type == ^type,
+      order_by: [asc: t.name]
+    )
     |> Repo.all()
   end
 
@@ -51,7 +68,21 @@ defmodule Pavoi.Communications do
   Returns nil if no default is set.
   """
   def get_default_email_template do
-    Repo.get_by(EmailTemplate, is_default: true, is_active: true)
+    Repo.get_by(EmailTemplate, type: "email", is_default: true, is_active: true)
+  end
+
+  @doc """
+  Gets the default page template for a specific lark preset.
+
+  Returns nil if no default is set for that preset.
+  """
+  def get_default_page_template(lark_preset) do
+    Repo.get_by(EmailTemplate,
+      type: "page",
+      lark_preset: lark_preset,
+      is_default: true,
+      is_active: true
+    )
   end
 
   @doc """
@@ -74,12 +105,28 @@ defmodule Pavoi.Communications do
 
   @doc """
   Sets a template as the default, clearing any existing default.
+
+  For page templates, only clears default within the same type+lark_preset combo.
+  For email templates, clears all email defaults (backwards compatible).
   """
   def set_default_template(%EmailTemplate{} = template) do
     Repo.transaction(fn ->
-      # Clear existing default
-      from(t in EmailTemplate, where: t.is_default == true)
-      |> Repo.update_all(set: [is_default: false])
+      # Clear existing default for same type (and lark_preset for page templates)
+      query =
+        if template.type == "page" do
+          from(t in EmailTemplate,
+            where:
+              t.type == ^template.type and
+                t.lark_preset == ^template.lark_preset and
+                t.is_default == true
+          )
+        else
+          from(t in EmailTemplate,
+            where: t.type == ^template.type and t.is_default == true
+          )
+        end
+
+      Repo.update_all(query, set: [is_default: false])
 
       # Set new default
       template

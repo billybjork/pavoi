@@ -4,12 +4,24 @@ defmodule PavoiWeb.JoinLive do
 
   This is a public page (no auth required) accessed from email links.
   It captures phone number and SMS consent before redirecting to Lark.
+
+  Supports customizable page templates via GrapesJS. If a page template
+  is configured for the lark_preset, it renders that template with the
+  consent form injected. Otherwise, falls back to the hardcoded design.
   """
   use PavoiWeb, :live_view
 
+  alias Pavoi.Communications
   alias Pavoi.Creators
   alias Pavoi.Outreach
   alias Pavoi.Settings
+
+  @default_form_config %{
+    "button_text" => "JOIN THE PROGRAM",
+    "email_label" => "Email",
+    "phone_label" => "Phone Number",
+    "phone_placeholder" => "(555) 123-4567"
+  }
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
@@ -21,6 +33,9 @@ defmodule PavoiWeb.JoinLive do
         creator = Creators.get_creator!(creator_id)
         lark_url = get_lark_url(lark_preset)
 
+        # Load page template if configured
+        {template_html, form_config} = load_page_template(lark_preset)
+
         {:ok,
          socket
          |> assign(:page_title, "Join the Pavoi Creator Program")
@@ -31,7 +46,9 @@ defmodule PavoiWeb.JoinLive do
          |> assign(:phone_error, nil)
          |> assign(:submitting, false)
          |> assign(:client_ip, client_ip)
-         |> assign(:user_agent, user_agent)}
+         |> assign(:user_agent, user_agent)
+         |> assign(:template_html, template_html)
+         |> assign(:form_config, form_config)}
 
       {:error, :expired} ->
         {:ok,
@@ -44,6 +61,19 @@ defmodule PavoiWeb.JoinLive do
          socket
          |> assign(:page_title, "Invalid Link")
          |> assign(:error, "This link is invalid. Please check your email for the correct link.")}
+    end
+  end
+
+  defp load_page_template(lark_preset) do
+    case Communications.get_default_page_template(lark_preset) do
+      nil ->
+        # No template configured - use fallback
+        {nil, @default_form_config}
+
+      template ->
+        # Merge template's form_config with defaults
+        config = Map.merge(@default_form_config, template.form_config || %{})
+        {template.html_body, config}
     end
   end
 
@@ -146,11 +176,98 @@ defmodule PavoiWeb.JoinLive do
 
   @impl true
   def render(assigns) do
-    if Map.has_key?(assigns, :error) do
-      render_error(assigns)
-    else
-      render_form(assigns)
+    cond do
+      Map.has_key?(assigns, :error) ->
+        render_error(assigns)
+
+      assigns.template_html ->
+        render_with_template(assigns)
+
+      true ->
+        render_form(assigns)
     end
+  end
+
+  defp render_with_template(assigns) do
+    # Split the template HTML at the consent form placeholder
+    {before_form, after_form} = split_at_form_placeholder(assigns.template_html)
+    assigns = Map.merge(assigns, %{before_form: before_form, after_form: after_form})
+
+    ~H"""
+    <div class="join-page join-page--templated">
+      {raw(@before_form)}
+      <.consent_form
+        creator={@creator}
+        phone={@phone}
+        phone_error={@phone_error}
+        submitting={@submitting}
+        form_config={@form_config}
+      />
+      {raw(@after_form)}
+    </div>
+    """
+  end
+
+  defp split_at_form_placeholder(html) do
+    # Find the consent form placeholder and split the HTML
+    # The placeholder looks like: <div data-form-type="consent" ...>...</div>
+    case Regex.run(
+           ~r/(<div[^>]*data-form-type="consent"[^>]*>[\s\S]*?<\/div>)/i,
+           html,
+           return: :index
+         ) do
+      [{start_idx, length} | _] ->
+        before = String.slice(html, 0, start_idx)
+        after_form = String.slice(html, start_idx + length, String.length(html))
+        {before, after_form}
+
+      nil ->
+        # No placeholder found - render template before form, nothing after
+        {html, ""}
+    end
+  end
+
+  # Consent form component - uses form_config for customizable text
+  defp consent_form(assigns) do
+    ~H"""
+    <form phx-submit="submit" phx-change="validate" class="join-form">
+      <div class="join-field">
+        <label for="email">{@form_config["email_label"]}</label>
+        <input
+          type="email"
+          id="email"
+          value={@creator.email}
+          readonly
+          class="join-input join-input--readonly"
+        />
+      </div>
+
+      <div class="join-field">
+        <label for="phone">{@form_config["phone_label"]}</label>
+        <input
+          type="tel"
+          id="phone"
+          name="phone"
+          value={@phone}
+          placeholder={@form_config["phone_placeholder"]}
+          class={"join-input #{if @phone_error, do: "join-input--error"}"}
+          required
+          autofocus
+        />
+        <span :if={@phone_error} class="join-field-error">{@phone_error}</span>
+      </div>
+
+      <p class="join-consent-text">
+        By clicking "{@form_config["button_text"]}", you consent to receive SMS messages from Pavoi
+        at the phone number provided. Message frequency varies. Msg &amp; data rates may apply.
+        Reply STOP to unsubscribe.
+      </p>
+
+      <button type="submit" class="join-button" disabled={@submitting}>
+        {if @submitting, do: "Joining...", else: @form_config["button_text"]}
+      </button>
+    </form>
+    """
   end
 
   defp render_error(assigns) do

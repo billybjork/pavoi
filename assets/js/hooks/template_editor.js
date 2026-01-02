@@ -1,8 +1,10 @@
 /**
  * TemplateEditor Hook
  *
- * Provides a visual block-based email template editor using GrapesJS
- * with the newsletter preset optimized for email HTML output.
+ * Provides a visual block-based template editor using GrapesJS.
+ * Supports two template types:
+ * - "email": Uses newsletter preset optimized for email HTML output
+ * - "page": Uses webpage preset for web pages (like SMS consent form)
  *
  * GrapesJS is lazy-loaded when this hook mounts to reduce main bundle size.
  */
@@ -10,21 +12,26 @@
 // Lazy-loaded modules (cached after first load)
 let grapesjs = null
 let newsletterPlugin = null
+let webpagePlugin = null
 let cssLoaded = false
 
 /**
- * Load GrapesJS and its dependencies on demand
+ * Load GrapesJS and its dependencies on demand based on template type
  */
-async function loadGrapesJS() {
-  if (grapesjs && newsletterPlugin) return
+async function loadGrapesJS(templateType) {
+  if (!grapesjs) {
+    const grapes = await import('grapesjs')
+    grapesjs = grapes.default
+  }
 
-  const [grapes, newsletter] = await Promise.all([
-    import('grapesjs'),
-    import('grapesjs-preset-newsletter')
-  ])
-
-  grapesjs = grapes.default
-  newsletterPlugin = newsletter.default
+  // Load type-specific preset
+  if (templateType === 'email' && !newsletterPlugin) {
+    const newsletter = await import('grapesjs-preset-newsletter')
+    newsletterPlugin = newsletter.default
+  } else if (templateType === 'page' && !webpagePlugin) {
+    const webpage = await import('grapesjs-preset-webpage')
+    webpagePlugin = webpage.default
+  }
 
   // Inject CSS if not already loaded
   if (!cssLoaded) {
@@ -82,27 +89,177 @@ function debounce(fn, delay) {
   }
 }
 
+/**
+ * Extract form config from page template HTML
+ */
+function extractFormConfig(html) {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const formEl = doc.querySelector('[data-form-type="consent"]')
+
+  if (!formEl) return {}
+
+  return {
+    button_text: formEl.getAttribute('data-button-text') || 'JOIN THE PROGRAM',
+    email_label: formEl.getAttribute('data-email-label') || 'Email',
+    phone_label: formEl.getAttribute('data-phone-label') || 'Phone Number',
+    phone_placeholder: formEl.getAttribute('data-phone-placeholder') || '(555) 123-4567'
+  }
+}
+
+/**
+ * Register custom Consent Form block for page templates
+ */
+function registerConsentFormBlock(editor) {
+  const blockManager = editor.BlockManager
+
+  // Add the block to the sidebar
+  blockManager.add('consent-form', {
+    label: 'Consent Form',
+    category: 'Forms',
+    media: `<svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+      <path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+    </svg>`,
+    content: {
+      type: 'consent-form'
+    },
+    attributes: { class: 'gjs-block-consent' }
+  })
+
+  // Register custom component type
+  editor.DomComponents.addType('consent-form', {
+    isComponent: el => el.getAttribute && el.getAttribute('data-form-type') === 'consent',
+    model: {
+      defaults: {
+        tagName: 'div',
+        droppable: false,
+        copyable: false,
+        attributes: {
+          'data-form-type': 'consent',
+          'data-button-text': 'JOIN THE PROGRAM',
+          'data-email-label': 'Email',
+          'data-phone-label': 'Phone Number',
+          'data-phone-placeholder': '(555) 123-4567'
+        },
+        styles: `
+          padding: 30px;
+          border: 3px dashed #A9BDB6;
+          background: linear-gradient(135deg, #f8faf9 0%, #e8f0ec 100%);
+          text-align: center;
+          border-radius: 8px;
+          margin: 20px 0;
+        `,
+        components: `
+          <div style="color: #2E4042; margin-bottom: 10px;">
+            <strong style="font-size: 18px;">📋 Consent Form</strong>
+          </div>
+          <p style="color: #666; margin: 0; font-size: 14px;">
+            The SMS consent form will appear here.<br>
+            <small>Edit properties in the right panel to customize button text and labels.</small>
+          </p>
+        `,
+        traits: [
+          {
+            type: 'text',
+            name: 'data-button-text',
+            label: 'Button Text',
+            changeProp: false
+          },
+          {
+            type: 'text',
+            name: 'data-email-label',
+            label: 'Email Label',
+            changeProp: false
+          },
+          {
+            type: 'text',
+            name: 'data-phone-label',
+            label: 'Phone Label',
+            changeProp: false
+          },
+          {
+            type: 'text',
+            name: 'data-phone-placeholder',
+            label: 'Phone Placeholder',
+            changeProp: false
+          }
+        ]
+      }
+    }
+  })
+}
+
+/**
+ * Get default content based on template type
+ */
+function getDefaultContent(templateType) {
+  if (templateType === 'page') {
+    return `
+      <section style="min-height: 100vh; background: linear-gradient(180deg, #f8f8f8 0%, #e8e8e8 100%); padding: 40px 20px; font-family: Georgia, 'Times New Roman', serif;">
+        <div style="max-width: 500px; margin: 0 auto; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+          <div style="text-align: center; padding: 40px 30px 20px; background: #2E4042;">
+            <span style="font-size: 28px; letter-spacing: 4px; color: #fff;">PAVOI</span>
+          </div>
+          <div style="padding: 30px 40px 40px;">
+            <h1 style="text-align: center; color: #2E4042; font-weight: normal; margin: 0 0 30px 0; font-size: 24px;">
+              Join the Pavoi Creator Program
+            </h1>
+            <div style="margin-bottom: 30px;">
+              <p style="margin: 0 0 15px 0; color: #333;">Get access to:</p>
+              <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 1.8;">
+                <li><strong>Free product samples</strong> shipped directly to you</li>
+                <li><strong>Competitive commissions</strong> on every sale</li>
+                <li><strong>Early access</strong> to new drops</li>
+                <li><strong>Direct support</strong> from our team</li>
+              </ul>
+            </div>
+            <div data-form-type="consent" data-button-text="JOIN THE PROGRAM" data-email-label="Email" data-phone-label="Phone Number" data-phone-placeholder="(555) 123-4567" style="padding: 30px; border: 3px dashed #A9BDB6; background: linear-gradient(135deg, #f8faf9 0%, #e8f0ec 100%); text-align: center; border-radius: 8px; margin: 20px 0;">
+              <div style="color: #2E4042; margin-bottom: 10px;">
+                <strong style="font-size: 18px;">📋 Consent Form</strong>
+              </div>
+              <p style="color: #666; margin: 0; font-size: 14px;">
+                The SMS consent form will appear here.<br>
+                <small>Edit properties in the right panel to customize button text and labels.</small>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    `
+  }
+
+  // Default email template
+  return `
+    <table style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <tr>
+        <td style="padding: 40px 20px; text-align: center;">
+          <h1 style="margin: 0 0 20px 0; color: #333333;">Welcome!</h1>
+          <p style="margin: 0; color: #666666;">Start building your email template by dragging blocks from the right panel.</p>
+        </td>
+      </tr>
+    </table>
+  `
+}
+
 export default {
   async mounted() {
-    // Lazy load GrapesJS (reduces main bundle by ~200-300KB)
-    await loadGrapesJS()
+    const templateType = this.el.dataset.templateType || 'email'
+
+    // Lazy load GrapesJS with appropriate preset (reduces main bundle by ~200-300KB)
+    await loadGrapesJS(templateType)
 
     const rawHtml = this.el.dataset.htmlContent || ''
     const initialContent = extractBodyContent(rawHtml)
+    const defaultContent = getDefaultContent(templateType)
 
-    // Default email template if no content
-    const defaultContent = `
-      <table style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-        <tr>
-          <td style="padding: 40px 20px; text-align: center;">
-            <h1 style="margin: 0 0 20px 0; color: #333333;">Welcome!</h1>
-            <p style="margin: 0; color: #666666;">Start building your email template by dragging blocks from the right panel.</p>
-          </td>
-        </tr>
-      </table>
-    `
+    // Select plugin based on template type
+    const plugin = templateType === 'email' ? newsletterPlugin : webpagePlugin
+    const pluginOpts = templateType === 'email'
+      ? { inlineCss: true }
+      : { blocksBasicOpts: { flexGrid: true } }
 
-    // Initialize GrapesJS with newsletter preset
+    // Initialize GrapesJS
     this.editor = grapesjs.init({
       container: this.el,
       height: '100%',
@@ -110,12 +267,9 @@ export default {
       fromElement: false,
       storageManager: false,
 
-      // Newsletter preset plugin
-      plugins: [newsletterPlugin],
+      plugins: [plugin],
       pluginsOpts: {
-        [newsletterPlugin]: {
-          inlineCss: true,
-        }
+        [plugin]: pluginOpts
       },
 
       // Load initial content
@@ -127,6 +281,14 @@ export default {
         upload: false,
       },
     })
+
+    // Register consent form block for page templates
+    if (templateType === 'page') {
+      registerConsentFormBlock(this.editor)
+    }
+
+    // Store template type for later use
+    this.templateType = templateType
 
     // Debounced update function
     const pushHtmlUpdate = debounce(() => {
@@ -147,7 +309,14 @@ export default {
 
         if (html && html.trim()) {
           const fullDocument = wrapInHtmlDocument(html)
-          this.pushEvent('template_html_updated', { html: fullDocument })
+          const payload = { html: fullDocument }
+
+          // Extract form config for page templates
+          if (this.templateType === 'page') {
+            payload.form_config = extractFormConfig(html)
+          }
+
+          this.pushEvent('template_html_updated', payload)
         }
       } catch (err) {
         console.error('[TemplateEditor] Error exporting HTML:', err)

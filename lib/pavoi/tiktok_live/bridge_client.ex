@@ -396,6 +396,30 @@ defmodule Pavoi.TiktokLive.BridgeClient do
     })
   end
 
+  # Dedicated follow event from newer tiktok-live-connector versions
+  defp handle_bridge_event(%{"type" => "follow", "uniqueId" => unique_id, "data" => data}) do
+    broadcast_event(unique_id, %{
+      type: :follow,
+      user_id: to_string(data["userId"]),
+      username: data["uniqueId"],
+      nickname: data["nickname"],
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
+  # Dedicated share event from newer tiktok-live-connector versions
+  defp handle_bridge_event(%{"type" => "share", "uniqueId" => unique_id, "data" => data}) do
+    broadcast_event(unique_id, %{
+      type: :share,
+      user_id: to_string(data["userId"]),
+      username: data["uniqueId"],
+      nickname: data["nickname"],
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:second),
+      raw: data
+    })
+  end
+
   defp handle_bridge_event(%{"type" => "streamEnd", "uniqueId" => unique_id}) do
     Logger.info("Stream ended: @#{unique_id}")
     broadcast_event(unique_id, %{type: :stream_ended})

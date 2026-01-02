@@ -636,4 +636,18 @@ table.is-resizing th {
   user-select: none;
 }
 
+/* ============================================
+   TEMPLATE HEADER & BUTTONS
+   ============================================ */
 
+.template-type-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.template-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}

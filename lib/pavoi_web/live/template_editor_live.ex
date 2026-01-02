@@ -1,10 +1,15 @@
 defmodule PavoiWeb.TemplateEditorLive do
   @moduledoc """
-  Full-page LiveView for editing email templates with GrapesJS.
+  Full-page LiveView for editing templates with GrapesJS.
+
+  Supports two template types:
+  - "email" - Email templates for outreach campaigns
+  - "page" - Page templates for web pages like the SMS consent form
 
   Routes:
-  - /templates/new     - Create new template
-  - /templates/:id/edit - Edit existing template
+  - /templates/new          - Create new email template
+  - /templates/new?type=page - Create new page template
+  - /templates/:id/edit     - Edit existing template
   """
   use PavoiWeb, :live_view
 
@@ -23,13 +28,19 @@ defmodule PavoiWeb.TemplateEditorLive do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :new, _params) do
-    template = %EmailTemplate{lark_preset: "jewelry"}
+  defp apply_action(socket, :new, params) do
+    # Support ?type=page query param for page templates
+    template_type = params["type"] || "email"
+    template = %EmailTemplate{lark_preset: "jewelry", type: template_type}
     changeset = Communications.change_email_template(template)
 
+    page_title =
+      if template_type == "page", do: "New Page Template", else: "New Email Template"
+
     socket
-    |> assign(:page_title, "New Template")
+    |> assign(:page_title, page_title)
     |> assign(:template, template)
+    |> assign(:template_type, template_type)
     |> assign(:form, to_form(changeset))
     |> assign(:is_new, true)
   end
@@ -38,9 +49,13 @@ defmodule PavoiWeb.TemplateEditorLive do
     template = Communications.get_email_template!(id)
     changeset = Communications.change_email_template(template)
 
+    page_title =
+      if template.type == "page", do: "Edit Page Template", else: "Edit Email Template"
+
     socket
-    |> assign(:page_title, "Edit Template")
+    |> assign(:page_title, page_title)
     |> assign(:template, template)
+    |> assign(:template_type, template.type)
     |> assign(:form, to_form(changeset))
     |> assign(:is_new, false)
   end
@@ -56,14 +71,19 @@ defmodule PavoiWeb.TemplateEditorLive do
   end
 
   @impl true
-  def handle_event("template_html_updated", %{"html" => html}, socket)
+  def handle_event("template_html_updated", %{"html" => html} = params, socket)
       when is_binary(html) and html != "" do
+    # Extract form_config if present (for page templates)
+    form_config = Map.get(params, "form_config", %{})
+
     # Update the form with the HTML from the visual editor
     current_params = %{
       "name" => socket.assigns.form[:name].value || "",
       "subject" => socket.assigns.form[:subject].value || "",
       "lark_preset" => socket.assigns.form[:lark_preset].value || "jewelry",
-      "html_body" => html
+      "type" => socket.assigns.template_type,
+      "html_body" => html,
+      "form_config" => form_config
     }
 
     changeset = Communications.change_email_template(socket.assigns.template, current_params)
@@ -77,6 +97,9 @@ defmodule PavoiWeb.TemplateEditorLive do
 
   @impl true
   def handle_event("save", %{"email_template" => params}, socket) do
+    # Decode form_config if it's a JSON string
+    params = decode_form_config(params)
+
     result =
       if socket.assigns.is_new do
         Communications.create_email_template(params)
@@ -97,4 +120,14 @@ defmodule PavoiWeb.TemplateEditorLive do
         {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
+
+  # Decode form_config from JSON string if needed
+  defp decode_form_config(%{"form_config" => config} = params) when is_binary(config) do
+    case Jason.decode(config) do
+      {:ok, decoded} -> Map.put(params, "form_config", decoded)
+      _ -> params
+    end
+  end
+
+  defp decode_form_config(params), do: params
 end

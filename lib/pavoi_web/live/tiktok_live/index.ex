@@ -52,6 +52,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
       |> assign(:active_tab, "comments")
+      |> assign(:lightbox_open, false)
       |> stream(:comments, [])
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
@@ -173,6 +174,7 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
       |> assign(:active_tab, "comments")
+      |> assign(:lightbox_open, false)
       |> stream(:comments, [], reset: true)
       |> assign(:has_comments, false)
       |> assign(:comment_search_query, "")
@@ -185,6 +187,16 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> push_patch(to: ~p"/streams?#{params}")
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("open_lightbox", _params, socket) do
+    {:noreply, assign(socket, :lightbox_open, true)}
+  end
+
+  @impl true
+  def handle_event("close_lightbox", _params, socket) do
+    {:noreply, assign(socket, :lightbox_open, false)}
   end
 
   @impl true

@@ -109,6 +109,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:page_tab, "creators")
       # Email template management (for Templates tab)
       |> assign(:templates, [])
+      |> assign(:template_type_filter, "email")
       |> assign(:preview_template, nil)
       |> assign(:preview_subject, nil)
       |> assign(:preview_html, nil)
@@ -761,7 +762,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("preview_template", %{"id" => id}, socket) do
     template = Communications.get_email_template!(id)
-    {subject, html} = TemplateRenderer.render_preview(template)
+
+    {subject, html} =
+      if template.type == "page" do
+        {nil, template_preview_html(template)}
+      else
+        TemplateRenderer.render_preview(template)
+      end
 
     socket =
       socket
@@ -784,10 +791,16 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
+  def handle_event("filter_template_type", %{"type" => type}, socket) do
+    params = build_query_params(socket, template_type_filter: type)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
   def handle_event("set_default_template", %{"id" => id}, socket) do
     template = Communications.get_email_template!(id)
     {:ok, _} = Communications.set_default_template(template)
-    templates = Communications.list_all_email_templates()
+    templates = Communications.list_all_templates_by_type(socket.assigns.template_type_filter)
 
     socket =
       socket
@@ -801,7 +814,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("delete_template", %{"id" => id}, socket) do
     template = Communications.get_email_template!(id)
     {:ok, _} = Communications.delete_email_template(template)
-    templates = Communications.list_all_email_templates()
+    templates = Communications.list_all_templates_by_type(socket.assigns.template_type_filter)
 
     socket =
       socket
@@ -1108,6 +1121,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     delta_period = parse_delta_period(params["period"])
     new_page_tab = params["pt"] || "creators"
     old_page_tab = socket.assigns.page_tab
+    template_type = params["tt"] || "email"
 
     # Preserve selection when only switching tabs (not changing filters/search/page)
     {selected_ids, sendable_count} =
@@ -1132,19 +1146,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:delta_period, delta_period)
     |> assign(:time_preset, derive_time_preset_from_delta(delta_period))
     |> assign(:page_tab, new_page_tab)
-    |> maybe_load_templates(new_page_tab)
+    |> assign(:template_type_filter, template_type)
+    |> maybe_load_templates(new_page_tab, template_type)
   end
 
-  # Load templates when switching to templates tab
-  defp maybe_load_templates(socket, "templates") do
-    if socket.assigns.templates == [] do
-      assign(socket, :templates, Communications.list_all_email_templates())
-    else
-      socket
-    end
+  # Load templates when on templates tab
+  defp maybe_load_templates(socket, "templates", template_type) do
+    socket
+    |> assign(:templates, Communications.list_all_templates_by_type(template_type))
   end
 
-  defp maybe_load_templates(socket, _), do: socket
+  defp maybe_load_templates(socket, _, _template_type), do: socket
 
   defp parse_delta_period(nil), do: nil
   defp parse_delta_period(""), do: nil
@@ -1295,7 +1307,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
     outreach_status: :status,
     filter_tag_ids: :tags,
     delta_period: :period,
-    page_tab: :pt
+    page_tab: :pt,
+    template_type_filter: :tt
   }
 
   defp build_query_params(socket, overrides) do
@@ -1310,7 +1323,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       status: socket.assigns.outreach_status,
       tags: format_tag_ids(socket.assigns.filter_tag_ids),
       period: socket.assigns.delta_period,
-      pt: socket.assigns.page_tab
+      pt: socket.assigns.page_tab,
+      tt: socket.assigns.template_type_filter
     }
 
     overrides
@@ -1347,6 +1361,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true
   defp default_value?({:pt, "creators"}), do: true
+  defp default_value?({:tt, "email"}), do: true
   # Note: nil is now the default for status (show all), so specific statuses are kept in URL
   defp default_value?(_), do: false
 

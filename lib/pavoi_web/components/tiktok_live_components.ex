@@ -249,6 +249,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :slack_dev_user_id_present, :boolean, default: false
   attr :stream_report_last_sent_at, :any, default: nil
   attr :stream_report_last_error, :string, default: nil
+  attr :lightbox_open, :boolean, default: false
 
   def stream_detail_modal(assigns) do
     ~H"""
@@ -263,7 +264,26 @@ defmodule PavoiWeb.TiktokLiveComponents do
           <div class="stream-modal-header">
             <div class="stream-modal-header__top">
               <div class="stream-modal-header__thumbnail">
-                <.stream_thumbnail url={Stream.cover_image_url(@stream)} />
+                <%= if Stream.cover_image_url(@stream) do %>
+                  <button
+                    type="button"
+                    class="stream-thumbnail stream-thumbnail--clickable"
+                    phx-click="open_lightbox"
+                    aria-label="View thumbnail fullscreen"
+                  >
+                    <img
+                      src={Stream.cover_image_url(@stream)}
+                      alt="Stream thumbnail"
+                      class="stream-thumbnail__image"
+                    />
+                  </button>
+                <% else %>
+                  <div class="stream-thumbnail">
+                    <div class="stream-thumbnail__placeholder">
+                      <.icon name="hero-video-camera" class="stream-thumbnail__icon" />
+                    </div>
+                  </div>
+                <% end %>
               </div>
               <div class="stream-modal-header__info">
                 <div class="stream-modal-header__title">
@@ -454,7 +474,39 @@ defmodule PavoiWeb.TiktokLiveComponents do
           </div>
         </div>
       </.modal>
+      <.image_lightbox
+        :if={@lightbox_open}
+        url={Stream.cover_image_url(@stream)}
+        alt="Stream thumbnail"
+      />
     <% end %>
+    """
+  end
+
+  @doc """
+  Renders a fullscreen image lightbox overlay.
+
+  Press Escape or click the X button to close. Clicking the backdrop also closes.
+  """
+  attr :url, :string, required: true
+  attr :alt, :string, default: "Image"
+
+  def image_lightbox(assigns) do
+    ~H"""
+    <div id="image-lightbox" class="lightbox" phx-hook="ImageLightbox">
+      <div class="lightbox__backdrop" phx-click="close_lightbox"></div>
+      <div class="lightbox__content">
+        <button
+          type="button"
+          class="lightbox__close"
+          phx-click="close_lightbox"
+          aria-label="Close lightbox"
+        >
+          ✕
+        </button>
+        <img src={@url} alt={@alt} class="lightbox__image" />
+      </div>
+    </div>
     """
   end
 

@@ -27,17 +27,33 @@
             </div>
           <% end %>
         <% "templates" -> %>
-          <.link navigate={~p"/templates/new"} class="button button--sm button--primary">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="size-4"
+          <div class="template-type-buttons">
+            <.link navigate={~p"/templates/new"} class="button button--sm button--primary">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                class="size-4"
+              >
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              New Email Template
+            </.link>
+            <.link
+              navigate={~p"/templates/new?type=page"}
+              class="button button--sm button--outline"
             >
-              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-            </svg>
-            New Template
-          </.link>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                class="size-4"
+              >
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              New Page Template
+            </.link>
+          </div>
       <% end %>
     </:actions>
   </.page_tabs>
@@ -197,26 +213,61 @@
         </div>
       <% end %>
     <% "templates" -> %>
+      <%!-- Template Type Filter & Actions --%>
+      <div class="template-header">
+        <form phx-change="filter_template_type">
+          <select name="type" class="filter-select">
+            <option value="email" selected={@template_type_filter == "email"}>
+              Email Templates
+            </option>
+            <option value="page" selected={@template_type_filter == "page"}>
+              Page Templates
+            </option>
+          </select>
+        </form>
+      </div>
+
       <%= if Enum.empty?(@templates) do %>
         <div class="empty-state">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="empty-state__icon size-12"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
-            />
-          </svg>
-          <p class="empty-state__title">No email templates</p>
-          <p class="empty-state__description">
-            Create your first email template to get started.
-          </p>
+          <%= if @template_type_filter == "email" do %>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="empty-state__icon size-12"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
+              />
+            </svg>
+            <p class="empty-state__title">No email templates</p>
+            <p class="empty-state__description">
+              Create your first email template to start outreach campaigns.
+            </p>
+          <% else %>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="empty-state__icon size-12"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+              />
+            </svg>
+            <p class="empty-state__title">No page templates</p>
+            <p class="empty-state__description">
+              Create a page template to customize the SMS consent form design.
+            </p>
+          <% end %>
         </div>
       <% else %>
         <div class="template-list">
@@ -228,7 +279,7 @@
             >
               <div class="template-card__preview">
                 <iframe
-                  srcdoc={template.html_body}
+                  srcdoc={template_preview_html(template)}
                   class="template-card__preview-frame"
                   sandbox="allow-same-origin"
                   title={"Preview of #{template.name}"}
@@ -238,6 +289,9 @@
                 <div class="template-card__header">
                   <div class="template-card__title-row">
                     <h3 class="template-card__title">{template.name}</h3>
+                    <span class={"badge #{if template.type == "page", do: "badge--info", else: "badge--secondary"}"}>
+                      {if template.type == "page", do: "Page", else: "Email"}
+                    </span>
                     <%= if template.is_default do %>
                       <span class="badge badge--success">Default</span>
                     <% end %>
@@ -284,9 +338,17 @@
                     <% end %>
                   </div>
                 </div>
-                <div class="template-card__subject">
-                  <strong>Subject:</strong> {template.subject}
-                </div>
+                <%= if template.type == "email" do %>
+                  <div class="template-card__subject">
+                    <strong>Subject:</strong> {template.subject}
+                  </div>
+                <% else %>
+                  <div class="template-card__subject">
+                    <strong>Lark Community:</strong> {String.capitalize(
+                      template.lark_preset || "jewelry"
+                    )}
+                  </div>
+                <% end %>
               </div>
             </div>
           <% end %>
@@ -445,15 +507,17 @@
       <h2 class="modal__title">Preview: {@preview_template.name}</h2>
     </div>
     <div class="modal__body">
-      <div class="preview-subject">
-        <strong>Subject:</strong> {@preview_subject}
-      </div>
-      <div class="preview-email">
+      <%= if @preview_template.type == "email" do %>
+        <div class="preview-subject">
+          <strong>Subject:</strong> {@preview_subject}
+        </div>
+      <% end %>
+      <div class={"preview-email #{if @preview_template.type == "page", do: "preview-email--page"}"}>
         <iframe
           srcdoc={@preview_html}
           class="preview-email__frame"
           sandbox="allow-same-origin"
-          title="Email preview"
+          title={"#{if @preview_template.type == "page", do: "Page", else: "Email"} preview"}
         />
       </div>
     </div>

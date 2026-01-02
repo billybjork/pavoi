@@ -481,6 +481,32 @@ async function connectToStream(uniqueId) {
       });
     });
 
+    // Dedicated follow event (newer library versions)
+    connection.on('follow', (data) => {
+      broadcastEvent({
+        type: 'follow',
+        uniqueId,
+        data: {
+          userId: data.userId,
+          uniqueId: data.uniqueId,
+          nickname: data.nickname
+        }
+      });
+    });
+
+    // Dedicated share event (newer library versions)
+    connection.on('share', (data) => {
+      broadcastEvent({
+        type: 'share',
+        uniqueId,
+        data: {
+          userId: data.userId,
+          uniqueId: data.uniqueId,
+          nickname: data.nickname
+        }
+      });
+    });
+
     connection.on('streamEnd', (data) => {
       console.log(`[${uniqueId}] Stream ended`);
       connections.delete(uniqueId);
