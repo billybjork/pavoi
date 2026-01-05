@@ -13,7 +13,7 @@ defmodule PavoiWeb.TiktokLive.Index do
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.Repo
-  alias Pavoi.Sessions
+  alias Pavoi.ProductSets
   alias Pavoi.Settings
   alias Pavoi.TiktokLive, as: TiktokLiveContext
   alias Pavoi.Workers.StreamReportWorker
@@ -71,10 +71,10 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:slack_dev_user_id_present, slack_dev_user_id_present?())
       |> assign(:stream_report_last_sent_at, nil)
       |> assign(:stream_report_last_error, nil)
-      # Session linking state
-      |> assign(:linked_sessions, [])
-      |> assign(:all_sessions, [])
-      |> assign(:session_search_query, "")
+      # Product set linking state
+      |> assign(:linked_product_sets, [])
+      |> assign(:all_product_sets, [])
+      |> assign(:product_set_search_query, "")
       |> assign(:product_interest, [])
       # Analytics tab state
       |> assign(:page_tab, "streams")
@@ -156,7 +156,7 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   @impl true
   def handle_event("navigate_to_stream", %{"id" => id} = params, socket) do
-    # Optionally navigate directly to a specific tab (e.g., "sessions")
+    # Optionally navigate directly to a specific tab (e.g., "product_sets")
     tab = Map.get(params, "tab")
     query_params = build_query_params(socket, stream_id: id, tab: tab)
     {:noreply, push_patch(socket, to: ~p"/streams?#{query_params}")}
@@ -180,9 +180,9 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
       |> assign(:stream_gmv, nil)
-      |> assign(:linked_sessions, [])
-      |> assign(:all_sessions, [])
-      |> assign(:session_search_query, "")
+      |> assign(:linked_product_sets, [])
+      |> assign(:all_product_sets, [])
+      |> assign(:product_set_search_query, "")
       |> assign(:product_interest, [])
       |> push_patch(to: ~p"/streams?#{params}")
 
@@ -255,58 +255,58 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("link_session", %{"session-id" => session_id} = params, socket) do
+  def handle_event("link_product_set", %{"product-set-id" => session_id} = params, socket) do
     stream_id = socket.assigns.selected_stream.id
     session_id = String.to_integer(session_id)
 
     # If linking from a suggestion, mark as "auto" linked
     linked_by = if params["source"] == "suggestion", do: "auto", else: "manual"
 
-    case TiktokLiveContext.link_stream_to_session(stream_id, session_id, linked_by: linked_by) do
+    case TiktokLiveContext.link_stream_to_product_set(stream_id, session_id, linked_by: linked_by) do
       {:ok, _} ->
-        linked = TiktokLiveContext.get_linked_sessions(stream_id)
+        linked = TiktokLiveContext.get_linked_product_sets(stream_id)
         product_interest = load_product_interest(stream_id, linked)
 
         socket =
           socket
-          |> assign(:linked_sessions, linked)
+          |> assign(:linked_product_sets, linked)
           |> assign(:product_interest, product_interest)
-          |> load_available_sessions()
-          |> put_flash(:info, "Session linked and comments parsed")
+          |> load_available_product_sets()
+          |> put_flash(:info, "Product set linked and comments parsed")
 
         {:noreply, socket}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to link session")}
+        {:noreply, put_flash(socket, :error, "Failed to link product set")}
     end
   end
 
   @impl true
-  def handle_event("unlink_session", %{"session-id" => session_id}, socket) do
+  def handle_event("unlink_product_set", %{"product-set-id" => session_id}, socket) do
     stream_id = socket.assigns.selected_stream.id
     session_id = String.to_integer(session_id)
 
-    TiktokLiveContext.unlink_stream_from_session(stream_id, session_id)
+    TiktokLiveContext.unlink_stream_from_product_set(stream_id, session_id)
 
-    linked = TiktokLiveContext.get_linked_sessions(stream_id)
+    linked = TiktokLiveContext.get_linked_product_sets(stream_id)
     product_interest = load_product_interest(stream_id, linked)
 
     socket =
       socket
-      |> assign(:linked_sessions, linked)
+      |> assign(:linked_product_sets, linked)
       |> assign(:product_interest, product_interest)
-      |> load_available_sessions()
-      |> put_flash(:info, "Session unlinked")
+      |> load_available_product_sets()
+      |> put_flash(:info, "Product set unlinked")
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("search_sessions", %{"value" => query}, socket) do
+  def handle_event("search_product_sets", %{"value" => query}, socket) do
     socket =
       socket
-      |> assign(:session_search_query, query)
-      |> load_available_sessions()
+      |> assign(:product_set_search_query, query)
+      |> load_available_product_sets()
 
     {:noreply, socket}
   end
@@ -851,14 +851,14 @@ defmodule PavoiWeb.TiktokLive.Index do
     |> assign(:stream_gmv, gmv_data)
   end
 
-  defp load_tab_data(socket, "sessions", stream_id) do
-    linked = TiktokLiveContext.get_linked_sessions(stream_id)
+  defp load_tab_data(socket, "product_sets", stream_id) do
+    linked = TiktokLiveContext.get_linked_product_sets(stream_id)
     product_interest = load_product_interest(stream_id, linked)
 
     socket
-    |> assign(:linked_sessions, linked)
+    |> assign(:linked_product_sets, linked)
     |> assign(:product_interest, product_interest)
-    |> load_available_sessions()
+    |> load_available_product_sets()
   end
 
   defp load_tab_data(socket, _tab, _stream_id), do: socket
@@ -1146,25 +1146,25 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp format_stream_report_error(reason) when is_binary(reason), do: reason
   defp format_stream_report_error(reason), do: inspect(reason)
 
-  defp load_available_sessions(socket) do
-    linked_ids = Enum.map(socket.assigns.linked_sessions, & &1.id)
-    search_query = socket.assigns.session_search_query
+  defp load_available_product_sets(socket) do
+    linked_ids = Enum.map(socket.assigns.linked_product_sets, & &1.id)
+    search_query = socket.assigns.product_set_search_query
 
     sessions =
-      Sessions.list_sessions_with_details_paginated(
+      ProductSets.list_product_sets_with_details_paginated(
         search_query: search_query,
         page: 1,
         per_page: 10
       )
 
-    # Filter out already linked sessions
-    available = Enum.reject(sessions.sessions, fn s -> s.id in linked_ids end)
+    # Filter out already linked product sets
+    available = Enum.reject(sessions.product_sets, fn s -> s.id in linked_ids end)
 
-    assign(socket, :all_sessions, available)
+    assign(socket, :all_product_sets, available)
   end
 
-  defp load_product_interest(stream_id, linked_sessions) do
-    case linked_sessions do
+  defp load_product_interest(stream_id, linked_product_sets) do
+    case linked_product_sets do
       [session | _] ->
         TiktokLiveContext.get_product_interest_summary(stream_id, session.id)
 

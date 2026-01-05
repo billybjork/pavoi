@@ -12,8 +12,8 @@ defmodule PavoiWeb.HostViewComponents do
   import Phoenix.HTML, only: [raw: 1]
   import PavoiWeb.ViewHelpers
 
-  alias Pavoi.Sessions
-  alias Pavoi.Sessions.SessionProduct
+  alias Pavoi.ProductSets
+  alias Pavoi.ProductSets.ProductSetProduct
   alias Pavoi.Storage
 
   @doc """
@@ -115,7 +115,7 @@ defmodule PavoiWeb.HostViewComponents do
   def host_message_banner(assigns) do
     ~H"""
     <div
-      class={"host-message-banner host-message-banner--#{Map.get(@message, :color, Sessions.default_message_color())}"}
+      class={"host-message-banner host-message-banner--#{Map.get(@message, :color, ProductSets.default_message_color())}"}
       id={"host-message-#{@message.id}"}
       key={@message.id}
     >
@@ -149,12 +149,12 @@ defmodule PavoiWeb.HostViewComponents do
     assigns = assign(assigns, :notes_items, notes_items)
 
     ~H"""
-    <div class={["host-session-panel", @collapsed && "host-session-panel--collapsed"]}>
-      <div class="host-session-panel__header" phx-click="toggle_session_panel">
-        <span class="host-session-panel__title">{@session.name}</span>
-        <span class="host-session-panel__count">SESSION NOTES</span>
+    <div class={["host-product-set-panel", @collapsed && "host-product-set-panel--collapsed"]}>
+      <div class="host-product-set-panel__header" phx-click="toggle_product_set_panel">
+        <span class="host-product-set-panel__title">{@session.name}</span>
+        <span class="host-product-set-panel__count">PRODUCT SET NOTES</span>
         <svg
-          class="host-session-panel__chevron"
+          class="host-product-set-panel__chevron"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -163,22 +163,22 @@ defmodule PavoiWeb.HostViewComponents do
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </div>
-      <div class="host-session-panel__body">
+      <div class="host-product-set-panel__body">
         <%= if @session.notes_image_url do %>
-          <div class="host-session-panel__image">
+          <div class="host-product-set-panel__image">
             <img
               src={Storage.public_url(@session.notes_image_url)}
-              alt="Session notes image"
+              alt="Product set notes image"
               loading="lazy"
-              id="session-notes-image"
+              id="product-set-notes-image"
               phx-hook="ImageLightbox"
             />
           </div>
         <% end %>
         <%= if length(@notes_items) > 0 do %>
-          <div class="host-session-panel__notes-grid">
+          <div class="host-product-set-panel__notes-grid">
             <%= for item <- @notes_items do %>
-              <div class="host-session-panel__note-card">{item}</div>
+              <div class="host-product-set-panel__note-card">{item}</div>
             <% end %>
           </div>
         <% end %>
@@ -389,7 +389,7 @@ defmodule PavoiWeb.HostViewComponents do
           phx-hook="HostProductsScroll"
           data-current-position={@current_session_product && @current_session_product.position}
         >
-          <%= for sp <- Enum.sort_by(@session.session_products, & &1.position) do %>
+          <%= for sp <- Enum.sort_by(@session.product_set_products, & &1.position) do %>
             <button
               type="button"
               class={[
@@ -428,7 +428,7 @@ defmodule PavoiWeb.HostViewComponents do
     <div class="host-state-container">
       <div class="host-loading">
         <div class="host-loading__spinner"></div>
-        <p>Loading session...</p>
+        <p>Loading product set...</p>
       </div>
     </div>
     """
@@ -441,7 +441,7 @@ defmodule PavoiWeb.HostViewComponents do
     ~H"""
     <div class="host-state-container">
       <div class="host-empty">
-        <p class="host-empty__title">No products in this session</p>
+        <p class="host-empty__title">No products in this product set</p>
         <p class="host-empty__subtitle">Add products to get started</p>
       </div>
     </div>
@@ -451,11 +451,11 @@ defmodule PavoiWeb.HostViewComponents do
   ## Helper functions (shared with LiveView modules)
 
   defp get_effective_name(session_product) do
-    SessionProduct.effective_name(session_product)
+    ProductSetProduct.effective_name(session_product)
   end
 
   defp get_effective_prices(session_product) do
-    SessionProduct.effective_prices(session_product)
+    ProductSetProduct.effective_prices(session_product)
   end
 
   defp primary_image(product) do

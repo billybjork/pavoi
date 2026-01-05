@@ -1,11 +1,11 @@
 <div
-  id="session-controller"
+  id="product-set-controller"
   class="controller-container"
   phx-hook="ControllerHaptic"
 >
-  <%!-- TOP: Header with back button, session name, and notes toggle --%>
+  <%!-- TOP: Header with back button, product set name, and notes toggle --%>
   <div class="controller-header">
-    <.link navigate={~p"/sessions"} class="controller-back-link">
+    <.link navigate={~p"/product-sets"} class="controller-back-link">
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -16,7 +16,7 @@
         <polyline points="15 18 9 12 15 6"></polyline>
       </svg>
     </.link>
-    <span class="controller-header__title">{@session.name}</span>
+    <span class="controller-header__title">{@product_set.name}</span>
     <span class="controller-header__count">
       <%= if @current_position do %>
         {@current_position}/{@total_products}
@@ -26,11 +26,18 @@
     </span>
     <button
       type="button"
-      class={["controller-notes-toggle", @session_notes_visible && "controller-notes-toggle--on"]}
-      phx-click="toggle_session_notes"
-      title={if @session_notes_visible, do: "Hide session notes", else: "Show session notes"}
+      class={[
+        "controller-notes-toggle",
+        @product_set_notes_visible && "controller-notes-toggle--on"
+      ]}
+      phx-click="toggle_product_set_notes"
+      title={
+        if @product_set_notes_visible,
+          do: "Hide product set notes",
+          else: "Show product set notes"
+      }
     >
-      <span class="controller-notes-toggle__label">Show session notes</span>
+      <span class="controller-notes-toggle__label">Show notes</span>
       <span class="controller-notes-toggle__track">
         <span class="controller-notes-toggle__thumb"></span>
       </span>
@@ -130,12 +137,12 @@
   <%!-- MIDDLE: Product Grid (Scrollable, takes remaining space) --%>
   <div class="controller-products" phx-hook="ControllerKeyboard" id="controller-products">
     <div class="controller-products__grid">
-      <%= for sp <- Enum.sort_by(@session.session_products, & &1.position) do %>
+      <%= for sp <- Enum.sort_by(@product_set.product_set_products, & &1.position) do %>
         <button
           type="button"
           class={[
             "controller-product-card",
-            @current_session_product && @current_session_product.id == sp.id &&
+            @current_product_set_product && @current_product_set_product.id == sp.id &&
               "controller-product-card--active"
           ]}
           phx-click="jump_to_product"

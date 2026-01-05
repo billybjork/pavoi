@@ -6,12 +6,12 @@ defmodule Pavoi.AI.TalkingPointsGeneration do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Pavoi.Sessions.Session
+  alias Pavoi.ProductSets.ProductSet
 
   @type t :: %__MODULE__{
           id: integer(),
           job_id: String.t(),
-          session_id: integer() | nil,
+          product_set_id: integer() | nil,
           product_ids: [integer()],
           status: String.t(),
           total_count: integer(),
@@ -33,7 +33,7 @@ defmodule Pavoi.AI.TalkingPointsGeneration do
     field :results, :map, default: %{}
     field :errors, :map, default: %{}
 
-    belongs_to :session, Session
+    belongs_to :product_set, ProductSet
 
     timestamps(type: :utc_datetime)
   end
@@ -51,7 +51,7 @@ defmodule Pavoi.AI.TalkingPointsGeneration do
     generation
     |> cast(attrs, [
       :job_id,
-      :session_id,
+      :product_set_id,
       :product_ids,
       :status,
       :total_count,
@@ -62,7 +62,7 @@ defmodule Pavoi.AI.TalkingPointsGeneration do
     ])
     |> validate_required([:job_id, :product_ids, :status, :total_count])
     |> validate_inclusion(:status, @valid_statuses)
-    |> foreign_key_constraint(:session_id)
+    |> foreign_key_constraint(:product_set_id)
   end
 
   @doc """
@@ -70,7 +70,7 @@ defmodule Pavoi.AI.TalkingPointsGeneration do
   """
   def start_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:job_id, :session_id, :product_ids, :total_count])
+    |> cast(attrs, [:job_id, :product_set_id, :product_ids, :total_count])
     |> put_change(:status, "pending")
     |> put_change(:completed_count, 0)
     |> put_change(:failed_count, 0)

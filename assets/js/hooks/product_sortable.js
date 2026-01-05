@@ -1,5 +1,5 @@
 // ProductSortable Hook
-// Enables drag-and-drop reordering of products within session cards
+// Enables drag-and-drop reordering of products within product set cards
 
 import Sortable from "../../vendor/sortable"
 
@@ -60,18 +60,18 @@ export default {
 
         // Only send reorder event if position actually changed
         if (evt.oldIndex !== evt.newIndex) {
-          // Collect all session_product IDs in their new order
+          // Collect all product_set_product IDs in their new order
           // Filter out elements without data-id (like the add button)
           const productIds = Array.from(this.el.children)
             .map(el => el.dataset.id)
             .filter(id => id !== undefined && id !== null)
 
-          // Get session ID from the container's data attribute
-          const sessionId = this.el.dataset.sessionId
+          // Get product set ID from the container's data attribute
+          const productSetId = this.el.dataset.productSetId
 
           // Send reorder event to LiveView
           this.pushEventTo(this.el, "reorder_products", {
-            session_id: sessionId,
+            product_set_id: productSetId,
             product_ids: productIds,
             old_index: evt.oldIndex,
             new_index: evt.newIndex
@@ -90,17 +90,17 @@ export default {
       }
 
       // Find the closest product item
-      const productItem = event.target.closest('.session-card__product-item')
+      const productItem = event.target.closest('.product-set-card__product-item')
       if (!productItem) {
         return
       }
 
       // Don't handle clicks on the remove button
-      if (event.target.closest('.session-card__product-actions')) {
+      if (event.target.closest('.product-set-card__product-actions')) {
         return
       }
 
-      // Prevent event from bubbling to parent session card accordion
+      // Prevent event from bubbling to parent product set card accordion
       event.stopPropagation()
       event.preventDefault()
 

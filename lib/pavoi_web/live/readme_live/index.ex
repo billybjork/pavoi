@@ -15,7 +15,7 @@ defmodule PavoiWeb.ReadmeLive.Index do
   alias Pavoi.Creators
   alias Pavoi.Outreach.OutreachLog
   alias Pavoi.Repo
-  alias Pavoi.Sessions.Session
+  alias Pavoi.ProductSets.ProductSet
   alias Pavoi.Settings
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.{BridgeHealthMonitor, Stream}
@@ -24,7 +24,7 @@ defmodule PavoiWeb.ReadmeLive.Index do
   def mount(_params, _session, socket) do
     # Fetch counts for stats display
     stats = %{
-      sessions: Repo.aggregate(Session, :count),
+      product_sets: Repo.aggregate(ProductSet, :count),
       products: Repo.aggregate(Product, :count),
       creators: Creators.count_creators(),
       streams: TiktokLive.count_streams()
@@ -110,17 +110,20 @@ defmodule PavoiWeb.ReadmeLive.Index do
         <div class="readme-cards readme-cards--pages">
           <.page_card
             emoji="🎬"
-            title="Sessions"
-            description="Create and manage live streaming sessions with curated product lineups"
-            href={~p"/sessions"}
-            stat={@stats.sessions}
-            stat_label="sessions"
+            title="Product Sets"
+            description="Manage product catalog and create curated product sets for live streams"
+            href={~p"/product-sets"}
+            stat={@stats.product_sets}
+            stat_label="product sets"
+            stat2={@stats.products}
+            stat2_label="products"
           >
             <:features>
-              <li>Host view for displaying products during live streams</li>
+              <li>Unified product catalog from Shopify and TikTok Shop</li>
+              <li>Curate product sets with custom lineups for live streams</li>
+              <li>Host view for displaying products during streams</li>
               <li>Mobile controller for navigation and messaging</li>
-              <li>AI-generated talking points per product</li>
-              <li>Session duplication for quick setup</li>
+              <li>AI-generated talking points for each product</li>
             </:features>
           </.page_card>
 
@@ -158,21 +161,6 @@ defmodule PavoiWeb.ReadmeLive.Index do
             </:features>
           </.page_card>
 
-          <.page_card
-            emoji="📦"
-            title="Products"
-            description="Unified product catalog from Shopify and TikTok Shop"
-            href={~p"/products"}
-            stat={@stats.products}
-            stat_label="products"
-          >
-            <:features>
-              <li>Automatic sync from Shopify and TikTok Shop</li>
-              <li>AI-generated talking points for each product</li>
-              <li>Price and image management</li>
-              <li>Search and filter by platform, name, SKU</li>
-            </:features>
-          </.page_card>
         </div>
       </section>
 
@@ -281,6 +269,8 @@ defmodule PavoiWeb.ReadmeLive.Index do
   attr :href, :string, required: true
   attr :stat, :integer, required: true
   attr :stat_label, :string, required: true
+  attr :stat2, :integer, default: nil
+  attr :stat2_label, :string, default: nil
   slot :features, required: true
 
   defp page_card(assigns) do
@@ -291,9 +281,16 @@ defmodule PavoiWeb.ReadmeLive.Index do
           <span class="readme-card__emoji">{@emoji}</span>
           {@title}
         </h3>
-        <span class="readme-card__stat">
-          {format_number(@stat)} {@stat_label}
-        </span>
+        <div class="readme-card__stats">
+          <span class="readme-card__stat">
+            {format_number(@stat)} {@stat_label}
+          </span>
+          <%= if @stat2 do %>
+            <span class="readme-card__stat">
+              {format_number(@stat2)} {@stat2_label}
+            </span>
+          <% end %>
+        </div>
       </div>
       <p class="readme-card__description">{@description}</p>
       <ul class="readme-card__features">

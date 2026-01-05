@@ -1,7 +1,7 @@
 /* ============================================================================
-   SESSION CARD COMPONENT
+   PRODUCT SET CARD COMPONENT
    ============================================================================ */
-.session-card {
+.product-set-card {
   background-color: var(--color-surface-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
@@ -12,48 +12,48 @@
   /* Fade in + slide up animation for initial load and infinite scroll */
   animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 
-  /* Padding from top when scrolling to expanded session - accounts for sticky navbar (80px) + spacing */
+  /* Padding from top when scrolling to expanded product set - accounts for sticky navbar (80px) + spacing */
   scroll-margin-top: 96px;
 }
 
-.session-card:hover {
+.product-set-card:hover {
   border-color: var(--color-border-primary);
   box-shadow: var(--shadow-sm);
 }
 
 /* Staggered animation delays for top-to-bottom effect */
-.session-card:nth-child(1) { animation-delay: 0s; }
-.session-card:nth-child(2) { animation-delay: 0.08s; }
-.session-card:nth-child(3) { animation-delay: 0.16s; }
-.session-card:nth-child(4) { animation-delay: 0.24s; }
-.session-card:nth-child(5) { animation-delay: 0.32s; }
-.session-card:nth-child(6) { animation-delay: 0.4s; }
-.session-card:nth-child(7) { animation-delay: 0.48s; }
-.session-card:nth-child(8) { animation-delay: 0.56s; }
-.session-card:nth-child(9) { animation-delay: 0.64s; }
-.session-card:nth-child(10) { animation-delay: 0.72s; }
-.session-card:nth-child(11) { animation-delay: 0.8s; }
-.session-card:nth-child(12) { animation-delay: 0.88s; }
-.session-card:nth-child(n+13) { animation-delay: 0.88s; }
+.product-set-card:nth-child(1) { animation-delay: 0s; }
+.product-set-card:nth-child(2) { animation-delay: 0.08s; }
+.product-set-card:nth-child(3) { animation-delay: 0.16s; }
+.product-set-card:nth-child(4) { animation-delay: 0.24s; }
+.product-set-card:nth-child(5) { animation-delay: 0.32s; }
+.product-set-card:nth-child(6) { animation-delay: 0.4s; }
+.product-set-card:nth-child(7) { animation-delay: 0.48s; }
+.product-set-card:nth-child(8) { animation-delay: 0.56s; }
+.product-set-card:nth-child(9) { animation-delay: 0.64s; }
+.product-set-card:nth-child(10) { animation-delay: 0.72s; }
+.product-set-card:nth-child(11) { animation-delay: 0.8s; }
+.product-set-card:nth-child(12) { animation-delay: 0.88s; }
+.product-set-card:nth-child(n+13) { animation-delay: 0.88s; }
 
 /* Disable animation when searching for instant results */
-.sessions-list--searching .session-card {
+.product-sets-list--searching .product-set-card {
   animation: none;
 }
 
-.sessions-list--searching .session-card__thumbnail {
+.product-sets-list--searching .product-set-card__thumbnail {
   animation: none;
 }
 
 /* Empty state */
-.session-card__empty-state {
+.product-set-card__empty-state {
   text-align: center;
   padding: var(--space-8);
   color: var(--color-text-secondary);
 }
 
 /* Header area - contains title group and actions */
-.session-card__header {
+.product-set-card__header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -62,20 +62,20 @@
 }
 
 /* Title group */
-.session-card__title-group {
+.product-set-card__title-group {
   flex: 1;
   min-width: 0; /* Allow text truncation if needed */
 }
 
 /* Title row - title and badge side by side */
-.session-card__title-row {
+.product-set-card__title-row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
 
-.session-card__title {
+.product-set-card__title {
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
@@ -83,14 +83,14 @@
 }
 
 /* Meta information - horizontal layout */
-.session-card__meta {
+.product-set-card__meta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
   margin-bottom: var(--space-3);
 }
 
-.session-card__meta-item {
+.product-set-card__meta-item {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -98,18 +98,18 @@
   color: var(--color-text-secondary);
 }
 
-.session-card__meta-item--link {
+.product-set-card__meta-item--link {
   color: var(--color-primary);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
-.session-card__meta-item--link:hover {
+.product-set-card__meta-item--link:hover {
   color: var(--color-primary-hover);
   text-decoration: underline;
 }
 
-.session-card__notes {
+.product-set-card__notes {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   margin-top: var(--space-2);
@@ -118,7 +118,7 @@
 }
 
 /* Content switcher - container for thumbnails and products */
-.session-card__content-switcher {
+.product-set-card__content-switcher {
   position: relative;
   margin-top: var(--space-4);
   width: 100%;
@@ -126,7 +126,7 @@
 }
 
 /* Thumbnails preview - horizontal scrollable film strip */
-.session-card__thumbnails {
+.product-set-card__thumbnails {
   display: flex;
   gap: 6px;
   align-items: center;
@@ -147,8 +147,8 @@
   transition: max-height 0.3s ease-out 0.12s, opacity 0.3s ease-out 0.12s, padding 0.3s ease-out 0.12s;
 }
 
-/* Collapse thumbnails when session is expanded */
-.session-card__content-switcher--expanded .session-card__thumbnails {
+/* Collapse thumbnails when product set is expanded */
+.product-set-card__content-switcher--expanded .product-set-card__thumbnails {
   max-height: 0;
   opacity: 0;
   padding-top: 0;
@@ -159,26 +159,26 @@
 }
 
 /* Webkit scrollbar styling (Chrome, Safari, Edge) */
-.session-card__thumbnails::-webkit-scrollbar {
+.product-set-card__thumbnails::-webkit-scrollbar {
   height: 6px;
 }
 
-.session-card__thumbnails::-webkit-scrollbar-track {
+.product-set-card__thumbnails::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 3px;
 }
 
-.session-card__thumbnails::-webkit-scrollbar-thumb {
+.product-set-card__thumbnails::-webkit-scrollbar-thumb {
   background-color: var(--color-border-secondary);
   border-radius: 3px;
   transition: background-color var(--transition-base);
 }
 
-.session-card__thumbnails::-webkit-scrollbar-thumb:hover {
+.product-set-card__thumbnails::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-border-primary);
 }
 
-.session-card__thumbnail {
+.product-set-card__thumbnail {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-md);
@@ -199,7 +199,7 @@
   animation: fadeInThumbnail 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.session-card__thumbnail:hover {
+.product-set-card__thumbnail:hover {
   transform: translateY(-4px) scale(1.05);
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -208,32 +208,32 @@
 /* Staggered thumbnail fade in - LEFT to RIGHT
    Delayed to start during latter half of parent card's fade-in (0.35s)
    Parent card takes 0.6s to fade in, thumbnails start at 0.35s when card is ~60% visible */
-.session-card__thumbnail:nth-child(1) { animation-delay: 0.35s; }
-.session-card__thumbnail:nth-child(2) { animation-delay: 0.4s; }
-.session-card__thumbnail:nth-child(3) { animation-delay: 0.45s; }
-.session-card__thumbnail:nth-child(4) { animation-delay: 0.5s; }
-.session-card__thumbnail:nth-child(5) { animation-delay: 0.55s; }
-.session-card__thumbnail:nth-child(6) { animation-delay: 0.6s; }
-.session-card__thumbnail:nth-child(n+7) { animation-delay: 0.65s; }
+.product-set-card__thumbnail:nth-child(1) { animation-delay: 0.35s; }
+.product-set-card__thumbnail:nth-child(2) { animation-delay: 0.4s; }
+.product-set-card__thumbnail:nth-child(3) { animation-delay: 0.45s; }
+.product-set-card__thumbnail:nth-child(4) { animation-delay: 0.5s; }
+.product-set-card__thumbnail:nth-child(5) { animation-delay: 0.55s; }
+.product-set-card__thumbnail:nth-child(6) { animation-delay: 0.6s; }
+.product-set-card__thumbnail:nth-child(n+7) { animation-delay: 0.65s; }
 
 /* Hide thumbnails when expanded - slide DOWN and fade */
-.session-card__content-switcher--expanded .session-card__thumbnail {
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail {
   opacity: 0;
   transform: translateY(12px) scale(0.9);
   transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow var(--transition-base);
 }
 
 /* Staggered thumbnail exit - LEFT to RIGHT */
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(1) { transition-delay: 0s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(2) { transition-delay: 0.05s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(3) { transition-delay: 0.10s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(4) { transition-delay: 0.15s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(5) { transition-delay: 0.20s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(6) { transition-delay: 0.25s; }
-.session-card__content-switcher--expanded .session-card__thumbnail:nth-child(n+7) { transition-delay: 0.30s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(1) { transition-delay: 0s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(2) { transition-delay: 0.05s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(3) { transition-delay: 0.10s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(4) { transition-delay: 0.15s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(5) { transition-delay: 0.20s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(6) { transition-delay: 0.25s; }
+.product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(n+7) { transition-delay: 0.30s; }
 
 /* Products wrapper - contains product list and collapse button */
-.session-card__products-wrapper {
+.product-set-card__products-wrapper {
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
@@ -242,12 +242,12 @@
   transition: grid-template-rows 0.3s ease-in;
 }
 
-.session-card__products-wrapper > * {
+.product-set-card__products-wrapper > * {
   min-height: 0; /* Allow grid collapse */
 }
 
 /* Show products when expanded */
-.session-card__content-switcher--expanded .session-card__products-wrapper {
+.product-set-card__content-switcher--expanded .product-set-card__products-wrapper {
   grid-template-rows: 1fr;
   pointer-events: auto;
   /* Start expanding early to overlap with thumbnail collapse - prevents height contraction */
@@ -255,13 +255,13 @@
 }
 
 /* Products inner wrapper */
-.session-card__products-inner {
+.product-set-card__products-inner {
   position: relative;
   width: 100%;
 }
 
 /* Session notes image in expanded view */
-.session-card__notes-image {
+.product-set-card__notes-image {
   margin-bottom: var(--space-4);
   text-align: center;
   opacity: 0;
@@ -270,13 +270,13 @@
 }
 
 /* Fade in and slide down when expanded */
-.session-card__content-switcher--expanded .session-card__notes-image {
+.product-set-card__content-switcher--expanded .product-set-card__notes-image {
   opacity: 1;
   transform: translateY(0);
   transition-delay: 0.15s;
 }
 
-.session-card__notes-image img {
+.product-set-card__notes-image img {
   max-width: 100%;
   max-height: 200px;
   object-fit: contain;
@@ -284,13 +284,13 @@
   cursor: pointer;
 }
 
-.session-card__notes-image img:hover {
+.product-set-card__notes-image img:hover {
   opacity: 0.9;
   transition: opacity 0.15s ease;
 }
 
 /* Collapse button wrapper - positioned in header at bottom right */
-.session-card__collapse-btn-wrapper {
+.product-set-card__collapse-btn-wrapper {
   position: absolute;
   bottom: 0;
   right: 0;
@@ -302,7 +302,7 @@
 }
 
 /* Actions - buttons on the right */
-.session-card__actions {
+.product-set-card__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -323,7 +323,7 @@
 }
 
 /* Collapse button */
-.session-card__collapse-btn {
+.product-set-card__collapse-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -341,23 +341,23 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.session-card__collapse-btn svg {
+.product-set-card__collapse-btn svg {
   width: 16px;
   height: 16px;
 }
 
-.session-card__collapse-btn:hover {
+.product-set-card__collapse-btn:hover {
   background-color: var(--color-bg-hover);
   border-color: var(--color-border-primary);
   color: var(--color-text-primary);
 }
 
-.session-card__collapse-btn:active {
+.product-set-card__collapse-btn:active {
   transform: translateY(1px);
 }
 
 /* Product list - grid layout for cards */
-.session-card__product-list {
+.product-set-card__product-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--space-4);
@@ -365,7 +365,7 @@
 }
 
 /* Product item - horizontal card layout */
-.session-card__product-item {
+.product-set-card__product-item {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -386,7 +386,7 @@
 }
 
 /* Product link - wraps clickable product content */
-.session-card__product-link {
+.product-set-card__product-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -397,7 +397,7 @@
 }
 
 /* Show products when expanded - using transitions instead of animations */
-.session-card__content-switcher--expanded .session-card__product-item {
+.product-set-card__content-switcher--expanded .product-set-card__product-item {
   opacity: 1;
   transform: translateY(0);
   /* Slower transition for opening with smooth easing */
@@ -405,20 +405,20 @@
 }
 
 /* Stagger transition delays for product items - overlaps with thumbnail exit for smooth flow (left to right) */
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(1) { transition-delay: 0.25s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(2) { transition-delay: 0.31s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(3) { transition-delay: 0.37s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(4) { transition-delay: 0.43s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(5) { transition-delay: 0.49s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(6) { transition-delay: 0.55s; }
-.session-card__content-switcher--expanded .session-card__product-item:nth-child(n+7) { transition-delay: 0.61s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(1) { transition-delay: 0.25s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(2) { transition-delay: 0.31s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(3) { transition-delay: 0.37s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(4) { transition-delay: 0.43s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(5) { transition-delay: 0.49s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(6) { transition-delay: 0.55s; }
+.product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(n+7) { transition-delay: 0.61s; }
 
-.session-card__product-item:hover {
+.product-set-card__product-item:hover {
   border-color: var(--color-border-primary);
   background-color: var(--color-bg-hover);
 }
 
-.session-card__product-position {
+.product-set-card__product-position {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -433,7 +433,7 @@
   flex-shrink: 0;
 }
 
-.session-card__product-image {
+.product-set-card__product-image {
   width: 64px;
   height: 64px;
   object-fit: contain;
@@ -442,7 +442,7 @@
   background-color: var(--color-bg-tertiary);
 }
 
-.session-card__product-name {
+.product-set-card__product-name {
   flex: 1;
   font-size: var(--text-base);
   font-weight: var(--font-medium);
@@ -461,7 +461,7 @@
 }
 
 /* Add product button */
-.session-card__add-product-btn {
+.product-set-card__add-product-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -482,14 +482,14 @@
   transition-delay: 0s;
 }
 
-.session-card__add-product-btn:hover {
+.product-set-card__add-product-btn:hover {
   border-color: var(--color-border-primary);
   background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
 
 /* Show add button when parent is expanded - appears after product items */
-.session-card__content-switcher--expanded .session-card__add-product-btn {
+.product-set-card__content-switcher--expanded .product-set-card__add-product-btn {
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--transition-base), border-color var(--transition-base);
@@ -497,7 +497,7 @@
 }
 
 /* Product actions - buttons on the right */
-.session-card__product-actions {
+.product-set-card__product-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -506,7 +506,7 @@
   flex-shrink: 0;
 }
 
-.session-card__product-actions .button {
+.product-set-card__product-actions .button {
   position: relative;
   z-index: 1;
   width: 32px;
@@ -519,9 +519,9 @@
   line-height: 1;
 }
 
-/* Ensure session card is above others when menu is open */
-.session-card:has(.session-menu:not([style*="display: none"])),
-.session-card:has(.session-menu.fade-in) {
+/* Ensure product set card is above others when menu is open */
+.product-set-card:has(.product-set-menu:not([style*="display: none"])),
+.product-set-card:has(.product-set-menu.fade-in) {
   position: relative;
   z-index: 100;
 }
@@ -564,7 +564,7 @@
   border-color: var(--color-border-primary);
 }
 
-.session-menu {
+.product-set-menu {
   position: absolute;
   right: 0;
   top: calc(100% + var(--space-2));
@@ -578,11 +578,11 @@
 }
 
 /* LiveView transition classes */
-.session-menu.fade-in {
+.product-set-menu.fade-in {
   animation: fadeInMenu 0.2s ease-out;
 }
 
-.session-menu.fade-out {
+.product-set-menu.fade-out {
   animation: fadeOutMenu 0.2s ease-out;
 }
 
@@ -628,7 +628,7 @@
   }
 }
 
-.session-menu__item {
+.product-set-menu__item {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -646,23 +646,23 @@
   white-space: nowrap;
 }
 
-.session-menu__item:hover {
+.product-set-menu__item:hover {
   background-color: var(--color-bg-hover);
 }
 
-.session-menu__item:active {
+.product-set-menu__item:active {
   transform: translateY(1px);
 }
 
-.session-menu__item--danger {
+.product-set-menu__item--danger {
   color: var(--color-accent-red);
 }
 
-.session-menu__item--danger:hover {
+.product-set-menu__item--danger:hover {
   background-color: rgba(239, 68, 68, 0.1);
 }
 
-.session-menu__divider {
+.product-set-menu__divider {
   height: 1px;
   background-color: var(--color-border-secondary);
   margin: var(--space-2) 0;
@@ -703,55 +703,55 @@
 }
 
 /* Prevent text selection during drag */
-.session-card__product-list.sortable-drag-active {
+.product-set-card__product-list.sortable-drag-active {
   user-select: none;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   /* Reduce card padding on mobile */
-  .session-card {
+  .product-set-card {
     padding: var(--space-4);
   }
 
   /* Make title smaller and more compact */
-  .session-card__title {
+  .product-set-card__title {
     font-size: var(--text-lg);
   }
 
-  .session-card__title-row {
+  .product-set-card__title-row {
     margin-bottom: var(--space-2);
   }
 
   /* Make meta items more compact */
-  .session-card__meta {
+  .product-set-card__meta {
     gap: var(--space-3);
     font-size: var(--text-xs);
   }
 
-  .session-card__meta-item {
+  .product-set-card__meta-item {
     gap: var(--space-1);
   }
 
   /* Hide icons on mobile to save space */
-  .session-card__meta-item .size-4 {
+  .product-set-card__meta-item .size-4 {
     display: none;
   }
 
   /* Keep header as row on mobile - don't stack */
-  .session-card__header {
+  .product-set-card__header {
     gap: var(--space-2);
     align-items: flex-start;
   }
 
   /* Allow title group to wrap and shrink */
-  .session-card__title-group {
+  .product-set-card__title-group {
     flex: 1;
     min-width: 0;
   }
 
   /* Actions: grid layout with buttons stacked left, menu right */
-  .session-card__actions {
+  .product-set-card__actions {
     display: grid;
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;
@@ -761,25 +761,25 @@
   }
 
   /* First two buttons stack in column 1 */
-  .session-card__actions > .button:nth-child(1) {
+  .product-set-card__actions > .button:nth-child(1) {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .session-card__actions > .button:nth-child(2) {
+  .product-set-card__actions > .button:nth-child(2) {
     grid-column: 1;
     grid-row: 2;
   }
 
   /* Menu container spans both rows in column 2 */
-  .session-card__actions > .menu-container {
+  .product-set-card__actions > .menu-container {
     grid-column: 2;
     grid-row: 1 / 3;
     align-self: center;
   }
 
   /* Make buttons much more compact - just icons/abbreviations */
-  .session-card__actions .button--sm {
+  .product-set-card__actions .button--sm {
     padding: var(--space-1) var(--space-2);
     font-size: 10px;
     min-width: 60px;
@@ -795,39 +795,39 @@
   }
 
   /* Notes text smaller */
-  .session-card__notes {
+  .product-set-card__notes {
     font-size: var(--text-xs);
     padding-right: 0;
   }
 
   /* Thumbnails slightly smaller on mobile */
-  .session-card__thumbnail {
+  .product-set-card__thumbnail {
     width: 44px;
     height: 44px;
   }
 
   /* Product list single column */
-  .session-card__product-list {
+  .product-set-card__product-list {
     grid-template-columns: 1fr;
   }
 
   /* Smaller product images in expanded view */
-  .session-card__product-image {
+  .product-set-card__product-image {
     width: 56px;
     height: 56px;
   }
 
-  .session-card__product-name {
+  .product-set-card__product-name {
     font-size: var(--text-sm);
   }
 }
 
 /* ============================================================================
    LINKED STREAM THUMBNAILS
-   Stream thumbnails shown in expanded session view
+   Stream thumbnails shown in expanded product set view
    ============================================================================ */
 
-.session-card__streams {
+.product-set-card__streams {
   margin-bottom: var(--space-4);
   opacity: 0;
   transform: translateY(-8px);
@@ -835,13 +835,13 @@
 }
 
 /* Fade in and slide down when expanded */
-.session-card__content-switcher--expanded .session-card__streams {
+.product-set-card__content-switcher--expanded .product-set-card__streams {
   opacity: 1;
   transform: translateY(0);
   transition-delay: 0.1s;
 }
 
-.session-card__streams-label {
+.product-set-card__streams-label {
   display: block;
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
@@ -849,13 +849,13 @@
   margin-bottom: var(--space-2);
 }
 
-.session-card__streams-list {
+.product-set-card__streams-list {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
 }
 
-.session-card__stream-thumb {
+.product-set-card__stream-thumb {
   position: relative;
   display: block;
   text-decoration: none;
@@ -864,13 +864,13 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.session-card__stream-thumb:hover {
+.product-set-card__stream-thumb:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 /* Override stream-thumbnail styles for this context - preserve aspect ratio */
-.session-card__stream-thumb .stream-thumbnail {
+.product-set-card__stream-thumb .stream-thumbnail {
   width: auto;
   height: auto;
   max-width: 120px;
@@ -878,7 +878,7 @@
   aspect-ratio: auto;
 }
 
-.session-card__stream-thumb .stream-thumbnail__image {
+.product-set-card__stream-thumb .stream-thumbnail__image {
   width: auto;
   height: auto;
   max-width: 120px;
@@ -886,12 +886,12 @@
   object-fit: contain;
 }
 
-.session-card__stream-thumb .stream-thumbnail__placeholder {
+.product-set-card__stream-thumb .stream-thumbnail__placeholder {
   width: 80px;
   height: 120px;
 }
 
-.session-card__stream-status {
+.product-set-card__stream-status {
   position: absolute;
   bottom: var(--space-1);
   left: var(--space-1);

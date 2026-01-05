@@ -555,7 +555,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp auto_link_stream(stream_id) do
-    case Pavoi.TiktokLive.auto_link_stream_to_session(stream_id) do
+    case Pavoi.TiktokLive.auto_link_stream_to_product_set(stream_id) do
       {:ok, _session_stream} ->
         Logger.info("Stream #{stream_id} auto-linked to session")
 

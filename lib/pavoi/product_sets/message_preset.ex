@@ -1,8 +1,8 @@
-defmodule Pavoi.Sessions.MessagePreset do
+defmodule Pavoi.ProductSets.MessagePreset do
   @moduledoc """
   Represents a preset message template that can be sent to the host.
 
-  Presets are global and can be used across all sessions. Each preset includes
+  Presets are global and can be used across all product sets. Each preset includes
   a label, message text, and color for visual styling on the host view.
   """
   use Ecto.Schema

@@ -1,6 +1,6 @@
-defmodule PavoiWeb.SessionControllerLive.Index do
+defmodule PavoiWeb.ProductSetControllerLive.Index do
   @moduledoc """
-  Compact controller view for mobile/tablet session management.
+  Compact controller view for mobile/tablet product set management.
   Optimized for touch-based product navigation with:
   - Haptic feedback on product selection
   - Collapsible message and voice control panels
@@ -12,12 +12,12 @@ defmodule PavoiWeb.SessionControllerLive.Index do
 
   import PavoiWeb.ViewHelpers
 
-  alias Pavoi.Sessions
+  alias Pavoi.ProductSets
 
   @impl true
-  def mount(%{"id" => session_id}, _session, socket) do
-    session = Sessions.get_session!(session_id)
-    message_presets = Sessions.list_message_presets()
+  def mount(%{"id" => product_set_id}, _session, socket) do
+    product_set = ProductSets.get_product_set!(product_set_id)
+    message_presets = ProductSets.list_message_presets()
     voice_control_enabled = Application.get_env(:pavoi, :features)[:voice_control_enabled]
 
     voice_assets = %{
@@ -29,14 +29,14 @@ defmodule PavoiWeb.SessionControllerLive.Index do
 
     socket =
       assign(socket,
-        session: session,
-        session_id: String.to_integer(session_id),
-        page_title: "#{session.name} - Controller",
-        current_session_product: nil,
+        product_set: product_set,
+        product_set_id: String.to_integer(product_set_id),
+        page_title: "#{product_set.name} - Controller",
+        current_product_set_product: nil,
         current_product: nil,
         current_position: nil,
         current_image_index: 0,
-        total_products: length(session.session_products),
+        total_products: length(product_set.product_set_products),
         host_message: nil,
         message_draft: "",
         selected_color: "amber",
@@ -45,12 +45,12 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         show_preset_modal: false,
         voice_assets: voice_assets,
         voice_control_enabled: voice_control_enabled,
-        session_notes_visible: false
+        product_set_notes_visible: false
       )
 
     socket =
       if connected?(socket) do
-        subscribe_to_session(session_id)
+        subscribe_to_product_set(product_set_id)
         load_initial_state(socket)
       else
         socket
@@ -66,7 +66,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
   def handle_event("jump_to_product", %{"position" => position}, socket) do
     position = String.to_integer(position)
 
-    case Sessions.jump_to_product(socket.assigns.session_id, position) do
+    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
       {:ok, _new_state} ->
         {:reply, %{success: true, position: position}, socket}
 
@@ -88,7 +88,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         current + 1
       end
 
-    Sessions.jump_to_product(socket.assigns.session_id, next_position)
+    ProductSets.jump_to_product(socket.assigns.product_set_id, next_position)
     {:noreply, socket}
   end
 
@@ -105,23 +105,23 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         current - 1
       end
 
-    Sessions.jump_to_product(socket.assigns.session_id, prev_position)
+    ProductSets.jump_to_product(socket.assigns.product_set_id, prev_position)
     {:noreply, socket}
   end
 
-  # Session Notes Toggle (controls host view)
+  # Product Set Notes Toggle (controls host view)
   @impl true
-  def handle_event("toggle_session_notes", _params, socket) do
-    new_visible = !socket.assigns.session_notes_visible
+  def handle_event("toggle_product_set_notes", _params, socket) do
+    new_visible = !socket.assigns.product_set_notes_visible
 
     # Broadcast to host view
     Phoenix.PubSub.broadcast(
       Pavoi.PubSub,
-      "session:#{socket.assigns.session_id}:ui",
-      {:session_notes_toggle, new_visible}
+      "product_set:#{socket.assigns.product_set_id}:ui",
+      {:product_set_notes_toggle, new_visible}
     )
 
-    {:noreply, assign(socket, :session_notes_visible, new_visible)}
+    {:noreply, assign(socket, :product_set_notes_visible, new_visible)}
   end
 
   # Host Message Controls
@@ -134,7 +134,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
   def handle_event("send_host_message", %{"message" => message_text}, socket) do
     color = socket.assigns.selected_color
 
-    case Sessions.send_host_message(socket.assigns.session_id, message_text, color) do
+    case ProductSets.send_host_message(socket.assigns.product_set_id, message_text, color) do
       {:ok, _state} ->
         socket =
           socket
@@ -160,7 +160,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
 
   @impl true
   def handle_event("clear_host_message", _params, socket) do
-    case Sessions.clear_host_message(socket.assigns.session_id) do
+    case ProductSets.clear_host_message(socket.assigns.product_set_id) do
       {:ok, _state} ->
         {:noreply, socket}
 
@@ -194,7 +194,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         {:noreply, put_flash(socket, :error, "Preset not found")}
 
       %{message_text: text, color: color} ->
-        case Sessions.send_host_message(socket.assigns.session_id, text, color) do
+        case ProductSets.send_host_message(socket.assigns.product_set_id, text, color) do
           {:ok, _state} ->
             socket =
               socket
@@ -213,9 +213,9 @@ defmodule PavoiWeb.SessionControllerLive.Index do
 
   @impl true
   def handle_event("create_preset", %{"message_text" => message_text, "color" => color}, socket) do
-    case Sessions.create_message_preset(%{message_text: message_text, color: color}) do
+    case ProductSets.create_message_preset(%{message_text: message_text, color: color}) do
       {:ok, _preset} ->
-        message_presets = Sessions.list_message_presets()
+        message_presets = ProductSets.list_message_presets()
 
         socket =
           socket
@@ -242,9 +242,9 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         {:noreply, put_flash(socket, :error, "Preset not found")}
 
       preset ->
-        case Sessions.delete_message_preset(preset) do
+        case ProductSets.delete_message_preset(preset) do
           {:ok, _} ->
-            message_presets = Sessions.list_message_presets()
+            message_presets = ProductSets.list_message_presets()
 
             socket =
               socket
@@ -262,72 +262,72 @@ defmodule PavoiWeb.SessionControllerLive.Index do
   # Handle PubSub broadcasts from other clients
   @impl true
   def handle_info({:state_changed, new_state}, socket) do
-    socket = load_state_from_session_state(socket, new_state)
+    socket = load_state_from_product_set_state(socket, new_state)
     {:noreply, socket}
   end
 
-  # Handle session notes toggle from host view
+  # Handle product set notes toggle from host view
   @impl true
-  def handle_info({:session_notes_toggle, visible}, socket) do
-    {:noreply, assign(socket, :session_notes_visible, visible)}
+  def handle_info({:product_set_notes_toggle, visible}, socket) do
+    {:noreply, assign(socket, :product_set_notes_visible, visible)}
   end
 
   ## Private Helpers
 
-  defp subscribe_to_session(session_id) do
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:state")
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:ui")
+  defp subscribe_to_product_set(product_set_id) do
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_set:#{product_set_id}:state")
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_set:#{product_set_id}:ui")
   end
 
   defp load_initial_state(socket) do
-    session_id = socket.assigns.session_id
+    product_set_id = socket.assigns.product_set_id
 
-    case Sessions.get_session_state(session_id) do
-      {:ok, %{current_session_product_id: nil}} ->
-        case Sessions.initialize_session_state(session_id) do
-          {:ok, state} -> load_state_from_session_state(socket, state)
+    case ProductSets.get_product_set_state(product_set_id) do
+      {:ok, %{current_product_set_product_id: nil}} ->
+        case ProductSets.initialize_product_set_state(product_set_id) do
+          {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket
         end
 
       {:ok, state} ->
-        load_state_from_session_state(socket, state)
+        load_state_from_product_set_state(socket, state)
 
       {:error, :not_found} ->
-        case Sessions.initialize_session_state(session_id) do
-          {:ok, state} -> load_state_from_session_state(socket, state)
+        case ProductSets.initialize_product_set_state(product_set_id) do
+          {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket
         end
     end
   end
 
-  defp load_by_session_product_id(socket, session_product_id, image_index) do
-    session_product = Sessions.get_session_product!(session_product_id)
-    product = session_product.product
-    session = socket.assigns.session
+  defp load_by_product_set_product_id(socket, product_set_product_id, image_index) do
+    product_set_product = ProductSets.get_product_set_product!(product_set_product_id)
+    product = product_set_product.product
+    product_set = socket.assigns.product_set
 
     display_position =
-      session.session_products
+      product_set.product_set_products
       |> Enum.sort_by(& &1.position)
-      |> Enum.find_index(&(&1.id == session_product_id))
+      |> Enum.find_index(&(&1.id == product_set_product_id))
       |> case do
-        nil -> session_product.position
+        nil -> product_set_product.position
         index -> index + 1
       end
 
     assign(socket,
-      current_session_product: session_product,
+      current_product_set_product: product_set_product,
       current_product: product,
       current_image_index: image_index,
       current_position: display_position
     )
   end
 
-  defp load_state_from_session_state(socket, state) do
+  defp load_state_from_product_set_state(socket, state) do
     socket =
-      if state.current_session_product_id do
-        load_by_session_product_id(
+      if state.current_product_set_product_id do
+        load_by_product_set_product_id(
           socket,
-          state.current_session_product_id,
+          state.current_product_set_product_id,
           state.current_image_index
         )
       else
@@ -340,7 +340,7 @@ defmodule PavoiWeb.SessionControllerLive.Index do
         text: state.current_host_message_text,
         id: state.current_host_message_id,
         timestamp: state.current_host_message_timestamp,
-        color: state.current_host_message_color || Sessions.default_message_color()
+        color: state.current_host_message_color || ProductSets.default_message_color()
       })
       |> assign(:message_draft, state.current_host_message_text)
     else

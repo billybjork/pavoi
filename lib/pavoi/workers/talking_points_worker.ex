@@ -2,7 +2,7 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
   @moduledoc """
   Oban worker that generates AI-powered talking points for products.
 
-  Processes single products or batches of products from a session, using
+  Processes single products or batches of products from a product set, using
   OpenAI's API to generate TikTok livestream-optimized talking points.
 
   ## Features
@@ -14,7 +14,7 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
   ## Job Arguments
   - `job_id` - Unique identifier for tracking this generation
   - `product_ids` - List of product IDs to process
-  - `session_id` - Optional session ID (for batch operations)
+  - `product_set_id` - Optional product set ID (for batch operations)
   """
 
   use Oban.Worker, queue: :default, max_attempts: 1
@@ -28,13 +28,13 @@ defmodule Pavoi.Workers.TalkingPointsWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"job_id" => job_id, "product_ids" => product_ids} = args}) do
-    session_id = Map.get(args, "session_id")
+    product_set_id = Map.get(args, "product_set_id")
 
     Logger.info("""
     Starting talking points generation:
     - Job ID: #{job_id}
     - Products: #{length(product_ids)}
-    - Session: #{session_id || "N/A"}
+    - Product Set: #{product_set_id || "N/A"}
     """)
 
     # Get the generation record

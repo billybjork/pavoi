@@ -12,14 +12,13 @@ defmodule PavoiWeb.NavHooks do
     {:cont, socket}
   end
 
-  defp get_current_page(PavoiWeb.SessionsLive.Index), do: :sessions
-  defp get_current_page(PavoiWeb.ProductsLive.Index), do: :products
+  defp get_current_page(PavoiWeb.ProductSetsLive.Index), do: :product_sets
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
   defp get_current_page(PavoiWeb.TiktokLive.Index), do: :streams
   defp get_current_page(PavoiWeb.ReadmeLive.Index), do: :readme
   # Full-page views return nil so navbar doesn't show
-  defp get_current_page(PavoiWeb.SessionHostLive), do: nil
-  defp get_current_page(PavoiWeb.SessionControllerLive), do: nil
+  defp get_current_page(PavoiWeb.ProductSetHostLive.Index), do: nil
+  defp get_current_page(PavoiWeb.ProductSetControllerLive.Index), do: nil
   defp get_current_page(PavoiWeb.TemplateEditorLive), do: nil
   defp get_current_page(_), do: nil
 end

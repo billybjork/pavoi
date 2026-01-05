@@ -41,29 +41,13 @@ config :pavoi, Pavoi.Mailer, adapter: Swoosh.Adapters.Local
 config :pavoi, :creator_avatars, store_in_storage: true, store_locally: false
 
 # Configure Oban background job processing
+# Base configuration (applies to all environments)
 config :pavoi, Oban,
   repo: Pavoi.Repo,
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # Rescue jobs stuck in "executing" state after deploy/crash (check every 30s, rescue after 60s)
-    {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)},
-    {Oban.Plugins.Cron,
-     crontab: [
-       # Sync products every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.ShopifySyncWorker},
-       # Sync TikTok Shop products every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker},
-       # Sync BigQuery orders to Creator CRM every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.BigQueryOrderSyncWorker},
-       # Refresh TikTok access token every 30 minutes (prevents token expiration)
-       {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker},
-       # Monitor TikTok live status every 2 minutes
-       {"*/2 * * * *", Pavoi.Workers.TiktokLiveMonitorWorker},
-       # Enrich creator profiles from TikTok Marketplace API every 30 minutes
-       # Small batches (75) complete quickly, avoiding rate limits
-       # 48 runs/day × 75 = 3600 creators/day (with margin for rate limit pauses)
-       {"*/30 * * * *", Pavoi.Workers.CreatorEnrichmentWorker}
-     ]}
+    {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)}
   ],
   queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2, slack: 3]
 

@@ -32,13 +32,13 @@ defmodule Pavoi.TiktokLive.Stream do
     field :report_sent_at, :utc_datetime
     field :sentiment_analysis, :string
 
-    belongs_to :session, Pavoi.Sessions.Session
+    belongs_to :product_set, Pavoi.ProductSets.ProductSet
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
     has_many :stream_products, Pavoi.TiktokLive.StreamProduct, foreign_key: :stream_id
-    has_many :session_streams, Pavoi.TiktokLive.SessionStream, foreign_key: :stream_id
-    has_many :sessions, through: [:session_streams, :session]
+    has_many :product_set_streams, Pavoi.TiktokLive.ProductSetStream, foreign_key: :stream_id
+    has_many :product_sets, through: [:product_set_streams, :product_set]
 
     timestamps()
   end
@@ -65,11 +65,11 @@ defmodule Pavoi.TiktokLive.Stream do
       :gmv_cents,
       :gmv_order_count,
       :gmv_hourly,
-      :session_id,
+      :product_set_id,
       :sentiment_analysis
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
-    |> foreign_key_constraint(:session_id)
+    |> foreign_key_constraint(:product_set_id)
   end
 
   @doc """

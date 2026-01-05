@@ -35,7 +35,7 @@ defmodule Pavoi.StreamReport do
     stream = TiktokLive.get_stream!(stream_id)
 
     # Auto-link to session if not already linked
-    TiktokLive.auto_link_stream_to_session(stream_id)
+    TiktokLive.auto_link_stream_to_product_set(stream_id)
 
     # Get basic stats
     stats = get_stats(stream)
@@ -107,7 +107,7 @@ defmodule Pavoi.StreamReport do
   end
 
   defp get_top_products(stream_id) do
-    case TiktokLive.get_linked_sessions(stream_id) do
+    case TiktokLive.get_linked_product_sets(stream_id) do
       [session | _] ->
         TiktokLive.get_product_interest_summary(stream_id, session.id)
         |> Enum.take(5)

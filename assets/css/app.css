@@ -31,9 +31,9 @@
 @import "./04-layouts/compositions.css";
 
 /* Pages Layer - Page-specific styles */
-@import "./04-pages/session-index.css";
-@import "./04-pages/session-host.css";
-@import "./04-pages/session-controller.css";
+@import "./04-pages/product-set-index.css";
+@import "./04-pages/product-set-host.css";
+@import "./04-pages/product-set-controller.css";
 @import "./04-pages/creators-index.css";
 @import "./04-pages/join.css";
 @import "./04-pages/login.css";

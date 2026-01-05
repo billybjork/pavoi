@@ -2,7 +2,7 @@ defmodule Pavoi.Catalog.Brand do
   @moduledoc """
   Represents a brand in the system.
 
-  Brands own products and sessions. Each brand has a unique slug for URL routing.
+  Brands own products and product sets. Each brand has a unique slug for URL routing.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -13,7 +13,7 @@ defmodule Pavoi.Catalog.Brand do
     field :notes, :string
 
     has_many :products, Pavoi.Catalog.Product
-    has_many :sessions, Pavoi.Sessions.Session
+    has_many :product_sets, Pavoi.ProductSets.ProductSet
 
     timestamps()
   end

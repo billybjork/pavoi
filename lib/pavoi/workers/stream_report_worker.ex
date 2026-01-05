@@ -13,9 +13,8 @@ defmodule Pavoi.Workers.StreamReportWorker do
   - `stream_id` - ID of the completed stream
   """
 
-  # Compile-time check for dev mode - Mix.env() is not available at runtime in releases
-  @is_dev Mix.env() == :dev
-  @unique_opts if @is_dev, do: false, else: [period: 300, keys: [:stream_id]]
+  # Compile-time check for unique opts only (safe since uniqueness is an Oban compile-time concern)
+  @unique_opts if Mix.env() == :dev, do: false, else: [period: 300, keys: [:stream_id]]
   @live_check_retry_seconds 120
   @live_check_grace_seconds 120
 
@@ -55,7 +54,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
       # Guard 2: Only send one report per stream (prod only)
       # (prevents duplicates if stream ends multiple times due to resume cycles)
       # In dev, allow re-sending for testing purposes
-      stream.report_sent_at != nil and not @is_dev ->
+      stream.report_sent_at != nil and not dev_mode?() ->
         Logger.info(
           "Skipping report for stream #{stream.id} - already sent at #{stream.report_sent_at}"
         )
@@ -116,11 +115,15 @@ defmodule Pavoi.Workers.StreamReportWorker do
     Application.get_env(:pavoi, :verify_stream_live_status, true)
   end
 
+  defp dev_mode? do
+    Application.get_env(:pavoi, :env) == :dev
+  end
+
   defp generate_and_send_report(stream_id) do
     # Claim FIRST to prevent multiple workers doing duplicate expensive work
     # (classification, sentiment analysis, GMV API calls)
     # In dev, skip the claim to allow re-sending for testing
-    if @is_dev do
+    if dev_mode?() do
       do_generate_and_send_report(stream_id)
     else
       case TiktokLive.mark_report_sent(stream_id) do

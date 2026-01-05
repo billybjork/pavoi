@@ -32,8 +32,8 @@ defmodule Pavoi.TiktokLive do
   require Logger
 
   alias Pavoi.Repo
-  alias Pavoi.Sessions.SessionProduct
-  alias Pavoi.TiktokLive.{Client, Comment, SessionStream, Stream, StreamStat}
+  alias Pavoi.ProductSets.ProductSetProduct
+  alias Pavoi.TiktokLive.{Client, Comment, ProductSetStream, Stream, StreamStat}
   alias Pavoi.Workers.{TiktokLiveMonitorWorker, TiktokLiveStreamWorker}
 
   ## Streams
@@ -63,7 +63,7 @@ defmodule Pavoi.TiktokLive do
     Stream
     |> apply_filters(opts)
     |> apply_sorting(opts)
-    |> preload(session: :session_products)
+    |> preload(product_set: :product_set_products)
     |> Repo.all()
   end
 
@@ -974,42 +974,42 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
-  ## Session-Stream Linking
+  ## Product Set-Stream Linking
 
   @doc """
-  Links a stream to a session.
+  Links a stream to a product set.
 
   ## Options
 
   - `:linked_by` - "manual" (default) or "auto"
   - `:parse_comments` - If true (default), parses comments for product numbers
 
-  Returns `{:ok, session_stream}` or `{:error, changeset}`.
+  Returns `{:ok, product_set_stream}` or `{:error, changeset}`.
   """
-  def link_stream_to_session(stream_id, session_id, opts \\ []) do
+  def link_stream_to_product_set(stream_id, product_set_id, opts \\ []) do
     linked_by = Keyword.get(opts, :linked_by, "manual")
     parse_comments = Keyword.get(opts, :parse_comments, true)
 
-    # Update the stream's session_id directly
+    # Update the stream's product_set_id directly
     stream = get_stream!(stream_id)
 
     stream
-    |> Stream.changeset(%{session_id: session_id})
+    |> Stream.changeset(%{product_set_id: product_set_id})
     |> Repo.update()
     |> case do
       {:ok, updated_stream} ->
         # Also insert into legacy join table for compatibility
-        %SessionStream{}
-        |> SessionStream.changeset(%{
+        %ProductSetStream{}
+        |> ProductSetStream.changeset(%{
           stream_id: stream_id,
-          session_id: session_id,
+          product_set_id: product_set_id,
           linked_at: DateTime.utc_now() |> DateTime.truncate(:second),
           linked_by: linked_by
         })
         |> Repo.insert(on_conflict: :nothing)
 
         if parse_comments do
-          parse_comments_for_session(stream_id, session_id)
+          parse_comments_for_product_set(stream_id, product_set_id)
         end
 
         {:ok, updated_stream}
@@ -1020,26 +1020,26 @@ defmodule Pavoi.TiktokLive do
   end
 
   @doc """
-  Unlinks a stream from a session.
+  Unlinks a stream from a product set.
 
   Also clears parsed product associations from comments.
   """
-  def unlink_stream_from_session(stream_id, session_id) do
-    # Clear session_product_id from comments for this stream+session combo
-    clear_parsed_products_for_link(stream_id, session_id)
+  def unlink_stream_from_product_set(stream_id, product_set_id) do
+    # Clear product_set_product_id from comments for this stream+product_set combo
+    clear_parsed_products_for_link(stream_id, product_set_id)
 
-    # Clear the direct session_id on the stream (if it matches)
+    # Clear the direct product_set_id on the stream (if it matches)
     stream = get_stream!(stream_id)
 
-    if stream.session_id == session_id do
+    if stream.product_set_id == product_set_id do
       stream
-      |> Stream.changeset(%{session_id: nil})
+      |> Stream.changeset(%{product_set_id: nil})
       |> Repo.update()
     end
 
     # Also remove from legacy join table
-    from(ss in SessionStream,
-      where: ss.stream_id == ^stream_id and ss.session_id == ^session_id
+    from(pss in ProductSetStream,
+      where: pss.stream_id == ^stream_id and pss.product_set_id == ^product_set_id
     )
     |> Repo.delete_all()
 
@@ -1047,97 +1047,97 @@ defmodule Pavoi.TiktokLive do
   end
 
   @doc """
-  Gets the session linked to a stream (if any).
+  Gets the product set linked to a stream (if any).
 
-  Returns a list for backward compatibility, but will contain at most one session
-  since a stream can only be linked to one session.
+  Returns a list for backward compatibility, but will contain at most one product set
+  since a stream can only be linked to one product set.
   """
-  def get_linked_sessions(stream_id) do
+  def get_linked_product_sets(stream_id) do
     stream =
       from(s in Stream,
         where: s.id == ^stream_id,
-        preload: [session: :session_products]
+        preload: [product_set: :product_set_products]
       )
       |> Repo.one()
 
     case stream do
-      %{session: %{} = session} -> [session]
+      %{product_set: %{} = product_set} -> [product_set]
       _ -> []
     end
   end
 
   @doc """
-  Gets all streams linked to a session.
+  Gets all streams linked to a product set.
   """
-  def get_linked_streams(session_id) do
-    from(ss in SessionStream,
-      where: ss.session_id == ^session_id,
-      join: st in assoc(ss, :stream),
+  def get_linked_streams(product_set_id) do
+    from(pss in ProductSetStream,
+      where: pss.product_set_id == ^product_set_id,
+      join: st in assoc(pss, :stream),
       preload: [stream: st],
-      order_by: [desc: ss.linked_at]
+      order_by: [desc: pss.linked_at]
     )
     |> Repo.all()
     |> Enum.map(& &1.stream)
   end
 
   @doc """
-  Detects which session was actively used during a stream based on session_state updates.
+  Detects which product set was actively used during a stream based on product_set_state updates.
 
-  Returns the session whose state was updated during the stream's time window.
-  If multiple sessions were active, returns the one with the most recent update
-  (indicating it was the primary/last session used).
+  Returns the product set whose state was updated during the stream's time window.
+  If multiple product sets were active, returns the one with the most recent update
+  (indicating it was the primary/last product set used).
 
-  Returns `{:ok, session}` if a session was detected, `:none` otherwise.
+  Returns `{:ok, product_set}` if a product set was detected, `:none` otherwise.
   """
-  def detect_active_session(stream_id) do
+  def detect_active_product_set(stream_id) do
     stream = get_stream!(stream_id)
 
-    # Stream must have both started_at and ended_at to detect session
+    # Stream must have both started_at and ended_at to detect product set
     if is_nil(stream.started_at) or is_nil(stream.ended_at) do
       :none
     else
-      # Find session_states that were updated during the stream window
-      # Order by most recent update (the primary session being used at stream end)
+      # Find product_set_states that were updated during the stream window
+      # Order by most recent update (the primary product set being used at stream end)
       query =
-        from(ss in Pavoi.Sessions.SessionState,
-          where: ss.updated_at >= ^stream.started_at,
-          where: ss.updated_at <= ^stream.ended_at,
-          join: s in assoc(ss, :session),
-          order_by: [desc: ss.updated_at],
+        from(pss in Pavoi.ProductSets.ProductSetState,
+          where: pss.updated_at >= ^stream.started_at,
+          where: pss.updated_at <= ^stream.ended_at,
+          join: ps in assoc(pss, :product_set),
+          order_by: [desc: pss.updated_at],
           limit: 1,
-          select: s
+          select: ps
         )
 
       case Repo.one(query) do
         nil -> :none
-        session -> {:ok, session}
+        product_set -> {:ok, product_set}
       end
     end
   end
 
   @doc """
-  Attempts to auto-link a stream to a session based on session controller activity.
+  Attempts to auto-link a stream to a product set based on controller activity.
 
-  This should be called when a stream ends. It detects which session was being
+  This should be called when a stream ends. It detects which product set was being
   used during the stream and automatically links them.
 
-  Returns `{:ok, session_stream}` if auto-linked, `:none` if no session detected,
-  or `{:already_linked, session}` if the stream is already linked to a session.
+  Returns `{:ok, product_set_stream}` if auto-linked, `:none` if no product set detected,
+  or `{:already_linked, product_set}` if the stream is already linked to a product set.
   """
-  def auto_link_stream_to_session(stream_id) do
+  def auto_link_stream_to_product_set(stream_id) do
     # Check if already linked
-    case get_linked_sessions(stream_id) do
-      [session | _] ->
-        {:already_linked, session}
+    case get_linked_product_sets(stream_id) do
+      [product_set | _] ->
+        {:already_linked, product_set}
 
       [] ->
-        case detect_active_session(stream_id) do
-          {:ok, session} ->
+        case detect_active_product_set(stream_id) do
+          {:ok, product_set} ->
             Logger.info(
-              "Auto-linking stream #{stream_id} to session #{session.id} (#{session.name})"
+              "Auto-linking stream #{stream_id} to product set #{product_set.id} (#{product_set.name})"
             )
 
-            link_stream_to_session(stream_id, session.id, linked_by: "auto")
+            link_stream_to_product_set(stream_id, product_set.id, linked_by: "auto")
 
           :none ->
             :none
@@ -1148,7 +1148,7 @@ defmodule Pavoi.TiktokLive do
   ## Comment Parsing
 
   @doc """
-  Parses product numbers from comments and links them to session products.
+  Parses product numbers from comments and links them to product set products.
 
   Patterns recognized:
   - Hash patterns: #25, #3
@@ -1156,23 +1156,23 @@ defmodule Pavoi.TiktokLive do
 
   Only parses comments for the given stream.
   """
-  def parse_comments_for_session(stream_id, session_id) do
-    # Get session products to build position map
-    session_products =
-      from(sp in SessionProduct,
-        where: sp.session_id == ^session_id,
-        select: {sp.position, sp.id}
+  def parse_comments_for_product_set(stream_id, product_set_id) do
+    # Get product set products to build position map
+    product_set_products =
+      from(psp in ProductSetProduct,
+        where: psp.product_set_id == ^product_set_id,
+        select: {psp.position, psp.id}
       )
       |> Repo.all()
       |> Map.new()
 
     max_position =
-      if Enum.empty?(session_products), do: 0, else: Enum.max(Map.keys(session_products))
+      if Enum.empty?(product_set_products), do: 0, else: Enum.max(Map.keys(product_set_products))
 
     # Get all comments for this stream that haven't been parsed yet
     comments =
       from(c in Comment,
-        where: c.stream_id == ^stream_id and is_nil(c.session_product_id),
+        where: c.stream_id == ^stream_id and is_nil(c.product_set_product_id),
         select: [:id, :comment_text]
       )
       |> Repo.all()
@@ -1182,13 +1182,13 @@ defmodule Pavoi.TiktokLive do
       Enum.reduce(comments, 0, fn comment, count ->
         case parse_product_number(comment.comment_text, max_position) do
           {:ok, product_number} ->
-            session_product_id = Map.get(session_products, product_number)
+            product_set_product_id = Map.get(product_set_products, product_number)
 
             from(c in Comment, where: c.id == ^comment.id)
             |> Repo.update_all(
               set: [
                 parsed_product_number: product_number,
-                session_product_id: session_product_id
+                product_set_product_id: product_set_product_id
               ]
             )
 
@@ -1235,21 +1235,21 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
-  defp clear_parsed_products_for_link(stream_id, session_id) do
-    # Get session product IDs for this session
-    session_product_ids =
-      from(sp in SessionProduct,
-        where: sp.session_id == ^session_id,
-        select: sp.id
+  defp clear_parsed_products_for_link(stream_id, product_set_id) do
+    # Get product set product IDs for this product set
+    product_set_product_ids =
+      from(psp in ProductSetProduct,
+        where: psp.product_set_id == ^product_set_id,
+        select: psp.id
       )
       |> Repo.all()
 
-    # Clear only comments that were linked to this session's products
+    # Clear only comments that were linked to this product set's products
     from(c in Comment,
       where: c.stream_id == ^stream_id,
-      where: c.session_product_id in ^session_product_ids
+      where: c.product_set_product_id in ^product_set_product_ids
     )
-    |> Repo.update_all(set: [session_product_id: nil, parsed_product_number: nil])
+    |> Repo.update_all(set: [product_set_product_id: nil, parsed_product_number: nil])
   end
 
   ## Product Interest Analytics
@@ -1257,20 +1257,20 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Gets product interest summary for a stream.
 
-  Returns counts of comments per product number for the given session.
+  Returns counts of comments per product number for the given product set.
   """
-  def get_product_interest_summary(stream_id, session_id) do
+  def get_product_interest_summary(stream_id, product_set_id) do
     from(c in Comment,
       where: c.stream_id == ^stream_id,
       where: not is_nil(c.parsed_product_number),
-      join: sp in SessionProduct,
-      on: sp.session_id == ^session_id and sp.position == c.parsed_product_number,
-      left_join: p in assoc(sp, :product),
-      group_by: [c.parsed_product_number, sp.id, sp.product_id, p.name],
+      join: psp in ProductSetProduct,
+      on: psp.product_set_id == ^product_set_id and psp.position == c.parsed_product_number,
+      left_join: p in assoc(psp, :product),
+      group_by: [c.parsed_product_number, psp.id, psp.product_id, p.name],
       select: %{
         product_number: c.parsed_product_number,
-        session_product_id: sp.id,
-        product_id: sp.product_id,
+        product_set_product_id: psp.id,
+        product_id: psp.product_id,
         product_name: p.name,
         comment_count: count(c.id)
       },

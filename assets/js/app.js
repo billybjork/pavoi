@@ -75,26 +75,26 @@ window.addEventListener("modal:hide", (e) => {
   if (modal) modal.close()
 })
 
-// Scroll to session on expand (deep link or page load)
-// Only scrolls if the session header isn't already visible in the viewport
-window.addEventListener("phx:scroll-to-session", (e) => {
-  const sessionId = e.detail.session_id
-  const sessionElement = document.getElementById(`session-${sessionId}`)
+// Scroll to product set on expand (deep link or page load)
+// Only scrolls if the product set header isn't already visible in the viewport
+window.addEventListener("phx:scroll-to-product-set", (e) => {
+  const productSetId = e.detail.product_set_id
+  const productSetElement = document.getElementById(`product-set-${productSetId}`)
 
-  if (sessionElement) {
-    const rect = sessionElement.getBoundingClientRect()
-    const headerHeight = 80 // Approximate height of session card header
+  if (productSetElement) {
+    const rect = productSetElement.getBoundingClientRect()
+    const headerHeight = 80 // Approximate height of product set card header
     const padding = 24 // Desired padding from top (--space-6)
 
-    // Check if the session header is already reasonably visible
+    // Check if the product set header is already reasonably visible
     // (top of card is within viewport with some margin)
     const isHeaderVisible = rect.top >= -headerHeight && rect.top <= window.innerHeight * 0.4
 
     if (!isHeaderVisible) {
-      // Session not visible or too far down - scroll to it
+      // Product set not visible or too far down - scroll to it
       // Wait for any collapse animation to settle
       setTimeout(() => {
-        sessionElement.scrollIntoView({
+        productSetElement.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
         })

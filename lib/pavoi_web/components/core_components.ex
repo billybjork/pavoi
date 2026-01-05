@@ -401,8 +401,7 @@ defmodule PavoiWeb.CoreComponents do
 
   ## Examples
 
-      <.nav_tabs current_page={:sessions} />
-      <.nav_tabs current_page={:products} />
+      <.nav_tabs current_page={:product_sets} />
   """
   attr :current_page, :atom, required: true
   attr :syncing, :boolean, default: false
@@ -431,10 +430,10 @@ defmodule PavoiWeb.CoreComponents do
       </div>
       <div class="navbar__nav">
         <.link
-          href={~p"/sessions"}
-          class={["navbar__link", @current_page == :sessions && "navbar__link--active"]}
+          href={~p"/product-sets"}
+          class={["navbar__link", @current_page == :product_sets && "navbar__link--active"]}
         >
-          Sessions
+          Product Sets
         </.link>
         <.link
           href={~p"/streams"}
@@ -447,12 +446,6 @@ defmodule PavoiWeb.CoreComponents do
           class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
         >
           Creators
-        </.link>
-        <.link
-          href={~p"/products"}
-          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
-        >
-          Products
         </.link>
       </div>
       <div class="navbar__end">
@@ -469,38 +462,6 @@ defmodule PavoiWeb.CoreComponents do
           class="navbar__menu"
           phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
         >
-          <%= if @current_page == :products do %>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_shopify_sync"
-                class={@syncing && "button--disabled"}
-                disabled={@syncing}
-              >
-                {if @syncing, do: "Syncing Shopify...", else: "Sync Shopify"}
-              </.button>
-              <div class="navbar__sync-meta">
-                Synced: {if @last_sync_at, do: format_relative_time(@last_sync_at), else: "Never"}
-              </div>
-            </div>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_tiktok_sync"
-                class={@tiktok_syncing && "button--disabled"}
-                disabled={@tiktok_syncing}
-              >
-                {if @tiktok_syncing, do: "Syncing TikTok...", else: "Sync TikTok Shop"}
-              </.button>
-              <div class="navbar__sync-meta">
-                Synced: {if @tiktok_last_sync_at,
-                  do: format_relative_time(@tiktok_last_sync_at),
-                  else: "Never"}
-              </div>
-            </div>
-          <% end %>
           <%= if @current_page == :streams and @stream_scan_enabled do %>
             <div class="navbar__sync-group">
               <.button

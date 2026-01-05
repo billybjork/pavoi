@@ -1,6 +1,6 @@
 /* ============================================================================
-   SESSION CONTROLLER VIEW
-   Mobile-optimized remote control for session management
+   PRODUCT SET CONTROLLER VIEW
+   Mobile-optimized remote control for product set management
    ============================================================================ */
 
 /* ==========================================================================
@@ -284,7 +284,7 @@
 
 /* ==========================================================================
    HEADER
-   Top bar with back button, session name, and product count
+   Top bar with back button, product set name, and product count
    ========================================================================== */
 
 .controller-header {
@@ -343,7 +343,7 @@
   border-radius: var(--radius-sm);
 }
 
-/* iOS-style toggle for session notes */
+/* iOS-style toggle for product set notes */
 .controller-notes-toggle {
   display: flex;
   align-items: center;

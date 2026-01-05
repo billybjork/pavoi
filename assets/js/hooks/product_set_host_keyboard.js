@@ -1,6 +1,6 @@
 /**
- * SessionHostKeyboard Hook
- * Handles keyboard navigation for the session host view.
+ * ProductSetHostKeyboard Hook
+ * Handles keyboard navigation for the product set host view.
  *
  * Primary Navigation (Direct Jumps):
  * - Type number digits (0-9) to build a product number

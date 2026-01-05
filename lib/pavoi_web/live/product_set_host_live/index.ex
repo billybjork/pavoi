@@ -1,4 +1,4 @@
-defmodule PavoiWeb.SessionHostLive.Index do
+defmodule PavoiWeb.ProductSetHostLive.Index do
   @moduledoc """
   Host view for displaying product information during live streaming.
   This view supports the same keyboard shortcuts as the controller view and displays:
@@ -13,34 +13,34 @@ defmodule PavoiWeb.SessionHostLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
-  alias Pavoi.Sessions
+  alias Pavoi.ProductSets
 
   @impl true
-  def mount(%{"id" => session_id}, _session, socket) do
-    session_id = String.to_integer(session_id)
-    session = Sessions.get_session!(session_id)
+  def mount(%{"id" => product_set_id}, _session, socket) do
+    product_set_id = String.to_integer(product_set_id)
+    product_set = ProductSets.get_product_set!(product_set_id)
 
     socket =
       assign(socket,
-        session: session,
-        session_id: session_id,
-        page_title: "#{session.name} - Host View",
-        current_session_product: nil,
+        product_set: product_set,
+        product_set_id: product_set_id,
+        page_title: "#{product_set.name} - Host View",
+        current_product_set_product: nil,
         current_product: nil,
         current_position: nil,
         current_image_index: 0,
         talking_points_html: nil,
         product_images: [],
-        total_products: length(session.session_products),
+        total_products: length(product_set.product_set_products),
         host_message: nil,
         products_panel_collapsed: true,
-        session_panel_collapsed: true
+        product_set_panel_collapsed: true
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection
     socket =
       if connected?(socket) do
-        subscribe_to_session(session_id)
+        subscribe_to_product_set(product_set_id)
         load_initial_state(socket)
       else
         socket
@@ -57,7 +57,11 @@ defmodule PavoiWeb.SessionHostLive.Index do
     socket =
       case params do
         %{"sp" => sp_id, "img" => img_idx} ->
-          load_by_session_product_id(socket, String.to_integer(sp_id), String.to_integer(img_idx))
+          load_by_product_set_product_id(
+            socket,
+            String.to_integer(sp_id),
+            String.to_integer(img_idx)
+          )
 
         _ ->
           socket
@@ -77,12 +81,12 @@ defmodule PavoiWeb.SessionHostLive.Index do
   def handle_event("jump_to_product", %{"position" => position}, socket) do
     position = String.to_integer(position)
 
-    case Sessions.jump_to_product(socket.assigns.session_id, position) do
+    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
       {:ok, new_state} ->
         socket =
           push_patch(socket,
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
           )
 
         {:noreply, socket}
@@ -95,41 +99,41 @@ defmodule PavoiWeb.SessionHostLive.Index do
   # CONVENIENCE: Sequential next/previous with arrow keys
   @impl true
   def handle_event("next_product", _params, socket) do
-    case Sessions.advance_to_next_product(socket.assigns.session_id) do
+    case ProductSets.advance_to_next_product(socket.assigns.product_set_id) do
       {:ok, new_state} ->
         socket =
           push_patch(socket,
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}"
           )
 
         {:noreply, socket}
 
-      {:error, :end_of_session} ->
-        {:noreply, put_flash(socket, :info, "End of session reached")}
+      {:error, :end_of_product_set} ->
+        {:noreply, put_flash(socket, :info, "End of product set reached")}
     end
   end
 
   @impl true
   def handle_event("previous_product", _params, socket) do
-    case Sessions.go_to_previous_product(socket.assigns.session_id) do
+    case ProductSets.go_to_previous_product(socket.assigns.product_set_id) do
       {:ok, new_state} ->
         socket =
           push_patch(socket,
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}"
           )
 
         {:noreply, socket}
 
-      {:error, :start_of_session} ->
+      {:error, :start_of_product_set} ->
         {:noreply, put_flash(socket, :info, "Already at first product")}
     end
   end
 
   @impl true
   def handle_event("next_image", _params, socket) do
-    case Sessions.cycle_product_image(socket.assigns.session_id, :next) do
+    case ProductSets.cycle_product_image(socket.assigns.product_set_id, :next) do
       {:ok, _state} -> {:noreply, socket}
       {:error, _} -> {:noreply, socket}
     end
@@ -137,7 +141,7 @@ defmodule PavoiWeb.SessionHostLive.Index do
 
   @impl true
   def handle_event("previous_image", _params, socket) do
-    case Sessions.cycle_product_image(socket.assigns.session_id, :previous) do
+    case ProductSets.cycle_product_image(socket.assigns.product_set_id, :previous) do
       {:ok, _state} -> {:noreply, socket}
       {:error, _} -> {:noreply, socket}
     end
@@ -147,7 +151,7 @@ defmodule PavoiWeb.SessionHostLive.Index do
   def handle_event("goto_image", %{"index" => index_str}, socket) do
     index = String.to_integer(index_str)
 
-    case Sessions.set_image_index(socket.assigns.session_id, index) do
+    case ProductSets.set_image_index(socket.assigns.product_set_id, index) do
       {:ok, _state} -> {:noreply, socket}
       {:error, _} -> {:noreply, socket}
     end
@@ -159,31 +163,31 @@ defmodule PavoiWeb.SessionHostLive.Index do
   end
 
   @impl true
-  def handle_event("toggle_session_panel", _params, socket) do
-    new_collapsed = !socket.assigns.session_panel_collapsed
+  def handle_event("toggle_product_set_panel", _params, socket) do
+    new_collapsed = !socket.assigns.product_set_panel_collapsed
 
     # Broadcast to controller so toggle stays in sync
     Phoenix.PubSub.broadcast(
       Pavoi.PubSub,
-      "session:#{socket.assigns.session_id}:ui",
-      {:session_notes_toggle, !new_collapsed}
+      "product_set:#{socket.assigns.product_set_id}:ui",
+      {:product_set_notes_toggle, !new_collapsed}
     )
 
-    {:noreply, assign(socket, :session_panel_collapsed, new_collapsed)}
+    {:noreply, assign(socket, :product_set_panel_collapsed, new_collapsed)}
   end
 
   @impl true
   def handle_event("select_product_from_panel", %{"position" => position}, socket) do
     position = String.to_integer(position)
 
-    case Sessions.jump_to_product(socket.assigns.session_id, position) do
+    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
       {:ok, new_state} ->
         socket =
           socket
           |> assign(:products_panel_collapsed, true)
           |> push_patch(
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
           )
 
         {:noreply, socket}
@@ -196,12 +200,12 @@ defmodule PavoiWeb.SessionHostLive.Index do
   @impl true
   def handle_event("jump_to_first", _params, socket) do
     # Jump to position 1 (first product)
-    case Sessions.jump_to_product(socket.assigns.session_id, 1) do
+    case ProductSets.jump_to_product(socket.assigns.product_set_id, 1) do
       {:ok, new_state} ->
         socket =
           push_patch(socket,
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
           )
 
         {:noreply, socket}
@@ -216,12 +220,12 @@ defmodule PavoiWeb.SessionHostLive.Index do
     # Jump to last product (total_products)
     last_position = socket.assigns.total_products
 
-    case Sessions.jump_to_product(socket.assigns.session_id, last_position) do
+    case ProductSets.jump_to_product(socket.assigns.product_set_id, last_position) do
       {:ok, new_state} ->
         socket =
           push_patch(socket,
             to:
-              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+              ~p"/product-sets/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0"
           )
 
         {:noreply, socket}
@@ -234,82 +238,84 @@ defmodule PavoiWeb.SessionHostLive.Index do
   # Handle PubSub broadcasts from controller
   @impl true
   def handle_info({:state_changed, new_state}, socket) do
-    socket = load_state_from_session_state(socket, new_state)
+    socket = load_state_from_product_set_state(socket, new_state)
     {:noreply, socket}
   end
 
-  # Handle session notes toggle from controller
+  # Handle product set notes toggle from controller
   @impl true
-  def handle_info({:session_notes_toggle, visible}, socket) do
-    {:noreply, assign(socket, :session_panel_collapsed, !visible)}
+  def handle_info({:product_set_notes_toggle, visible}, socket) do
+    {:noreply, assign(socket, :product_set_panel_collapsed, !visible)}
   end
 
   ## Private Helpers
 
-  defp subscribe_to_session(session_id) do
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:state")
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "session:#{session_id}:ui")
+  defp subscribe_to_product_set(product_set_id) do
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_set:#{product_set_id}:state")
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_set:#{product_set_id}:ui")
   end
 
   defp load_initial_state(socket) do
-    session_id = socket.assigns.session_id
+    product_set_id = socket.assigns.product_set_id
 
     # Try to load existing state, or initialize to first product
-    case Sessions.get_session_state(session_id) do
-      {:ok, %{current_session_product_id: nil}} ->
+    case ProductSets.get_product_set_state(product_set_id) do
+      {:ok, %{current_product_set_product_id: nil}} ->
         # State exists but no product selected - initialize to first
-        case Sessions.initialize_session_state(session_id) do
-          {:ok, state} -> load_state_from_session_state(socket, state)
+        case ProductSets.initialize_product_set_state(product_set_id) do
+          {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket
         end
 
       {:ok, state} ->
-        load_state_from_session_state(socket, state)
+        load_state_from_product_set_state(socket, state)
 
       {:error, :not_found} ->
         # Initialize to first product
-        case Sessions.initialize_session_state(session_id) do
-          {:ok, state} -> load_state_from_session_state(socket, state)
+        case ProductSets.initialize_product_set_state(product_set_id) do
+          {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket
         end
     end
   end
 
-  defp load_by_session_product_id(socket, session_product_id, image_index) do
-    session_product = Sessions.get_session_product!(session_product_id)
-    product = session_product.product
+  defp load_by_product_set_product_id(socket, product_set_product_id, image_index) do
+    product_set_product = ProductSets.get_product_set_product!(product_set_product_id)
+    product = product_set_product.product
 
     # Calculate display position (1-based index in sorted list)
-    session = socket.assigns.session
+    product_set = socket.assigns.product_set
 
     display_position =
-      session.session_products
+      product_set.product_set_products
       |> Enum.sort_by(& &1.position)
-      |> Enum.find_index(&(&1.id == session_product_id))
+      |> Enum.find_index(&(&1.id == product_set_product_id))
       |> case do
         # Fallback to raw position
-        nil -> session_product.position
+        nil -> product_set_product.position
         # Convert to 1-based
         index -> index + 1
       end
 
     assign(socket,
-      current_session_product: session_product,
+      current_product_set_product: product_set_product,
       current_product: product,
       current_image_index: image_index,
       current_position: display_position,
       talking_points_html:
-        render_markdown(session_product.featured_talking_points_md || product.talking_points_md),
+        render_markdown(
+          product_set_product.featured_talking_points_md || product.talking_points_md
+        ),
       product_images: product.product_images
     )
   end
 
-  defp load_state_from_session_state(socket, state) do
+  defp load_state_from_product_set_state(socket, state) do
     socket =
-      if state.current_session_product_id do
-        load_by_session_product_id(
+      if state.current_product_set_product_id do
+        load_by_product_set_product_id(
           socket,
-          state.current_session_product_id,
+          state.current_product_set_product_id,
           state.current_image_index
         )
       else
@@ -323,7 +329,7 @@ defmodule PavoiWeb.SessionHostLive.Index do
           text: state.current_host_message_text,
           id: state.current_host_message_id,
           timestamp: state.current_host_message_timestamp,
-          color: state.current_host_message_color || Sessions.default_message_color()
+          color: state.current_host_message_color || ProductSets.default_message_color()
         })
       else
         assign(socket, :host_message, nil)

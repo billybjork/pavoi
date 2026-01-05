@@ -9,7 +9,7 @@ defmodule Pavoi.AI do
   alias Pavoi.AI.TalkingPointsGeneration
   alias Pavoi.Catalog
   alias Pavoi.Repo
-  alias Pavoi.Sessions
+  alias Pavoi.ProductSets
   alias Pavoi.Workers.TalkingPointsWorker
 
   @doc """
@@ -31,35 +31,35 @@ defmodule Pavoi.AI do
   end
 
   @doc """
-  Generates talking points for all products in a session asynchronously.
+  Generates talking points for all products in a product set asynchronously.
 
   Creates a background job to generate AI-powered talking points for all products
-  in the given session. Progress can be tracked via PubSub broadcasts.
+  in the given product set. Progress can be tracked via PubSub broadcasts.
 
   ## Parameters
-    - session_id: Integer ID of the session
+    - product_set_id: Integer ID of the product set
 
   ## Example
-      iex> AI.generate_session_talking_points_async(456)
+      iex> AI.generate_product_set_talking_points_async(456)
       {:ok, %TalkingPointsGeneration{job_id: "def-456", status: "pending", ...}}
   """
-  def generate_session_talking_points_async(session_id) when is_integer(session_id) do
-    session = Sessions.get_session!(session_id)
+  def generate_product_set_talking_points_async(product_set_id) when is_integer(product_set_id) do
+    product_set = ProductSets.get_product_set!(product_set_id)
 
     product_ids =
-      session
-      |> Repo.preload(:session_products)
-      |> Map.get(:session_products)
+      product_set
+      |> Repo.preload(:product_set_products)
+      |> Map.get(:product_set_products)
       |> Enum.map(& &1.product_id)
 
     if Enum.empty?(product_ids) do
-      {:error, "Session has no products"}
+      {:error, "Product set has no products"}
     else
-      generate_talking_points_async(product_ids, session_id)
+      generate_talking_points_async(product_ids, product_set_id)
     end
   rescue
     Ecto.NoResultsError ->
-      {:error, "Session not found"}
+      {:error, "Product set not found"}
   end
 
   @doc """
@@ -69,7 +69,8 @@ defmodule Pavoi.AI do
   - `{:ok, generation}` on success
   - `{:error, reason}` on failure (empty list, invalid product IDs, etc.)
   """
-  def generate_talking_points_async(product_ids, session_id \\ nil) when is_list(product_ids) do
+  def generate_talking_points_async(product_ids, product_set_id \\ nil)
+      when is_list(product_ids) do
     # Validate input
     cond do
       Enum.empty?(product_ids) ->
@@ -85,7 +86,7 @@ defmodule Pavoi.AI do
         # Create the generation record
         attrs = %{
           job_id: job_id,
-          session_id: session_id,
+          product_set_id: product_set_id,
           product_ids: product_ids,
           total_count: length(product_ids)
         }
@@ -115,11 +116,11 @@ defmodule Pavoi.AI do
   end
 
   @doc """
-  Lists all talking points generations for a session.
+  Lists all talking points generations for a product set.
   """
-  def list_session_generations(session_id) do
+  def list_product_set_generations(product_set_id) do
     TalkingPointsGeneration
-    |> where([g], g.session_id == ^session_id)
+    |> where([g], g.product_set_id == ^product_set_id)
     |> order_by([g], desc: g.inserted_at)
     |> Repo.all()
   end
@@ -218,7 +219,7 @@ defmodule Pavoi.AI do
     %{
       job_id: generation.job_id,
       product_ids: generation.product_ids,
-      session_id: generation.session_id
+      product_set_id: generation.product_set_id
     }
     |> TalkingPointsWorker.new()
     |> Oban.insert()

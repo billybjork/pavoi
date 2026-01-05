@@ -1,5 +1,8 @@
 import Config
 
+# Track environment at runtime (for conditional behavior in workers, etc.)
+config :pavoi, env: :dev
+
 # Configure your database
 # Supports DATABASE_URL environment variable or defaults to local PostgreSQL
 if database_url = System.get_env("DATABASE_URL") do
@@ -105,9 +108,5 @@ config :pavoi, :creator_avatars, store_in_storage: false, store_locally: true
 
 # Shopify configuration is set in config/runtime.exs after loading .env
 
-# Disable automated Oban cron jobs in dev; manual syncs only
-config :pavoi, Oban,
-  plugins: [
-    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
-    {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)}
-  ]
+# Oban cron jobs are disabled in dev (base config in config.exs)
+# Workers must be triggered manually via the UI

@@ -3,7 +3,7 @@ defmodule Pavoi.Catalog.Product do
   Represents a product in the catalog.
 
   Products belong to brands and contain details like name, pricing, descriptions,
-  talking points, and associated images. Products can be featured in live sessions.
+  talking points, and associated images. Products can be featured in product sets.
 
   ## Field Ownership
 
@@ -52,7 +52,7 @@ defmodule Pavoi.Catalog.Product do
     belongs_to :brand, Pavoi.Catalog.Brand
     has_many :product_images, Pavoi.Catalog.ProductImage, preload_order: [asc: :position]
     has_many :product_variants, Pavoi.Catalog.ProductVariant, preload_order: [asc: :position]
-    has_many :session_products, Pavoi.Sessions.SessionProduct
+    has_many :product_set_products, Pavoi.ProductSets.ProductSetProduct
 
     timestamps()
   end

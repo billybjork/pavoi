@@ -1,5 +1,5 @@
 /* ============================================================================
-   SESSION HOST VIEW - Revised Layout
+   PRODUCT SET HOST VIEW - Revised Layout
    Two-section layout: Top (session + image) | Bottom (product content)
    Optimized for space efficiency and readability
    ============================================================================ */
@@ -20,10 +20,10 @@
 }
 
 /* ==========================================================================
-   SESSION PANEL (Top, Collapsible)
+   PRODUCT SET PANEL (Top, Collapsible)
    ========================================================================== */
 
-.host-session-panel {
+.host-product-set-panel {
   flex-shrink: 0;
   background-color: var(--color-surface-primary);
   border-bottom: 1px solid var(--color-border-primary);
@@ -32,7 +32,7 @@
   margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0;
 }
 
-.host-session-panel__header {
+.host-product-set-panel__header {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -42,11 +42,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.host-session-panel__header:active {
+.host-product-set-panel__header:active {
   background-color: var(--color-bg-hover);
 }
 
-.host-session-panel__title {
+.host-product-set-panel__title {
   flex: 1;
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
@@ -55,14 +55,14 @@
   letter-spacing: 0.05em;
 }
 
-.host-session-panel__count {
+.host-product-set-panel__count {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.host-session-panel__chevron {
+.host-product-set-panel__chevron {
   width: 20px;
   height: 20px;
   color: var(--color-text-tertiary);
@@ -70,11 +70,11 @@
 }
 
 /* Collapsed state - chevron rotates to point up */
-.host-session-panel--collapsed .host-session-panel__chevron {
+.host-product-set-panel--collapsed .host-product-set-panel__chevron {
   transform: rotate(180deg);
 }
 
-.host-session-panel__body {
+.host-product-set-panel__body {
   padding: 0 var(--space-4) var(--space-4);
   max-height: 50vh;
   overflow-y: auto;
@@ -84,7 +84,7 @@
               padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.host-session-panel--collapsed .host-session-panel__body {
+.host-product-set-panel--collapsed .host-product-set-panel__body {
   max-height: 0;
   opacity: 0;
   padding-top: 0;
@@ -92,7 +92,7 @@
 }
 
 /* Notes displayed as a 2-column grid of cards */
-.host-session-panel__notes-grid {
+.host-product-set-panel__notes-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
@@ -102,12 +102,12 @@
 
 /* Single column on narrow viewports */
 @media (max-width: 500px) {
-  .host-session-panel__notes-grid {
+  .host-product-set-panel__notes-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.host-session-panel__note-card {
+.host-product-set-panel__note-card {
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-md);
@@ -118,13 +118,13 @@
   white-space: pre-line; /* Preserve line breaks within paragraphs */
 }
 
-/* Session notes image - displayed above notes grid */
-.host-session-panel__image {
+/* Product set notes image - displayed above notes grid */
+.host-product-set-panel__image {
   margin-bottom: var(--space-3);
   text-align: center;
 }
 
-.host-session-panel__image img {
+.host-product-set-panel__image img {
   max-width: 100%;
   max-height: 30vh;
   object-fit: contain;
@@ -134,7 +134,7 @@
   transition: opacity 0.15s ease;
 }
 
-.host-session-panel__image img:hover {
+.host-product-set-panel__image img:hover {
   opacity: 0.9;
 }
 
@@ -878,7 +878,7 @@ body:has(.host-container) .app-navbar {
 
 /* ==========================================================================
    IMAGE LIGHTBOX
-   Fullscreen overlay for viewing session notes image
+   Fullscreen overlay for viewing product set notes image
    ========================================================================== */
 
 .image-lightbox {

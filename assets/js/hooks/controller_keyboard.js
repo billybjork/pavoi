@@ -1,6 +1,6 @@
 /**
  * ControllerKeyboard Hook
- * Handles keyboard navigation for the session controller view.
+ * Handles keyboard navigation for the product set controller view.
  *
  * Navigation:
  * - Arrow keys (←→) for previous/next product (wraps around)

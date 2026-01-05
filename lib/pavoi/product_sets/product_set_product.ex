@@ -1,14 +1,14 @@
-defmodule Pavoi.Sessions.SessionProduct do
+defmodule Pavoi.ProductSets.ProductSetProduct do
   @moduledoc """
-  Represents a product featured in a live session with optional per-session overrides.
+  Represents a product featured in a product set with optional per-set overrides.
 
-  Links products from the catalog to sessions and allows customization of name,
-  pricing, and talking points specific to a session without modifying the base product.
+  Links products from the catalog to product sets and allows customization of name,
+  pricing, and talking points specific to a product set without modifying the base product.
   """
   use Ecto.Schema
   import Ecto.Changeset
 
-  schema "session_products" do
+  schema "product_set_products" do
     field :position, :integer
     field :section, :string
     field :featured_name, :string
@@ -17,17 +17,17 @@ defmodule Pavoi.Sessions.SessionProduct do
     field :featured_sale_price_cents, :integer
     field :notes, :string
 
-    belongs_to :session, Pavoi.Sessions.Session
+    belongs_to :product_set, Pavoi.ProductSets.ProductSet
     belongs_to :product, Pavoi.Catalog.Product
 
     timestamps()
   end
 
   @doc false
-  def changeset(session_product, attrs) do
-    session_product
+  def changeset(product_set_product, attrs) do
+    product_set_product
     |> cast(attrs, [
-      :session_id,
+      :product_set_id,
       :product_id,
       :position,
       :section,
@@ -37,11 +37,11 @@ defmodule Pavoi.Sessions.SessionProduct do
       :featured_sale_price_cents,
       :notes
     ])
-    |> validate_required([:session_id, :product_id, :position])
+    |> validate_required([:product_set_id, :product_id, :position])
     |> validate_number(:position, greater_than: 0)
-    |> unique_constraint([:session_id, :position])
-    |> unique_constraint([:session_id, :product_id])
-    |> foreign_key_constraint(:session_id)
+    |> unique_constraint([:product_set_id, :position])
+    |> unique_constraint([:product_set_id, :product_id])
+    |> foreign_key_constraint(:product_set_id)
     |> foreign_key_constraint(:product_id)
   end
 
@@ -70,10 +70,10 @@ defmodule Pavoi.Sessions.SessionProduct do
   @doc """
   Returns the effective prices (featured overrides or original product prices).
   """
-  def effective_prices(%__MODULE__{} = sp) do
+  def effective_prices(%__MODULE__{} = psp) do
     %{
-      original: sp.featured_original_price_cents || sp.product.original_price_cents,
-      sale: sp.featured_sale_price_cents || sp.product.sale_price_cents
+      original: psp.featured_original_price_cents || psp.product.original_price_cents,
+      sale: psp.featured_sale_price_cents || psp.product.sale_price_cents
     }
   end
 end

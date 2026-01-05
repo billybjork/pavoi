@@ -127,18 +127,22 @@ defmodule PavoiWeb.ViewHelpers do
       [{%Product{}, %ProductImage{}}, ...]
   """
   def session_top_products(session, count \\ 20) do
-    session.session_products
+    product_set_top_products(session, count)
+  end
+
+  def product_set_top_products(product_set, count \\ 20) do
+    product_set.product_set_products
     |> Enum.take(count)
-    |> Enum.map(fn sp ->
+    |> Enum.map(fn psp ->
       primary_image =
-        sp.product.product_images
+        psp.product.product_images
         |> Enum.find(& &1.is_primary)
         |> case do
-          nil -> List.first(sp.product.product_images)
+          nil -> List.first(psp.product.product_images)
           image -> image
         end
 
-      {sp.product, primary_image}
+      {psp.product, primary_image}
     end)
     |> Enum.filter(fn {_product, image} -> image != nil end)
   end

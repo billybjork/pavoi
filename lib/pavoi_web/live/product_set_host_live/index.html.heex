@@ -1,11 +1,11 @@
 <div
-  id="session-host-container"
+  id="product-set-host-container"
   class="host-container"
-  phx-hook="SessionHostKeyboard"
+  phx-hook="ProductSetHostKeyboard"
 >
   <PavoiWeb.HostViewComponents.host_content
-    session={@session}
-    current_session_product={@current_session_product}
+    session={@product_set}
+    current_session_product={@current_product_set_product}
     current_product={@current_product}
     product_images={@product_images}
     talking_points_html={@talking_points_html}
@@ -14,6 +14,6 @@
     total_products={@total_products}
     show_header={true}
     products_panel_collapsed={@products_panel_collapsed}
-    session_panel_collapsed={@session_panel_collapsed}
+    session_panel_collapsed={@product_set_panel_collapsed}
   />
 </div>

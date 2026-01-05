@@ -257,7 +257,7 @@ defmodule Mix.Tasks.ImportSessions do
 
   defp create_session_with_products(name, description, brand_id, products) do
     # Generate slug from name
-    slug = Pavoi.Sessions.slugify(name)
+    slug = Pavoi.ProductSets.slugify(name)
 
     session_attrs = %{
       name: name,
@@ -269,7 +269,7 @@ defmodule Mix.Tasks.ImportSessions do
 
     product_ids = Enum.map(products, & &1.id)
 
-    Pavoi.Sessions.create_session_with_products(session_attrs, product_ids)
+    Pavoi.ProductSets.create_product_set_with_products(session_attrs, product_ids)
   end
 
   defp print_summary(stats) do

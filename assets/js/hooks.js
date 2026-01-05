@@ -1,6 +1,6 @@
 // Pavoi JavaScript Hooks for LiveView
 
-import SessionHostKeyboard from "./hooks/session_host_keyboard"
+import ProductSetHostKeyboard from "./hooks/product_set_host_keyboard"
 import ImageCarouselDrag from "./hooks/image_carousel_drag"
 import ProductContextMenu from "./hooks/product_context_menu"
 import ProductEditModalKeyboard from "./hooks/product_edit_modal_keyboard"
@@ -42,7 +42,7 @@ const VoiceControl = {
 }
 
 const Hooks = {
-  SessionHostKeyboard,
+  ProductSetHostKeyboard,
   ImageCarouselDrag,
   ProductContextMenu,
   ProductEditModalKeyboard,

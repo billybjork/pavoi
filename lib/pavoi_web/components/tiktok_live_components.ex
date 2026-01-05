@@ -48,17 +48,17 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   @doc """
-  Renders the product count for a stream's linked session.
+  Renders the product count for a stream's linked product set.
 
-  Shows the number of products if a session is linked,
-  or a "Link session" indicator if not.
+  Shows the number of products if a product set is linked,
+  or a "Link product set" indicator if not.
   """
   attr :stream, :any, required: true
 
   def stream_product_count(assigns) do
     product_count =
-      case assigns.stream.session do
-        %{session_products: products} when is_list(products) -> length(products)
+      case assigns.stream.product_set do
+        %{product_set_products: products} when is_list(products) -> length(products)
         _ -> nil
       end
 
@@ -70,12 +70,12 @@ defmodule PavoiWeb.TiktokLiveComponents do
     <% else %>
       <button
         type="button"
-        class="stream-link-session-btn"
+        class="stream-link-product-set-btn"
         phx-click="navigate_to_stream"
         phx-value-id={@stream.id}
-        phx-value-tab="sessions"
+        phx-value-tab="product_sets"
       >
-        Link session
+        Link product set
       </button>
     <% end %>
     """
@@ -240,9 +240,9 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :comment_search_query, :string, default: ""
   attr :stream_stats, :list, default: []
   attr :stream_gmv, :map, default: nil
-  attr :linked_sessions, :list, default: []
-  attr :all_sessions, :list, default: []
-  attr :session_search_query, :string, default: ""
+  attr :linked_product_sets, :list, default: []
+  attr :all_product_sets, :list, default: []
+  attr :product_set_search_query, :string, default: ""
   attr :product_interest, :list, default: []
   attr :dev_mode, :boolean, default: false
   attr :sending_stream_report, :boolean, default: false
@@ -442,13 +442,13 @@ defmodule PavoiWeb.TiktokLiveComponents do
             </button>
             <button
               type="button"
-              class={["tab", @active_tab == "sessions" && "tab--active"]}
+              class={["tab", @active_tab == "product_sets" && "tab--active"]}
               phx-click="change_tab"
-              phx-value-tab="sessions"
+              phx-value-tab="product_sets"
             >
-              Sessions
-              <%= if length(@linked_sessions) > 0 do %>
-                <span class="tab__badge">{length(@linked_sessions)}</span>
+              Product Sets
+              <%= if length(@linked_product_sets) > 0 do %>
+                <span class="tab__badge">{length(@linked_product_sets)}</span>
               <% end %>
             </button>
           </div>
@@ -461,11 +461,11 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   has_comments={@has_comments}
                   search_query={@comment_search_query}
                 />
-              <% "sessions" -> %>
-                <.sessions_tab
-                  linked_sessions={@linked_sessions}
-                  all_sessions={@all_sessions}
-                  search_query={@session_search_query}
+              <% "product_sets" -> %>
+                <.product_sets_tab
+                  linked_product_sets={@linked_product_sets}
+                  all_product_sets={@all_product_sets}
+                  search_query={@product_set_search_query}
                   product_interest={@product_interest}
                 />
               <% "stats" -> %>
@@ -557,42 +557,42 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   @doc """
-  Renders the sessions tab for linking sessions to streams.
+  Renders the product sets tab for linking product sets to streams.
   """
-  attr :linked_sessions, :list, default: []
-  attr :all_sessions, :list, default: []
+  attr :linked_product_sets, :list, default: []
+  attr :all_product_sets, :list, default: []
   attr :search_query, :string, default: ""
   attr :product_interest, :list, default: []
 
-  def sessions_tab(assigns) do
+  def product_sets_tab(assigns) do
     ~H"""
-    <div class="sessions-tab">
-      <div class="sessions-tab__columns">
-        <div class="sessions-tab__column">
-          <h3 class="sessions-tab__heading">Linked Sessions</h3>
+    <div class="product-sets-tab">
+      <div class="product-sets-tab__columns">
+        <div class="product-sets-tab__column">
+          <h3 class="product-sets-tab__heading">Linked Product Sets</h3>
 
-          <%= if Enum.empty?(@linked_sessions) do %>
+          <%= if Enum.empty?(@linked_product_sets) do %>
             <div class="empty-state empty-state--sm">
-              <p class="empty-state__title">No sessions linked</p>
+              <p class="empty-state__title">No product sets linked</p>
               <p class="empty-state__description">
-                Link a session to track product mentions in comments
+                Link a product set to track product mentions in comments
               </p>
             </div>
           <% else %>
-            <div class="linked-sessions-list">
-              <%= for session <- @linked_sessions do %>
-                <div class="linked-session-item">
-                  <div class="linked-session-item__info">
-                    <span class="linked-session-item__name">{session.name}</span>
-                    <span class="linked-session-item__meta">
-                      {length(session.session_products)} products
+            <div class="linked-product-sets-list">
+              <%= for session <- @linked_product_sets do %>
+                <div class="linked-product-set-item">
+                  <div class="linked-product-set-item__info">
+                    <span class="linked-product-set-item__name">{session.name}</span>
+                    <span class="linked-product-set-item__meta">
+                      {length(session.product_set_products)} products
                     </span>
                   </div>
                   <button
                     type="button"
                     class="button button--sm button--ghost-error"
-                    phx-click="unlink_session"
-                    phx-value-session-id={session.id}
+                    phx-click="unlink_product_set"
+                    phx-value-product-set-id={session.id}
                   >
                     Unlink
                   </button>
@@ -601,7 +601,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
             </div>
 
             <%= if length(@product_interest) > 0 do %>
-              <h4 class="sessions-tab__subheading">Product Interest</h4>
+              <h4 class="product-sets-tab__subheading">Product Interest</h4>
               <div class="product-interest-list">
                 <%= for item <- @product_interest do %>
                   <div class="product-interest-item">
@@ -615,38 +615,38 @@ defmodule PavoiWeb.TiktokLiveComponents do
           <% end %>
         </div>
 
-        <div class="sessions-tab__column">
-          <h3 class="sessions-tab__heading">Link a Session</h3>
+        <div class="product-sets-tab__column">
+          <h3 class="product-sets-tab__heading">Link a Product Set</h3>
 
-          <div class="sessions-tab__search">
+          <div class="product-sets-tab__search">
             <.search_input
               value={@search_query}
-              on_change="search_sessions"
-              placeholder="Search sessions..."
+              on_change="search_product_sets"
+              placeholder="Search product sets..."
             />
           </div>
 
-          <%= if Enum.empty?(@all_sessions) do %>
+          <%= if Enum.empty?(@all_product_sets) do %>
             <div class="empty-state empty-state--sm">
               <p class="empty-state__description">
-                No available sessions found
+                No available product sets found
               </p>
             </div>
           <% else %>
-            <div class="available-sessions-list">
-              <%= for session <- @all_sessions do %>
-                <div class="available-session-item">
-                  <div class="available-session-item__info">
-                    <span class="available-session-item__name">{session.name}</span>
-                    <span class="available-session-item__meta">
-                      {length(session.session_products)} products
+            <div class="available-product-sets-list">
+              <%= for session <- @all_product_sets do %>
+                <div class="available-product-set-item">
+                  <div class="available-product-set-item__info">
+                    <span class="available-product-set-item__name">{session.name}</span>
+                    <span class="available-product-set-item__meta">
+                      {length(session.product_set_products)} products
                     </span>
                   </div>
                   <button
                     type="button"
                     class="button button--sm button--primary"
-                    phx-click="link_session"
-                    phx-value-session-id={session.id}
+                    phx-click="link_product_set"
+                    phx-value-product-set-id={session.id}
                   >
                     Link
                   </button>

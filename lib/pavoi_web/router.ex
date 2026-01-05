@@ -14,7 +14,7 @@ defmodule PavoiWeb.Router do
         "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
         "frame-src 'self' blob: data:; " <>
         "child-src 'self' blob: data:; " <>
-        "connect-src 'self' ws: wss:; " <>
+        "connect-src 'self' ws: wss: https://storage.railway.app; " <>
         "frame-ancestors 'self'; " <>
         "base-uri 'self';"
   }
@@ -87,13 +87,14 @@ defmodule PavoiWeb.Router do
     # Redirect root to readme/documentation page
     get "/", Redirector, :redirect_to_readme
 
-    # Product management
-    live "/products", ProductsLive.Index
+    # Product Sets (merged sessions + products with tabs)
+    live "/product-sets", ProductSetsLive.Index
+    live "/product-sets/:id/host", ProductSetHostLive.Index
+    live "/product-sets/:id/controller", ProductSetControllerLive.Index
 
-    # Session management and live control
-    live "/sessions", SessionsLive.Index
-    live "/sessions/:id/host", SessionHostLive.Index
-    live "/sessions/:id/controller", SessionControllerLive.Index
+    # Legacy redirects (for bookmarks)
+    get "/sessions", Redirector, :redirect_to_product_sets
+    get "/products", Redirector, :redirect_to_product_sets_products
 
     # Creator CRM (includes outreach mode via ?view=outreach)
     live "/creators", CreatorsLive.Index
