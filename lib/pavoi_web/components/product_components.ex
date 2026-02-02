@@ -355,7 +355,7 @@ defmodule PavoiWeb.ProductComponents do
             </div>
             <%= if @public_view do %>
               <div style="white-space: pre-wrap; color: var(--color-text-secondary); line-height: 1.6; padding: var(--space-3); background: var(--color-bg-secondary); border-radius: var(--radius-md); min-height: 80px;">
-                <%= @editing_product.talking_points_md || "No talking points available." %>
+                {@editing_product.talking_points_md || "No talking points available."}
               </div>
             <% else %>
               <.form

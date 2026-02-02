@@ -160,6 +160,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:share_product_set_id, nil)
       |> assign(:share_url, nil)
       |> assign(:share_url_copied, false)
+      # Undo history for product set operations (session-scoped)
+      |> assign(:undo_history, %{})
       |> allow_upload(:notes_image,
         accept: ~w(.jpg .jpeg .png .webp .gif),
         max_entries: 1,
@@ -712,9 +714,13 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
     # Add each product to the end of the queue
     case add_products_to_product_set(session_id, selected_ids) do
-      :ok ->
+      {:ok, created_psp_ids} ->
+        # Record undo action with created PSP IDs
+        undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
+
         socket =
           socket
+          |> push_undo_action(session_id, undo_action)
           |> reload_product_sets()
           |> assign(:selected_product_set_for_product, nil)
           |> assign(:show_modal_for_product_set, nil)
@@ -729,9 +735,13 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
         {:noreply, socket}
 
-      {:partial, added, skipped} ->
+      {:partial, added, skipped, created_psp_ids} ->
+        # Record undo action with created PSP IDs (only the ones that succeeded)
+        undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
+
         socket =
           socket
+          |> push_undo_action(session_id, undo_action)
           |> reload_product_sets()
           |> assign(:selected_product_set_for_product, nil)
           |> assign(:show_modal_for_product_set, nil)
@@ -884,8 +894,20 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_event("remove_product", %{"product-set-product-id" => sp_id}, socket) do
     sp_id = normalize_id(sp_id)
 
+    # Capture product data before deletion for undo
+    psp_data = ProductSets.get_product_set_product_for_undo(sp_id)
+
     case ProductSets.remove_product_from_product_set(sp_id) do
       {:ok, _session_product} ->
+        socket =
+          if psp_data do
+            # Record undo action with all data needed to restore
+            undo_action = %{type: :remove_product, data: psp_data}
+            push_undo_action(socket, psp_data.product_set_id, undo_action)
+          else
+            socket
+          end
+
         socket =
           socket
           |> reload_product_sets()
@@ -912,19 +934,50 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       ) do
     product_set_id = normalize_id(product_set_id)
 
+    # Capture current order before reordering for undo
+    previous_order = ProductSets.get_current_product_order(product_set_id)
+
     # Convert product IDs to integers
     product_ids = Enum.map(product_ids, &normalize_id/1)
 
     # Update positions in database
     case ProductSets.reorder_products(product_set_id, product_ids) do
       {:ok, _count} ->
-        socket = reload_product_sets(socket)
+        # Record undo action with previous order
+        undo_action = %{type: :reorder_products, data: %{previous_order: previous_order}}
+
+        socket =
+          socket
+          |> push_undo_action(product_set_id, undo_action)
+          |> reload_product_sets()
+
         {:noreply, socket}
 
       {:error, reason} ->
         socket
         |> put_flash(:error, "Failed to reorder products: #{inspect(reason)}")
         |> then(&{:noreply, &1})
+    end
+  end
+
+  def handle_event("undo_product_set_action", %{"product-set-id" => product_set_id}, socket) do
+    product_set_id = normalize_id(product_set_id)
+    {action, socket} = pop_undo_action(socket, product_set_id)
+
+    case execute_undo_action(action, product_set_id) do
+      {:ok, message} ->
+        socket =
+          socket
+          |> reload_product_sets()
+          |> put_flash(:info, message)
+
+        {:noreply, socket}
+
+      {:error, message} ->
+        {:noreply, put_flash(socket, :error, message)}
+
+      :noop ->
+        {:noreply, put_flash(socket, :info, "Nothing to undo")}
     end
   end
 
@@ -1862,17 +1915,23 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         })
       end)
 
+    # Extract created PSP IDs from successful results
+    created_psp_ids =
+      results
+      |> Enum.filter(fn result -> match?({:ok, _}, result) end)
+      |> Enum.map(fn {:ok, psp} -> psp.id end)
+
     # Count successes and failures
-    successes = Enum.count(results, fn result -> match?({:ok, _}, result) end)
+    successes = length(created_psp_ids)
     failures = length(results) - successes
 
     cond do
       failures == 0 ->
-        :ok
+        {:ok, created_psp_ids}
 
       successes > 0 ->
         # Some succeeded, some failed (likely duplicates)
-        {:partial, successes, failures}
+        {:partial, successes, failures, created_psp_ids}
 
       true ->
         # All failed
@@ -2309,4 +2368,76 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   defp maybe_add_param(params, _key, ""), do: params
   defp maybe_add_param(params, _key, nil), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
+
+  # =============================================================================
+  # UNDO FUNCTIONALITY
+  # =============================================================================
+
+  # Push an undo action onto the stack for a product set
+  defp push_undo_action(socket, product_set_id, action) do
+    undo_history = socket.assigns.undo_history
+    actions = Map.get(undo_history, product_set_id, [])
+    new_actions = [action | actions]
+    new_history = Map.put(undo_history, product_set_id, new_actions)
+    assign(socket, :undo_history, new_history)
+  end
+
+  # Pop the most recent undo action for a product set
+  defp pop_undo_action(socket, product_set_id) do
+    undo_history = socket.assigns.undo_history
+
+    case Map.get(undo_history, product_set_id, []) do
+      [] ->
+        {nil, socket}
+
+      [action | rest] ->
+        new_history = Map.put(undo_history, product_set_id, rest)
+        {action, assign(socket, :undo_history, new_history)}
+    end
+  end
+
+  # Execute an undo action and return result
+  defp execute_undo_action(nil, _product_set_id), do: :noop
+
+  defp execute_undo_action(
+         %{type: :add_products, data: %{added_psp_ids: psp_ids}},
+         _product_set_id
+       ) do
+    Enum.each(psp_ids, &ProductSets.remove_product_from_product_set_silent/1)
+    {:ok, "Undid add #{length(psp_ids)} product(s)"}
+  end
+
+  defp execute_undo_action(%{type: :remove_product, data: psp_data}, _product_set_id) do
+    case ProductSets.restore_product_to_product_set(psp_data) do
+      {:ok, _psp} -> {:ok, "Restored removed product"}
+      {:error, _reason} -> {:error, "Failed to restore product"}
+    end
+  end
+
+  defp execute_undo_action(
+         %{type: :reorder_products, data: %{previous_order: previous_order}},
+         product_set_id
+       ) do
+    case ProductSets.reorder_products(product_set_id, previous_order) do
+      {:ok, _count} -> {:ok, "Restored previous order"}
+      {:error, _reason} -> {:error, "Failed to restore order"}
+    end
+  end
+
+  defp execute_undo_action(_action, _product_set_id), do: {:error, "Unknown undo action"}
+
+  # Template helper: Check if undo actions available for a product set
+  def has_undo_actions?(undo_history, product_set_id) do
+    case Map.get(undo_history, product_set_id, []) do
+      [] -> false
+      _ -> true
+    end
+  end
+
+  # Template helper: Count of undo actions for tooltip
+  def undo_action_count(undo_history, product_set_id) do
+    undo_history
+    |> Map.get(product_set_id, [])
+    |> length()
+  end
 end

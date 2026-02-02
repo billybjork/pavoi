@@ -81,6 +81,7 @@
   font-weight: var(--font-medium);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .navbar__link:hover {

@@ -1437,6 +1437,12 @@
    ============================================================================= */
 
 @media (max-width: 1024px) {
+  /* Remove fixed height constraint - let page scroll naturally when charts stack */
+  .analytics-tab {
+    height: auto;
+    min-height: 0;
+  }
+
   .analytics-tab__charts {
     grid-template-columns: 1fr;
   }
@@ -1447,6 +1453,12 @@
 
   .analytics-comments__filters {
     flex-wrap: wrap;
+  }
+
+  /* Give comments section a reasonable height when not flexing */
+  .analytics-comments-scroll-container {
+    min-height: 300px;
+    max-height: 50vh;
   }
 }
 

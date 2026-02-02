@@ -5,6 +5,7 @@ import ImageCarouselDrag from "./hooks/image_carousel_drag"
 import ProductContextMenu from "./hooks/product_context_menu"
 import ProductEditModalKeyboard from "./hooks/product_edit_modal_keyboard"
 import ProductSortable from "./hooks/product_sortable"
+import ProductSetsUndoKeyboard from "./hooks/product_sets_undo_keyboard"
 import ThemeToggle from "./hooks/theme_toggle"
 import MessageInput from "./hooks/message_input"
 import VariantOverflow from "./hooks/variant_overflow"
@@ -47,6 +48,7 @@ const Hooks = {
   ProductContextMenu,
   ProductEditModalKeyboard,
   ProductSortable,
+  ProductSetsUndoKeyboard,
   ThemeToggle,
   MessageInput,
   VoiceControl,

@@ -526,6 +526,163 @@ defmodule Pavoi.ProductSets do
     |> Repo.all()
   end
 
+  ## Undo Operations
+
+  @doc """
+  Gets a product set product with all fields needed for undo restoration.
+  Returns a map with all the data needed to restore the product if deleted.
+  Returns nil if not found.
+  """
+  def get_product_set_product_for_undo(id) do
+    case Repo.get(ProductSetProduct, id) do
+      nil ->
+        nil
+
+      psp ->
+        %{
+          product_set_id: psp.product_set_id,
+          product_id: psp.product_id,
+          position: psp.position,
+          section: psp.section,
+          featured_name: psp.featured_name,
+          featured_talking_points_md: psp.featured_talking_points_md,
+          featured_original_price_cents: psp.featured_original_price_cents,
+          featured_sale_price_cents: psp.featured_sale_price_cents,
+          notes: psp.notes
+        }
+    end
+  end
+
+  @doc """
+  Gets the current product order for a product set.
+  Returns a list of product_set_product IDs in position order.
+  """
+  def get_current_product_order(product_set_id) do
+    from(psp in ProductSetProduct,
+      where: psp.product_set_id == ^product_set_id,
+      order_by: [asc: psp.position],
+      select: psp.id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Removes a product from a product set silently (no broadcast).
+  Used for batch undo operations where we broadcast once at the end.
+  Returns {:ok, product_set_product} or {:error, reason}.
+  """
+  def remove_product_from_product_set_silent(product_set_product_id) do
+    case Repo.get(ProductSetProduct, product_set_product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product_set_product ->
+        case Repo.delete(product_set_product) do
+          {:ok, deleted} ->
+            # Renumber positions silently (don't broadcast)
+            renumber_product_set_products_silent(product_set_product.product_set_id)
+            {:ok, deleted}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  @doc """
+  Restores a product to a product set with all original data.
+  Shifts existing products at and after the target position to make room.
+  Returns {:ok, product_set_product} or {:error, changeset}.
+  """
+  def restore_product_to_product_set(psp_data) do
+    Repo.transaction(fn ->
+      # First, shift existing products at and after the target position
+      shift_products_for_insertion(psp_data.product_set_id, psp_data.position)
+
+      # Insert the product at its original position
+      attrs = %{
+        product_set_id: psp_data.product_set_id,
+        product_id: psp_data.product_id,
+        position: psp_data.position,
+        section: psp_data.section,
+        featured_name: psp_data.featured_name,
+        featured_talking_points_md: psp_data.featured_talking_points_md,
+        featured_original_price_cents: psp_data.featured_original_price_cents,
+        featured_sale_price_cents: psp_data.featured_sale_price_cents,
+        notes: psp_data.notes
+      }
+
+      case %ProductSetProduct{}
+           |> ProductSetProduct.changeset(attrs)
+           |> Repo.insert() do
+        {:ok, psp} ->
+          touch_product_set(psp_data.product_set_id)
+          psp
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, psp} ->
+        broadcast_product_set_list_change({:ok, psp})
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Shifts products at and after the given position to make room for insertion.
+  # Uses a two-phase approach to avoid unique constraint violations:
+  # 1. Move affected products to temporary high positions
+  # 2. Move them to their final positions (original + 1)
+  defp shift_products_for_insertion(product_set_id, target_position) do
+    # Get products that need to be shifted, ordered by position descending
+    # so we can update them from highest to lowest
+    products_to_shift =
+      from(psp in ProductSetProduct,
+        where: psp.product_set_id == ^product_set_id and psp.position >= ^target_position,
+        order_by: [desc: psp.position],
+        select: {psp.id, psp.position}
+      )
+      |> Repo.all()
+
+    # Phase 1: Move all to temporary positions (add 10000)
+    Enum.each(products_to_shift, fn {id, position} ->
+      from(psp in ProductSetProduct, where: psp.id == ^id)
+      |> Repo.update_all(set: [position: position + 10_000])
+    end)
+
+    # Phase 2: Move to final positions (original + 1)
+    Enum.each(products_to_shift, fn {id, position} ->
+      from(psp in ProductSetProduct, where: psp.id == ^id)
+      |> Repo.update_all(set: [position: position + 1])
+    end)
+  end
+
+  # Renumbers product positions without broadcasting (for batch operations)
+  defp renumber_product_set_products_silent(product_set_id) do
+    product_set_products =
+      from(psp in ProductSetProduct,
+        where: psp.product_set_id == ^product_set_id,
+        order_by: [asc: psp.position]
+      )
+      |> Repo.all()
+
+    # Update positions sequentially, starting from 1
+    product_set_products
+    |> Enum.with_index(1)
+    |> Enum.each(fn {psp, new_position} ->
+      if psp.position != new_position do
+        psp
+        |> Ecto.Changeset.change(position: new_position)
+        |> Repo.update!()
+      end
+    end)
+
+    touch_product_set(product_set_id)
+  end
+
   ## Product Set State Management
 
   @doc """

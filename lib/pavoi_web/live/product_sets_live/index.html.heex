@@ -21,6 +21,13 @@
   }
   phx-key="Escape"
 >
+  <%!-- Hidden element for undo keyboard shortcut --%>
+  <div
+    id="product-sets-undo-handler"
+    phx-hook="ProductSetsUndoKeyboard"
+    style="display: contents;"
+  >
+  </div>
   <%!-- Page Tabs --%>
   <.product_sets_page_tabs active_tab={@page_tab}>
     <:actions>
@@ -106,9 +113,32 @@
                 <% end %>
               </div>
 
-              <%!-- Collapse button - shown when expanded --%>
+              <%!-- Collapse button and undo button - shown when expanded --%>
               <%= if @expanded_product_set_id == product_set.id do %>
                 <div class="product-set-card__collapse-btn-wrapper">
+                  <%= if has_undo_actions?(@undo_history, product_set.id) do %>
+                    <button
+                      class="product-set-card__undo-btn"
+                      phx-click="undo_product_set_action"
+                      phx-value-product-set-id={product_set.id}
+                      title={"Undo (#{undo_action_count(@undo_history, product_set.id)}) - Cmd/Ctrl+Z"}
+                      aria-label="Undo"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="size-4"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"
+                        />
+                      </svg>
+                    </button>
+                  <% end %>
                   <button
                     class="product-set-card__collapse-btn"
                     phx-click="toggle_expand"
