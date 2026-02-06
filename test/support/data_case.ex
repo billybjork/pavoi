@@ -26,6 +26,7 @@ defmodule Pavoi.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Pavoi.DataCase
+      import Pavoi.TiktokLiveFixtures
     end
   end
 

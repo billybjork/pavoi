@@ -165,7 +165,7 @@ defmodule Mix.Tasks.ImportSessions do
     product_skus = parse_product_skus(product_skus_str)
     Mix.shell().info("  SKUs to import: #{length(product_skus)}")
 
-    {products, missing} = find_products_by_skus(product_skus)
+    {products, missing} = find_products_by_skus(brand_id, product_skus)
 
     # Track missing SKUs
     stats = track_missing_skus(stats, missing, session_name)
@@ -231,11 +231,11 @@ defmodule Mix.Tasks.ImportSessions do
     end
   end
 
-  defp find_products_by_skus(skus) do
+  defp find_products_by_skus(brand_id, skus) do
     # Find products by SKU with partial matching (first match wins)
     results =
       Enum.map(skus, fn sku ->
-        case Pavoi.Catalog.find_product_by_sku(sku) do
+        case Pavoi.Catalog.find_product_by_sku(brand_id, sku) do
           nil -> {:missing, sku}
           product -> {:found, product}
         end

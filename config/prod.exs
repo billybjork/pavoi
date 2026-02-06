@@ -27,19 +27,19 @@ config :pavoi, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        # Sync products every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.ShopifySyncWorker},
+       {"0 0 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "shopify_sync"}},
        # Sync TikTok Shop products every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker},
+       {"0 0 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "tiktok_sync"}},
        # Sync BigQuery orders to Creator CRM every 24 hours (at midnight UTC)
-       {"0 0 * * *", Pavoi.Workers.BigQueryOrderSyncWorker},
+       {"0 0 * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "bigquery_sync"}},
        # Refresh TikTok access token every 30 minutes (prevents token expiration)
-       {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker},
+       {"*/30 * * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "tiktok_token_refresh"}},
        # Monitor TikTok live status every 2 minutes
-       {"*/2 * * * *", Pavoi.Workers.TiktokLiveMonitorWorker},
+       {"*/2 * * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "tiktok_live_monitor"}},
        # Enrich creator profiles from TikTok Marketplace API every 30 minutes
        # Small batches (75) complete quickly, avoiding rate limits
        # 48 runs/day × 75 = 3600 creators/day (with margin for rate limit pauses)
-       {"*/30 * * * *", Pavoi.Workers.CreatorEnrichmentWorker}
+       {"*/30 * * * *", Pavoi.Workers.BrandCronWorker, args: %{task: "creator_enrichment"}}
      ]}
   ]
 

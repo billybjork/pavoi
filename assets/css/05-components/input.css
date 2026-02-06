@@ -212,3 +212,69 @@ select.input--sm,
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
 }
+
+/* ============================================================================
+   SECRET INPUT COMPONENT
+   ============================================================================ */
+
+.secret-field__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.secret-field__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-accent-green);
+  background-color: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-full);
+}
+
+.secret-field__input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.secret-field__input,
+.secret-field__textarea {
+  flex: 1;
+  padding-right: var(--space-10);
+}
+
+.secret-field__textarea {
+  min-height: 100px;
+}
+
+.secret-field__toggle {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.secret-field__toggle:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.secret-field__toggle:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}

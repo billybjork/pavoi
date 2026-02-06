@@ -80,8 +80,8 @@ defmodule Mix.Tasks.ClassifyStreamComments do
     streams_to_process =
       streams
       |> Enum.map(fn stream ->
-        total = TiktokLive.count_stream_comments(stream.id)
-        classified = TiktokLive.count_classified_comments(stream.id)
+        total = TiktokLive.count_stream_comments(stream.brand_id, stream.id)
+        classified = TiktokLive.count_classified_comments(stream.brand_id, stream.id)
         unclassified = total - classified
 
         %{
@@ -141,12 +141,12 @@ defmodule Mix.Tasks.ClassifyStreamComments do
   defp process_streams_batch(streams_to_process, batch_size) do
     Enum.reduce(streams_to_process, %{success: 0, failed: 0, comments: 0}, fn s, acc ->
       Mix.shell().info("Processing stream ##{s.stream.id} (#{s.unclassified} comments)...")
-      process_single_stream_result(s.stream.id, batch_size, acc)
+      process_single_stream_result(s.stream.brand_id, s.stream.id, batch_size, acc)
     end)
   end
 
-  defp process_single_stream_result(stream_id, batch_size, acc) do
-    case process_stream_internal(stream_id, batch_size) do
+  defp process_single_stream_result(brand_id, stream_id, batch_size, acc) do
+    case process_stream_internal(brand_id, stream_id, batch_size) do
       {:ok, result} ->
         Mix.shell().info("  Classified: #{result.classified}, Flash sales: #{result.flash_sale}")
 
@@ -163,40 +163,40 @@ defmodule Mix.Tasks.ClassifyStreamComments do
   end
 
   defp process_stream(stream_id, dry_run, batch_size) do
-    case TiktokLive.get_stream(stream_id) do
+    case Repo.get(Stream, stream_id) do
       nil ->
         Mix.shell().error("Stream ##{stream_id} not found")
         return_stats(%{streams: 0, comments: 0})
 
-      _stream ->
-        do_process_stream(stream_id, dry_run, batch_size)
+      %Stream{brand_id: brand_id} ->
+        do_process_stream(brand_id, stream_id, dry_run, batch_size)
     end
   end
 
-  defp do_process_stream(stream_id, dry_run, batch_size) do
-    total = TiktokLive.count_stream_comments(stream_id)
-    classified = TiktokLive.count_classified_comments(stream_id)
+  defp do_process_stream(brand_id, stream_id, dry_run, batch_size) do
+    total = TiktokLive.count_stream_comments(brand_id, stream_id)
+    classified = TiktokLive.count_classified_comments(brand_id, stream_id)
     unclassified = total - classified
 
     Mix.shell().info(
       "Stream ##{stream_id}: #{total} comments, #{classified} classified, #{unclassified} unclassified"
     )
 
-    classify_if_needed(stream_id, unclassified, dry_run, batch_size)
+    classify_if_needed(brand_id, stream_id, unclassified, dry_run, batch_size)
   end
 
-  defp classify_if_needed(_stream_id, 0, _dry_run, _batch_size) do
+  defp classify_if_needed(_brand_id, _stream_id, 0, _dry_run, _batch_size) do
     Mix.shell().info("All comments already classified!")
     return_stats(%{streams: 1, comments: 0})
   end
 
-  defp classify_if_needed(_stream_id, unclassified, true, _batch_size) do
+  defp classify_if_needed(_brand_id, _stream_id, unclassified, true, _batch_size) do
     Mix.shell().info("[DRY RUN] Would classify #{unclassified} comments")
     return_stats(%{streams: 1, comments: unclassified})
   end
 
-  defp classify_if_needed(stream_id, _unclassified, false, batch_size) do
-    case process_stream_internal(stream_id, batch_size) do
+  defp classify_if_needed(brand_id, stream_id, _unclassified, false, batch_size) do
+    case process_stream_internal(brand_id, stream_id, batch_size) do
       {:ok, result} ->
         Mix.shell().info("Classified: #{result.classified}, Flash sales: #{result.flash_sale}")
         return_stats(%{streams: 1, comments: result.classified + result.flash_sale})
@@ -207,9 +207,9 @@ defmodule Mix.Tasks.ClassifyStreamComments do
     end
   end
 
-  defp process_stream_internal(stream_id, batch_size) do
+  defp process_stream_internal(brand_id, stream_id, batch_size) do
     # Detect flash sales first
-    flash_sales = StreamReport.detect_flash_sale_comments(stream_id)
+    flash_sales = StreamReport.detect_flash_sale_comments(brand_id, stream_id)
     flash_sale_texts = Enum.map(flash_sales, & &1.text)
 
     CommentClassifier.classify_stream_comments(stream_id,

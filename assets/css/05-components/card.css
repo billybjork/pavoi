@@ -667,9 +667,9 @@
 .product-set-menu__item {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   width: 100%;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-1);
+  padding: var(--space-2) var(--space-3);
   background-color: transparent;
   border: none;
   border-radius: var(--radius-sm);

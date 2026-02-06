@@ -1,6 +1,7 @@
 defmodule Pavoi.OutreachTest do
   use Pavoi.DataCase
 
+  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Outreach
 
@@ -123,6 +124,9 @@ defmodule Pavoi.OutreachTest do
 
   describe "log_outreach/4" do
     test "creates outreach log entry" do
+      {:ok, brand} =
+        Catalog.create_brand(%{name: "Test Brand", slug: unique_brand_slug("outreach")})
+
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "log_test",
@@ -130,7 +134,7 @@ defmodule Pavoi.OutreachTest do
         })
 
       {:ok, log} =
-        Outreach.log_outreach(creator.id, "email", "sent",
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent",
           provider_id: "sg_abc123",
           lark_preset: "jewelry"
         )
@@ -141,5 +145,9 @@ defmodule Pavoi.OutreachTest do
       assert log.provider_id == "sg_abc123"
       assert log.lark_preset == "jewelry"
     end
+  end
+
+  defp unique_brand_slug(prefix) do
+    "#{prefix}-#{System.unique_integer([:positive])}"
   end
 end

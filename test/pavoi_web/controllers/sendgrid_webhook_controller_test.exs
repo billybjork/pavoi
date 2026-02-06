@@ -1,6 +1,7 @@
 defmodule PavoiWeb.SendgridWebhookControllerTest do
   use PavoiWeb.ConnCase
 
+  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Outreach
 
@@ -17,8 +18,15 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
     |> post("/webhooks/sendgrid", Jason.encode!(events))
   end
 
+  setup %{conn: conn} do
+    {:ok, brand} =
+      Catalog.create_brand(%{name: "Webhook Brand", slug: unique_brand_slug("sendgrid")})
+
+    {:ok, conn: conn, brand: brand}
+  end
+
   describe "handle/2" do
-    test "processes valid webhook events", %{conn: conn} do
+    test "processes valid webhook events", %{conn: conn, brand: brand} do
       # Create a creator and outreach log
       {:ok, creator} =
         Creators.create_creator(%{
@@ -27,7 +35,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, _log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "abc123.xyz789")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "abc123.xyz789")
 
       conn = post_webhook(conn, [@valid_event])
       assert response(conn, 200) == "ok"
@@ -38,7 +46,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert response(conn, 200) == "ok"
     end
 
-    test "auto opts-out creator on spam report", %{conn: conn} do
+    test "auto opts-out creator on spam report", %{conn: conn, brand: brand} do
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "spam_reporter",
@@ -47,7 +55,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, _log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "spam123")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "spam123")
 
       spam_event = %{
         "event" => "spamreport",
@@ -65,7 +73,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert updated_creator.email_opted_out_reason == "spam_report"
     end
 
-    test "auto opts-out creator on hard bounce", %{conn: conn} do
+    test "auto opts-out creator on hard bounce", %{conn: conn, brand: brand} do
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "bouncer",
@@ -74,7 +82,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, _log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "bounce123")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "bounce123")
 
       bounce_event = %{
         "event" => "bounce",
@@ -94,7 +102,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert updated_creator.email_opted_out_reason == "hard_bounce"
     end
 
-    test "does not opt-out on soft bounce", %{conn: conn} do
+    test "does not opt-out on soft bounce", %{conn: conn, brand: brand} do
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "soft_bouncer",
@@ -103,7 +111,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, _log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "softbounce123")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "softbounce123")
 
       bounce_event = %{
         "event" => "bounce",
@@ -122,7 +130,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert updated_creator.email_opted_out == false
     end
 
-    test "auto opts-out creator on unsubscribe", %{conn: conn} do
+    test "auto opts-out creator on unsubscribe", %{conn: conn, brand: brand} do
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "unsubscriber",
@@ -131,7 +139,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, _log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "unsub123")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "unsub123")
 
       unsub_event = %{
         "event" => "unsubscribe",
@@ -149,7 +157,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert updated_creator.email_opted_out_reason == "unsubscribe"
     end
 
-    test "updates engagement timestamps on delivered event", %{conn: conn} do
+    test "updates engagement timestamps on delivered event", %{conn: conn, brand: brand} do
       {:ok, creator} =
         Creators.create_creator(%{
           tiktok_username: "engagement_test",
@@ -157,7 +165,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, log} =
-        Outreach.log_outreach(creator.id, "email", "sent", provider_id: "engage123")
+        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "engage123")
 
       assert log.delivered_at == nil
 
@@ -176,5 +184,9 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       assert updated_log.delivered_at != nil
       assert updated_log.status == "delivered"
     end
+  end
+
+  defp unique_brand_slug(prefix) do
+    "#{prefix}-#{System.unique_integer([:positive])}"
   end
 end

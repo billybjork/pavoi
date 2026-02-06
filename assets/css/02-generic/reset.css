@@ -62,3 +62,8 @@ ul,
 ol {
   list-style: none;
 }
+
+/* Ensure hidden attribute works (HTML standard behavior) */
+[hidden] {
+  display: none !important;
+}

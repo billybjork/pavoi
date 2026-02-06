@@ -28,6 +28,35 @@ end
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
+bridge_port = String.to_integer(System.get_env("TIKTOK_BRIDGE_PORT") || "8080")
+bridge_watcher_enabled? = System.get_env("TIKTOK_BRIDGE_WATCHER", "true") != "false"
+
+bridge_port_available? =
+  case :gen_tcp.connect(~c"127.0.0.1", bridge_port, [:binary, active: false], 100) do
+    {:ok, socket} ->
+      :gen_tcp.close(socket)
+      false
+
+    {:error, :econnrefused} ->
+      true
+
+    {:error, _} ->
+      true
+  end
+
+bridge_watcher =
+  if bridge_watcher_enabled? and bridge_port_available? do
+    [
+      node: [
+        "server.js",
+        cd: Path.expand("../services/tiktok-bridge", __DIR__),
+        env: %{"PORT" => Integer.to_string(bridge_port)}
+      ]
+    ]
+  else
+    []
+  end
+
 config :pavoi, PavoiWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
@@ -36,14 +65,10 @@ config :pavoi, PavoiWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "cbp7vzcpMcH98t9a7NIO3LrSWzXeN5nccqZdEFe2QWydund6F2h5TvtuAdvhv1dz",
-  watchers: [
-    esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]},
-    node: [
-      "server.js",
-      cd: Path.expand("../services/tiktok-bridge", __DIR__),
-      env: %{"PORT" => "8080"}
-    ]
-  ]
+  watchers:
+    [
+      esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]}
+    ] ++ bridge_watcher
 
 # ## SSL Support
 #

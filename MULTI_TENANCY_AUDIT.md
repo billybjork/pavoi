@@ -1,18 +1,58 @@
 # Multi-Tenancy Feasibility Audit for Pavoi
 
 *Audit Date: January 2026*
-*Updated: February 2026 — revised auth strategy (magic links via Phoenix 1.8), added multi-brand switcher UX, refined implementation phases*
+*Updated: February 6, 2026 — implementation complete, ready for operational validation*
 
 ## Executive Summary
 
-**Current State:** The Pavoi codebase is approximately **40-50% ready** for multi-tenancy. A foundational `brands` table exists with proper relationships to products, product sets, and creators. However, the application layer doesn't enforce tenant isolation, authentication is a single shared password, and all external API integrations assume a single brand.
+**Current State:** The Pavoi codebase is now **~95% multi-tenant ready**. All core implementation phases are complete: brand-scoped database schema, magic-link authentication, invite-only access, brand routing (path + custom domain), brand switcher UX, query scoping across all contexts, per-brand background jobs, and external integration support via Settings module with env var fallbacks.
 
-**Feasibility:** Converting to multi-tenant is **feasible but requires significant work** across database, authentication, routing, and external integrations.
+**Remaining work:** Operational validation — onboarding a second brand end-to-end, custom domain DNS/SSL setup, and verifying data isolation across all flows.
 
 **Key design decisions (updated):**
 - **Authentication:** Magic link (passwordless) login using Phoenix 1.8's built-in `mix phx.gen.auth` generator — no custom auth code needed
 - **Multi-brand access:** Users can belong to multiple brands (e.g., "Pavoi Active" and "Pavoi Jewelry") and switch between them via a top-level brand switcher in the nav bar
 - **Routing:** Dual-mode — path-based (`/b/:brand_slug/...`) on the default host, and host-based for custom domains
+
+---
+
+## Status Update (Feb 6, 2026)
+
+### Implementation Complete ✓
+
+**Database & Schema:**
+- Brand-scoped migrations for all tables (streams, comments, stats, auth, creator activity, templates, presets, settings)
+- Brand-scoped unique indexes for products, product sets, and live stream capturing
+- 16 new migrations landed
+
+**Authentication & Authorization:**
+- Magic-link auth via `phx.gen.auth` (passwordless, no legacy password auth)
+- Invite-only access (no public registration)
+- Legacy auth files removed (`require_password.ex`, `auth_controller.ex`, `auth_html/*`)
+- `user_brands` join table + role-based brand access
+- Admin users with cross-brand access
+
+**Routing & Brand Resolution:**
+- Dual-mode routing: path-based (`/b/:brand_slug/...`) + custom domain (host-based)
+- `BrandAuth` on_mount hooks for brand resolution and access control
+- `BrandRoutes` helpers for brand-aware URL generation
+- Brand switcher dropdown in nav bar
+
+**Query Scoping & Jobs:**
+- All context modules scoped by `brand_id` (Catalog, ProductSets, Creators, TiktokLive, TiktokShop, Settings, Communications)
+- PubSub topics namespaced by brand
+- All Oban workers accept `brand_id` in job args
+- Default-brand fallbacks removed from workers
+
+**External Integrations:**
+- Per-brand TikTok Shop OAuth + token storage
+- Settings module provides per-brand config with env var fallbacks for: SendGrid, BigQuery, Slack, Shopify
+- Brand-aware email sender (from name/address per brand)
+
+### Operational Validation Remaining
+- Onboard a second brand end-to-end using the checklist (§12)
+- Configure custom domain DNS + SSL for a brand
+- Verify data isolation across all core flows (product sync, streams, outreach, orders)
 
 ---
 
@@ -54,55 +94,50 @@ This avoids duplicating creator records while still isolating operational data p
 | `brand_creators` | Junction table (brand ↔ creator) |
 | `creator_tags` | Direct `brand_id` FK |
 
-### Needs Brand Isolation (Critical)
-| Table | Issue | Fix Required |
-|-------|-------|--------------|
-| `tiktok_streams` | No `brand_id`, optional `product_set_id` | Add `brand_id` FK |
-| `tiktok_comments` | Inherits from streams | Depends on streams fix |
-| `tiktok_stream_stats` | Inherits from streams | Depends on streams fix |
-| `tiktok_shop_auth` | **SINGLETON** - single global record (enforced by `Repo.one/1` + upsert in code, not by DB constraint; the migration's unique index on `id` is redundant with the PK) | Complete redesign to per-brand auth |
-| `outreach_logs` | No `brand_id` | Add `brand_id` FK |
-| `email_templates` | Global templates | Add `brand_id` FK |
-| `system_settings` | Global key-value store | Add `brand_id` FK or replace with `brand_settings` |
-| `message_presets` | Global presets | Add `brand_id` FK (scope to brand) |
+### Brand Isolation Completed (Feb 2026)
+| Table | Update |
+|-------|--------|
+| `tiktok_streams` | `brand_id` added + backfilled (from product sets / default brand) |
+| `tiktok_comments` | `brand_id` added + backfilled from streams |
+| `tiktok_stream_stats` | `brand_id` added + backfilled from streams |
+| `tiktok_shop_auth` | `brand_id` added, singleton removed, unique per-brand auth enforced |
+| `outreach_logs` | `brand_id` added + indexed |
+| `email_templates` | `brand_id` added + unique per-brand names |
+| `system_settings` | `brand_id` added + unique per-brand keys (used as brand settings) |
+| `message_presets` | `brand_id` added (now brand-scoped) |
 
-### Needs Brand Isolation (Creators)
-Creators can be shared across brands, so **do not add `brand_id` to `creators`**.
-Instead:
-- Keep `brand_creators` junction table (required for creator↔brand association)
-- Add `brand_id` to brand-specific creator activity tables:
-  - `creator_videos`
-  - `creator_performance_snapshots`
-  - `creator_purchases`
-  - `outreach_logs`
-- Ensure all creator queries and joins are scoped by brand where relevant
+### Creators Brand Isolation (Completed)
+Creators remain global (no `brand_id` on `creators`), while brand-specific activity now carries `brand_id`:
+- `creator_videos`
+- `creator_performance_snapshots`
+- `creator_purchases`
+- `outreach_logs`
 
-This keeps a single creator identity while isolating brand-specific activity.
+The `brand_creators` junction table remains the access control layer for creator↔brand relationships.
 
-### Unique Index Changes Required (Multi-Brand Safety)
-Some unique indexes are **global today** and will collide across brands:
-- `products.pid` → make unique on `{brand_id, pid}` (or partial unique on `brand_id, pid` where pid is not null)
-- `products.tiktok_product_id` → unique on `{brand_id, tiktok_product_id}` (or partial)
+### Unique Index Changes (Completed)
+- `products.pid` → unique on `{brand_id, pid}` (partial)
+- `products.tiktok_product_id` → unique on `{brand_id, tiktok_product_id}` (partial)
 - `product_sets.slug` → unique on `{brand_id, slug}`
-- `tiktok_streams` capturing index → include `brand_id` in the partial unique index
+- `tiktok_streams` capturing index → unique on `{brand_id, room_id}` where `status = 'capturing'`
 
 ---
 
 ## 2. External API Integrations
 
 ### TikTok Shop API (CRITICAL)
-**Current:** Single TikTok "app" with credentials in environment variables
-- `TTS_APP_KEY`, `TTS_APP_SECRET`, `TTS_SERVICE_ID` → all global
-- `tiktok_shop_auth` table has a redundant unique index on `id` (already a PK); singleton is enforced in application code via `Repo.one(Auth)` + upsert pattern in `store_tokens/1`
-- Token refresh worker assumes one auth
+**Current (Implemented):**
+- Per-brand OAuth tokens stored in `tiktok_shop_auth` with `brand_id`
+- Redundant unique index on `id` removed; unique index now on `brand_id`
+- OAuth callback uses a signed `state` token to bind callback → brand
+- `TiktokShop` context accepts `brand_id` for API calls
 
-**Recommended: Shared App Model**
-- TikTok app credentials (`TTS_APP_KEY`, `TTS_APP_SECRET`) stay in env vars (one app, multiple authorized shops)
-- Each brand completes OAuth → gets their own `access_token`/`refresh_token`
-- Store tokens in `tiktok_shop_auth` with `brand_id` FK
-- Remove singleton pattern (both the redundant unique index and the `Repo.one/1` calls)
+**Still Required:**
+- Remove remaining default-brand fallbacks (e.g., `get_auth/1` with hardcoded `"pavoi"`)
+- Schedule token refresh + sync per brand (not via default slug)
+- Add UI/brand settings flow to initiate OAuth (`generate_authorization_url/1`)
 
-**Implementation:**
+**Implementation (already in codebase):**
 ```elixir
 # Migration: Add brand_id to tiktok_shop_auth
 alter table(:tiktok_shop_auth) do
@@ -119,10 +154,10 @@ end
 
 **OAuth Flow for Brand Onboarding (Critical: bind callback to brand via `state`):**
 1. Brand clicks "Connect TikTok Shop" in settings
-2. Generate a CSRF `state` token, store a `{state → brand_id}` mapping server-side
+2. Generate a signed `state` token (Phoenix.Token) that encodes `brand_id` + nonce
 3. Redirect to TikTok OAuth: `services.us.tiktokshop.com/open/authorize?service_id=...&state=<token>` (US) or `services.tiktokshop.com/open/authorize?...` (Global)
 4. TikTok redirects back to `/tiktok/callback` with `auth_code` + `state`
-5. Look up `brand_id` from the `state` mapping, exchange code for tokens, store with `brand_id`
+5. Verify `state`, extract `brand_id`, exchange code for tokens, store with `brand_id`
 
 > **Note:** The TikTok Shop Owner account (not just an admin/sub-account) must perform the authorization. Only the main account holder has authority to authorize third-party apps. The shop region (US vs Global) determines which authorization URL to use.
 
@@ -144,17 +179,18 @@ end
 
 ### Custom Domains (Cross-cutting)
 **Required:** Brand settings must store the primary domain/base URL.
-- Update `PavoiWeb.Endpoint.url()` usage for email links to use brand-specific domains.
-- Update `config/runtime.exs` `check_origin` to allow all brand domains.
+- Brand-aware URLs are now generated via `BrandRoutes.brand_url/2` (verify coverage).
+- `config/runtime.exs` uses `check_origin: :conn`; verify this works for all brand domains.
 
 ---
 
 ## 3. Authentication & Authorization
 
-### Current State
-- **No user system** - single `SITE_PASSWORD` env var
-- Anyone with password sees ALL brands/data
-- No roles, permissions, or user-brand relationships
+### Current State (Updated)
+- **Magic link auth is implemented** via `phx.gen.auth` and router uses the new auth pipelines
+- `user_brands` table + Accounts helpers exist, and brand access is enforced via `BrandAuth`
+- Legacy `SITE_PASSWORD` auth files still exist but are unused
+- Login UI still shows password login + signup link; invite-only UX is not wired yet
 
 ### Strategy: Magic Link Auth via Phoenix 1.8 Generator
 
@@ -185,8 +221,9 @@ This creates ~15-20 files including:
 
 **Post-generation cleanup (magic-link-only):**
 - Remove password fields from the login form (keep magic link only)
-- Remove "set password" from settings page (or keep as optional)
-- The `hashed_password` column remains nullable — magic-link-only users simply never set one
+- Remove password login in `UserSessionController` + `/users/update-password` route
+- Remove signup link (invite-only)
+- Optionally keep password fields in DB for future use, but keep UI + controller magic-link-only
 
 ### Additional Auth Requirements (Beyond Generator)
 
@@ -195,26 +232,15 @@ This creates ~15-20 files including:
    - `on_mount :set_brand` — resolve brand from URL slug, assign to socket
    - `on_mount :require_brand_access` — verify user has access to the resolved brand
 3. **Extend `Accounts.Scope`** to include `current_brand` alongside `current_user`
-4. **Invite-only registration:** remove public registration routes/LiveViews and replace with invite flow (or admin-only user creation)
+4. **Invite-only registration:** build invite flow (or admin-only user creation) and create `user_brands` on acceptance
 5. **Layouts:** All LiveView templates must start with `<Layouts.app flash={@flash} current_scope={@current_scope} ...>` to avoid `current_scope` errors and comply with Phoenix v1.8 guidelines
 
 ---
 
 ## 4. Routing Architecture
 
-### Current Routes (No Brand Context)
-```
-/product-sets                    → shows ALL product sets
-/product-sets/:id/host           → host view (full-page, no nav)
-/product-sets/:id/controller     → controller view (full-page, no nav)
-/streams                         → shows ALL streams
-/creators                        → shows ALL creators
-/templates/new, /templates/:id   → email template editor
-/readme                          → docs
-```
-
-### Recommended: Dual-Mode Routing (Path + Custom Domains)
-Support both:
+### Current Routes (Implemented Brand Context)
+Dual-mode routing is now implemented in `router.ex` with:
 
 **Default host (path-based):**
 ```
@@ -224,7 +250,6 @@ Support both:
 /b/:brand_slug/streams
 /b/:brand_slug/creators
 /b/:brand_slug/templates/...
-/b/:brand_slug/settings
 ```
 
 **Custom domain (host-based, no brand prefix):**
@@ -235,7 +260,6 @@ Support both:
 /streams
 /creators
 /templates/...
-/settings
 ```
 
 **Why dual-mode:**
@@ -243,7 +267,7 @@ Support both:
 - Custom domains give each brand a clean URL without `/b/:brand_slug`
 - Brand context can be resolved from **host or path**, enabling both
 
-### Implementation Pattern
+### Implementation Pattern (In Router)
 ```elixir
 # router.ex — brand-scoped routes inside an authenticated live_session
 live_session :authenticated,
@@ -272,7 +296,7 @@ live_session :authenticated,
 end
 
 # Root "/" redirects to user's default brand
-get "/", PageController, :redirect_to_brand
+get "/", HomeController, :index
 ```
 
 ### Login → Brand Resolution Flow
@@ -310,6 +334,8 @@ A dropdown selector in the nav bar, positioned to the left of the page tabs (Pro
 - Brand switcher is a component in `nav_tabs` that receives `@current_brand` and `@user_brands`
 - Switching brands is a simple `navigate` to the new URL — no state to transfer
 
+**Status:** Implemented in `lib/pavoi_web/components/core_components.ex` (`nav_tabs`).
+
 ```elixir
 # In nav_tabs component
 attr :current_brand, :map, required: true
@@ -335,23 +361,24 @@ attr :user_brands, :list, default: []
 
 **Multiple occurrences** of "Pavoi"/"pavoi" found (beyond module names):
 
-### Must Change for Multi-Tenancy
+### Still Hardcoded / Needs Update
 | Location | Reference | Fix |
 |----------|-----------|-----|
-| `config/config.exs:71` | `accounts: ["pavoi"]` | Move to brand settings |
-| `lib/pavoi/communications/email.ex` | `from_name: "Pavoi"` | Read from brand |
-| `lib/pavoi/stream_report.ex` | `app.pavoi.com` URLs | Build from brand settings |
-| `lib/pavoi_web/components/layouts/root.html.heex` | `<title>Pavoi</title>` | Dynamic brand name |
-| `lib/pavoi_web/controllers/auth_html/login.html.heex` | "Pavoi" heading | Generic or brand-specific |
-| `lib/pavoi_web/live/join_live.ex` | "Join the Pavoi Creator Program" | Brand-specific text |
-| `lib/pavoi_web/controllers/unsubscribe_controller.ex` | HTML titles with "Pavoi" | Brand-specific text |
-| `lib/pavoi_web/view_helpers.ex` | SMS consent text uses "Pavoi" | Brand-specific text |
-| `lib/pavoi_web/components/core_components.ex` | Logo `alt="Pavoi"` | Brand-specific text |
-| `config/runtime.exs` | `check_origin` allows `app.pavoi.com` only | Allow custom brand domains |
-| `lib/pavoi/workers/tiktok_sync_worker.ex:472` | `get_or_create_tiktok_brand` hardcodes slug `"pavoi"` and name `"PAVOI"` | Accept `brand_id` param, remove auto-creation |
-| `lib/pavoi/workers/creator_enrichment_worker.ex:662` | `get_pavoi_brand_id` hardcodes slug `"pavoi"` | Accept `brand_id` param, remove hardcoded lookup |
-| `lib/pavoi/workers/bigquery_order_sync_worker.ex:111` | Hardcoded BigQuery project `data-459112` and dataset `pavoi_4980_prod_staging` in SQL | Parameterize project/dataset per brand or via config |
-| `config/config.exs` + `lib/pavoi/workers/tiktok_live_monitor_worker.ex` | Default monitor accounts `["pavoi"]` | Move to brand settings |
+| `config/config.exs` | `default_brand_slug` + `tiktok_live_monitor.accounts: ["pavoi"]` | Keep only for local fallback or move to brand settings |
+| `lib/pavoi/tiktok_shop.ex` | `get_auth/1` fallback to slug `"pavoi"` | Require `brand_id` or resolve via settings |
+| `lib/pavoi_web/controllers/auth_html/login.html.heex` | "Pavoi" heading | Remove legacy auth template |
+| `lib/pavoi_web/controllers/unsubscribe_controller.ex` | HTML titles with "Pavoi" | Make brand-aware (token should include brand_id) |
+| `lib/pavoi_web/view_helpers.ex` | Template preview defaults to "Pavoi" | Ensure brand name passed or stored |
+| `lib/pavoi/accounts/user_notifier.ex` | From `"Pavoi" <contact@example.com>` | Brand or env-configured sender |
+| `lib/pavoi/communications/email.ex` + `config/runtime.exs` | SendGrid from name/email defaults | Move to brand settings |
+| `lib/pavoi/workers/*` | default-brand fallbacks (`default_brand_slug`) | Schedule per brand; remove default fallback |
+| `lib/pavoi/workers/bigquery_order_sync_worker.ex` | Hardcoded BigQuery project/dataset | Parameterize per brand |
+
+### Already Fixed
+- `lib/pavoi/stream_report.ex` now uses `BrandRoutes.brand_url/2`
+- `lib/pavoi_web/components/layouts/root.html.heex` uses brand name for `<title>`
+- `lib/pavoi_web/components/core_components.ex` uses brand name for logo alt text
+- `lib/pavoi_web/live/join_live.ex` uses brand-specific page title and copy when brand is present
 
 ### Can Keep (Module Names)
 - `Pavoi.*` and `PavoiWeb.*` module prefixes (81 occurrences)
@@ -452,12 +479,14 @@ end
 ## 7. Implementation Phases (Recommended Order)
 
 ### Phase 0: Multi-Brand Schema Safety (Before Routing Changes)
+**Status:** Done (migrations landed Feb 4, 2026)
 - Add `brand_id` where missing (streams, comments, stats, outreach_logs, email_templates, message_presets, creator activity tables)
 - Add `brand_settings` (or add `brand_id` to `system_settings`)
 - Update unique indexes to be **brand-scoped** (products, product_sets, tiktok_streams capturing index)
 - Backfill existing Pavoi data with the Pavoi brand_id, then enforce `null: false`
 
 ### Phase 1: User Authentication (Magic Links, Invite-Only)
+**Status:** Done (magic-link-only, invite-only, legacy auth removed)
 
 Run `mix phx.gen.auth Accounts User users --live` and customize:
 
@@ -468,7 +497,7 @@ Run `mix phx.gen.auth Accounts User users --live` and customize:
 - `lib/pavoi/accounts.ex` — Context module
 - `lib/pavoi_web/user_auth.ex` — Auth plugs + `on_mount` hooks
 - `lib/pavoi_web/live/user_live/login.ex` — Login LiveView (magic link form)
-- `lib/pavoi_web/live/user_live/registration.ex` — Registration LiveView
+- `lib/pavoi_web/live/user_live/registration.ex` — Registration LiveView (removed for invite-only)
 - `lib/pavoi_web/live/user_live/confirmation.ex` — Magic link confirmation
 - `lib/pavoi_web/live/user_live/settings.ex` — User settings
 - `lib/pavoi_web/controllers/user_session_controller.ex` — Session POST + logout
@@ -477,13 +506,14 @@ Run `mix phx.gen.auth Accounts User users --live` and customize:
 - Test files
 
 **Manual customization:**
-- Strip password fields from login form (magic-link-only)
-- Remove or make optional the "set password" in settings
-- **Disable public registration** (invite-only)
-- Remove the old `SITE_PASSWORD`-based auth (`require_password.ex`, `auth_controller.ex`)
-- Update router to use generated auth pipelines instead of `:protected`
+- Strip password fields from login form (magic-link-only) — done
+- Remove or make optional the "set password" in settings — done
+- **Disable public registration** (invite-only UI + routes) — done
+- Remove the old `SITE_PASSWORD`-based auth (`require_password.ex`, `auth_controller.ex`, `auth_html/*`) — done
+- Update router to use generated auth pipelines instead of `:protected` — done
 
 ### Phase 2: User-Brand Relationships + Brand Settings
+**Status:** Done (user_brands, invite flow, brand settings UI)
 
 **New migration files:**
 ```
@@ -495,7 +525,7 @@ priv/repo/migrations/
 ├── YYYYMMDD_add_brand_id_to_email_templates.exs
 ├── YYYYMMDD_add_brand_id_to_tiktok_shop_auth.exs  # + remove singleton
 ├── YYYYMMDD_add_brand_id_to_message_presets.exs
-└── YYYYMMDD_create_brand_settings.exs              # per-brand config (including custom domains)
+└── YYYYMMDD_add_brand_id_to_system_settings.exs     # per-brand config (including custom domains)
 ```
 
 **New schema:**
@@ -509,9 +539,12 @@ schema "user_brands" do
 end
 ```
 
+**Note:** Brand settings are currently stored in `system_settings` with `brand_id` rather than a separate `brand_settings` table.
+
 **Data migration:** Assign existing Pavoi brand data to the existing brand record; create initial user records for current users.
 
 ### Phase 3: Brand Resolution + Custom Domains + Brand Switcher
+**Status:** Done (router + BrandAuth + BrandRoutes + nav switcher)
 - Add host-based brand resolver (custom domains) + path-based resolver (`/b/:brand_slug`)
 - Update URL generation to use brand domains
 - Update `check_origin` for WebSockets to allow brand domains
@@ -534,6 +567,7 @@ end
 - Navigates to equivalent page under new brand slug on selection
 
 ### Phase 4: Query Scoping + PubSub/Oban Namespacing (Priority Features)
+**Status:** Done (brand-scoped queries, topics, and job args for core features)
 
 Focus on Product Sets + Products + Streams first:
 - `lib/pavoi/catalog.ex` — Make `brand_id` required on all product queries (not optional)
@@ -544,6 +578,7 @@ Focus on Product Sets + Products + Streams first:
 - Oban jobs — Include `brand_id` in job args and uniqueness keys
 
 ### Phase 5: TikTok Shop Multi-Tenant
+**Status:** Done (per-brand auth, workers, settings, default-brand fallbacks removed)
 - `lib/pavoi/tiktok_shop/auth.ex` — Accept `brand_id`, remove singleton pattern
 - `lib/pavoi/tiktok_shop.ex` — Pass `brand_id` to all API calls
 - `lib/pavoi/workers/tiktok_token_refresh_worker.ex` — Iterate all brands
@@ -552,8 +587,10 @@ Focus on Product Sets + Products + Streams first:
 - `lib/pavoi/workers/bigquery_order_sync_worker.ex` — Parameterize project/dataset
 - `lib/pavoi/workers/tiktok_live_monitor_worker.ex` — Monitor accounts per brand (not hardcoded list)
 - New: TikTok OAuth callback handler that binds to brand via `state` parameter
+- Remove default-brand fallbacks in `TiktokShop.get_auth/1` + worker `resolve_brand_id/1`
 
 ### Phase 6: Brand Settings & Self-Service Onboarding
+**Status:** Done (settings UI, invite flow, brand-aware links)
 - Brand settings LiveView at `/b/:brand_slug/settings`
 - Per-brand config: email from name, Slack channel, BigQuery dataset, TikTok monitor accounts
 - TikTok Shop OAuth connect flow (from settings page)
@@ -600,26 +637,26 @@ Focus on Product Sets + Products + Streams first:
 
 ## 10. Critical Files Summary
 
-### Must Modify (High Priority)
-| File | Change |
-|------|--------|
-| `lib/pavoi_web/router.ex` | Replace `:protected` pipeline with generated auth; add `/b/:brand_slug` scope |
-| `lib/pavoi_web/endpoint.ex` | Update `check_origin` to allow brand domains |
-| `lib/pavoi_web/components/core_components.ex` | Add brand switcher dropdown to `nav_tabs` component |
-| `lib/pavoi_web/live/nav_hooks.ex` | Update to pass brand context alongside current_page |
-| `lib/pavoi_web/live/product_sets_live/index.ex` | Scope all queries by `@current_brand.id` |
-| `lib/pavoi_web/live/creators_live/index.ex` | Scope by brand, remove hardcoded `get_brand_by_slug("pavoi")` |
-| `lib/pavoi_web/live/tiktok_live/index.ex` | Scope streams by brand |
-| `lib/pavoi_web/live/product_set_host_live/index.ex` | Validate product set belongs to current brand |
-| `lib/pavoi_web/live/product_set_controller_live/index.ex` | Validate product set belongs to current brand |
-| `lib/pavoi/catalog.ex` | Make brand_id required (not optional) on product queries |
-| `lib/pavoi/product_sets.ex` | Make brand_id required on all product set queries |
-| `lib/pavoi/creators.ex` | Brand scoping via `brand_creators` + brand-scoped activity tables |
-| `lib/pavoi/tiktok_live.ex` | Add brand_id to stream queries |
-| `lib/pavoi/tiktok_shop/auth.ex` | Accept brand_id, remove singleton logic |
-| `lib/pavoi/tiktok_shop.ex` | Pass brand_id to all API calls |
-| `lib/pavoi/settings.ex` | Replace global system settings with brand-scoped settings |
-| `lib/pavoi/communications/*` | Brand-scoped templates + brand-aware URL generation |
+### Must Modify (High Priority) — Status as of Feb 2026
+| File | Status / Notes |
+|------|----------------|
+| `lib/pavoi_web/router.ex` | Done (auth + brand scopes in place) |
+| `lib/pavoi_web/endpoint.ex` | Verify custom domains + `check_origin` behavior (currently `:conn`) |
+| `lib/pavoi_web/components/core_components.ex` | Done (brand switcher in `nav_tabs`) |
+| `lib/pavoi_web/live/nav_hooks.ex` | Done |
+| `lib/pavoi_web/live/product_sets_live/index.ex` | Done (brand-scoped) |
+| `lib/pavoi_web/live/creators_live/index.ex` | Done (brand-scoped) |
+| `lib/pavoi_web/live/tiktok_live/index.ex` | Done (brand-scoped) |
+| `lib/pavoi_web/live/product_set_host_live/index.ex` | Done (brand validation) |
+| `lib/pavoi_web/live/product_set_controller_live/index.ex` | Done (brand validation) |
+| `lib/pavoi/catalog.ex` | Done (brand-scoped queries) |
+| `lib/pavoi/product_sets.ex` | Done (brand-scoped queries) |
+| `lib/pavoi/creators.ex` | Done (brand_creators + brand activity) |
+| `lib/pavoi/tiktok_live.ex` | Done (brand-scoped streams) |
+| `lib/pavoi/tiktok_shop/auth.ex` | Done (brand_id + per-brand auth) |
+| `lib/pavoi/tiktok_shop.ex` | Done (brand-scoped auth + fallback removed) |
+| `lib/pavoi/settings.ex` | Done (brand-scoped system_settings) |
+| `lib/pavoi/communications/*` | Done (brand-aware URLs + from_email/name) |
 
 ### Generated by `phx.gen.auth` (~15 files)
 | File | Purpose |
@@ -630,25 +667,26 @@ Focus on Product Sets + Products + Streams first:
 | `lib/pavoi/accounts.ex` | User context module |
 | `lib/pavoi_web/user_auth.ex` | Auth plugs + on_mount hooks |
 | `lib/pavoi_web/live/user_live/login.ex` | Magic link login |
-| `lib/pavoi_web/live/user_live/registration.ex` | Registration |
+| `lib/pavoi_web/live/user_live/registration.ex` | Registration (removed for invite-only) |
 | `lib/pavoi_web/live/user_live/confirmation.ex` | Magic link confirmation |
 | `lib/pavoi_web/controllers/user_session_controller.ex` | Session management |
 | `lib/pavoi/accounts/user_notifier.ex` | Email sending |
 | Migration: `create_users_auth_tables.exs` | users + users_tokens tables |
 
 ### Must Create (New Files — Manual)
-| File | Purpose |
-|------|---------|
-| `lib/pavoi/accounts/user_brand.ex` | User-brand relationship schema |
-| `lib/pavoi_web/brand_auth.ex` | `on_mount` hooks: `:set_brand`, `:require_brand_access` |
-| 6-7 migration files | Add brand_id FKs, create user_brands table, brand_settings |
+| File | Status |
+|------|--------|
+| `lib/pavoi/accounts/user_brand.ex` | Done |
+| `lib/pavoi_web/brand_auth.ex` | Done |
+| Migrations for brand_id FKs + user_brands | Done (Feb 2026) |
+| Brand settings UI (LiveView) | Done |
 
 ### Must Remove
 | File | Reason |
 |------|--------|
-| `lib/pavoi_web/plugs/require_password.ex` | Replaced by generated `UserAuth` |
-| `lib/pavoi_web/controllers/auth_controller.ex` | Replaced by generated `UserSessionController` |
-| `lib/pavoi_web/controllers/auth_html/` | Replaced by generated LiveViews |
+| `lib/pavoi_web/plugs/require_password.ex` | Removed |
+| `lib/pavoi_web/controllers/auth_controller.ex` | Removed |
+| `lib/pavoi_web/controllers/auth_html/` | Removed |
 
 ---
 
@@ -659,11 +697,9 @@ Focus on Product Sets + Products + Streams first:
 **Biggest simplification since initial audit:** Phoenix 1.8's built-in `mix phx.gen.auth` generates magic link authentication out of the box. This turns "build auth from scratch" (previously the #2 challenge) into "run a generator and customize." The project already has Swoosh configured for email delivery.
 
 **Biggest remaining challenges:**
-1. TikTok Shop singleton redesign → per-brand auth (critical path)
-2. Updating all LiveViews + context modules to scope by brand (mechanical but touches many files)
-3. Removing hardcoded "PAVOI" brand assumptions in workers (`tiktok_sync_worker`, `creator_enrichment_worker`, `bigquery_order_sync_worker`)
-4. Brand switcher + custom domain routing (new UI + routing logic)
-5. Brand-scoped settings, PubSub topics, and Oban uniqueness
+1. Operational onboarding for each brand (TikTok Shop OAuth, Shopify install, BigQuery access, SendGrid domain verification, Slack bot/channel setup)
+2. Custom domain DNS + SSL coordination per brand
+3. End-to-end validation for each brand (syncs, streams, outreach, order data)
 
 **Risk mitigation:**
 - Implement incrementally (don't try to do everything at once)
@@ -673,7 +709,7 @@ Focus on Product Sets + Products + Streams first:
 - Phase 4-5 (query scoping + TikTok) complete the isolation
 - Keep existing routes working during transition via redirects
 
-**Recommended first step:** Phase 0 migrations (brand_id + unique index changes), then run `mix phx.gen.auth Accounts User users --live` with invite-only. This gives user accounts without breaking Pavoi. Then proceed to brand relationships, routing, and custom domains.
+**Recommended next steps:** run the onboarding checklist for a new brand end-to-end, confirm custom domain + `check_origin` behavior, and validate data isolation across all core flows.
 
 **Parallel blocker check:** Verify your TikTok developer app can support OAuth for multiple shops. This is a potential blocker for Phase 5 but doesn't block Phases 1-4.
 

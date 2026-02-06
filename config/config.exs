@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :pavoi, :scopes,
+  user: [
+    default: true,
+    module: Pavoi.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: Pavoi.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :pavoi,
   ecto_repos: [Pavoi.Repo],
   generators: [timestamp_type: :utc_datetime]
@@ -16,6 +29,12 @@ config :pavoi, :features,
   voice_control_enabled: true,
   outreach_email_enabled: true,
   outreach_email_override: nil
+
+# Default application name used in unauthenticated contexts
+config :pavoi, :app_name, "Pavoi"
+
+# Default brand slug for local/dev host-based resolution
+config :pavoi, :default_brand_slug, "pavoi"
 
 # Configures the endpoint
 config :pavoi, PavoiWeb.Endpoint,
@@ -52,7 +71,7 @@ config :pavoi, Oban,
   queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2, slack: 3]
 
 # TikTok Live stream capture configuration
-config :pavoi, :tiktok_live_monitor, accounts: ["pavoi"]
+config :pavoi, :tiktok_live_monitor, accounts: []
 
 # Configure esbuild (the version is required)
 config :esbuild,

@@ -30,12 +30,16 @@ if config_env() == :dev do
     openai_api_key: System.get_env("OPENAI_API_KEY"),
     # BigQuery configuration for Creator CRM sync
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
+    bigquery_dataset: System.get_env("BIGQUERY_DATASET"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
     bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
     # SendGrid configuration for creator outreach emails
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
-    sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
+    sendgrid_from_name:
+      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:pavoi, :app_name, "App")),
+    auth_from_name: System.get_env("AUTH_FROM_NAME"),
+    auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
     # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
     sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
@@ -43,7 +47,9 @@ if config_env() == :dev do
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
     # TikTok Bridge service URL for TikTok Live capture
-    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080"),
+    tiktok_bridge_url:
+      System.get_env("TIKTOK_BRIDGE_URL") ||
+        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
     # Slack configuration for stream reports
     slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
     slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports"),
@@ -113,12 +119,16 @@ if config_env() == :prod do
     openai_api_key: System.get_env("OPENAI_API_KEY"),
     # BigQuery configuration for Creator CRM sync
     bigquery_project_id: System.get_env("BIGQUERY_PROJECT_ID"),
+    bigquery_dataset: System.get_env("BIGQUERY_DATASET"),
     bigquery_service_account_email: System.get_env("BIGQUERY_SERVICE_ACCOUNT_EMAIL"),
     bigquery_private_key: System.get_env("BIGQUERY_PRIVATE_KEY"),
     # SendGrid configuration for creator outreach emails
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
-    sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
+    sendgrid_from_name:
+      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:pavoi, :app_name, "App")),
+    auth_from_name: System.get_env("AUTH_FROM_NAME"),
+    auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
     # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
     sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
@@ -126,7 +136,9 @@ if config_env() == :prod do
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
     # TikTok Bridge service URL for TikTok Live capture
-    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080"),
+    tiktok_bridge_url:
+      System.get_env("TIKTOK_BRIDGE_URL") ||
+        "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
     # Slack configuration for stream reports
     slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
     slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
@@ -141,7 +153,7 @@ if config_env() == :prod do
 
   config :pavoi, PavoiWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    check_origin: ["https://#{host}", "https://app.pavoi.com"],
+    check_origin: :conn,
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.

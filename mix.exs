@@ -44,6 +44,7 @@ defmodule Pavoi.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:bcrypt_elixir, "~> 3.0"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
@@ -51,6 +52,7 @@ defmodule Pavoi.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
+      {:lazy_html, ">= 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:swoosh, "~> 1.16"},
@@ -75,6 +77,8 @@ defmodule Pavoi.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # Static code analysis
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      # Mocking for tests
+      {:mox, "~> 1.2", only: :test},
 
       # TikTok Live stream capture
       {:websockex, "~> 0.4.3"},
