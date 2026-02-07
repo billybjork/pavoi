@@ -163,7 +163,7 @@ defmodule Pavoi.Accounts do
   @doc """
   Registers a user and assigns them to a brand with a role.
   """
-  def register_user_for_brand(attrs, %Brand{} = brand, role \\ "viewer") do
+  def register_user_for_brand(attrs, %Brand{} = brand, role \\ :viewer) do
     Repo.transaction(fn ->
       with {:ok, user} <- register_user(attrs),
            {:ok, _} <- create_user_brand(user, brand, role) do
@@ -218,7 +218,7 @@ defmodule Pavoi.Accounts do
   @doc """
   Creates a user-brand relationship.
   """
-  def create_user_brand(%User{} = user, %Brand{} = brand, role \\ "viewer") do
+  def create_user_brand(%User{} = user, %Brand{} = brand, role \\ :viewer) do
     %UserBrand{user_id: user.id, brand_id: brand.id}
     |> UserBrand.changeset(%{role: role})
     |> Repo.insert()
@@ -231,7 +231,7 @@ defmodule Pavoi.Accounts do
 
   If an invite already exists for the brand + email, it is refreshed.
   """
-  def create_brand_invite(%Brand{} = brand, email, role \\ "viewer", invited_by_user \\ nil)
+  def create_brand_invite(%Brand{} = brand, email, role \\ :viewer, invited_by_user \\ nil)
       when is_binary(email) do
     invited_by_user_id =
       case invited_by_user do

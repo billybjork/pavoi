@@ -223,7 +223,7 @@ defmodule Pavoi.Outreach do
   def get_latest_email_outreach_log(brand_id, creator_id) do
     from(ol in OutreachLog,
       where: ol.brand_id == ^brand_id and ol.creator_id == ^creator_id,
-      where: ol.channel == "email",
+      where: ol.channel == :email,
       order_by: [desc: ol.sent_at],
       limit: 1
     )
@@ -238,7 +238,7 @@ defmodule Pavoi.Outreach do
     # Use a window function to get the latest email log per creator
     from(ol in OutreachLog,
       where: ol.brand_id == ^brand_id and ol.creator_id in ^creator_ids,
-      where: ol.channel == "email",
+      where: ol.channel == :email,
       distinct: ol.creator_id,
       order_by: [ol.creator_id, desc: ol.sent_at]
     )
@@ -266,7 +266,7 @@ defmodule Pavoi.Outreach do
 
     contacted_count =
       from(ol in OutreachLog,
-        where: ol.brand_id == ^brand_id and ol.channel == "email",
+        where: ol.brand_id == ^brand_id and ol.channel == :email,
         select: count(ol.creator_id, :distinct)
       )
       |> Repo.one()
@@ -303,7 +303,7 @@ defmodule Pavoi.Outreach do
     # This uses a subquery to get the max log ID per creator
     latest_logs_query =
       from(ol in OutreachLog,
-        where: ol.brand_id == ^brand_id and ol.channel == "email",
+        where: ol.brand_id == ^brand_id and ol.channel == :email,
         group_by: ol.creator_id,
         select: %{creator_id: ol.creator_id, max_id: max(ol.id)}
       )
@@ -341,7 +341,7 @@ defmodule Pavoi.Outreach do
     from(ol in OutreachLog,
       where: ol.brand_id == ^brand_id,
       where: ol.sent_at >= ^today_start,
-      where: ol.status == "sent"
+      where: ol.status == :sent
     )
     |> Repo.aggregate(:count)
   end
@@ -353,7 +353,7 @@ defmodule Pavoi.Outreach do
   """
   def count_total_by_channel do
     from(ol in OutreachLog,
-      where: ol.status == "sent",
+      where: ol.status == :sent,
       group_by: ol.channel,
       select: {ol.channel, count(ol.id)}
     )
@@ -459,8 +459,8 @@ defmodule Pavoi.Outreach do
     total_sent =
       from(ol in OutreachLog,
         where:
-          ol.brand_id == ^brand_id and ol.channel == "email" and
-            ol.status in ["sent", "delivered"],
+          ol.brand_id == ^brand_id and ol.channel == :email and
+            ol.status in [:sent, :delivered],
         select: count(ol.id)
       )
       |> Repo.one()

@@ -8,7 +8,7 @@ defmodule Pavoi.Creators.CreatorSample do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending shipped delivered cancelled)
+  @statuses ~w(pending shipped delivered cancelled)a
 
   schema "creator_samples" do
     belongs_to :creator, Pavoi.Creators.Creator
@@ -28,7 +28,7 @@ defmodule Pavoi.Creators.CreatorSample do
     field :delivered_at, :utc_datetime
 
     # Status
-    field :status, :string
+    field :status, Ecto.Enum, values: @statuses
 
     # Fulfillment tracking - did creator post about this sample?
     field :fulfilled, :boolean, default: false
@@ -59,7 +59,6 @@ defmodule Pavoi.Creators.CreatorSample do
       :attributed_video_id
     ])
     |> validate_required([:creator_id, :brand_id])
-    |> validate_inclusion(:status, @statuses)
     |> validate_number(:quantity, greater_than: 0)
     |> unique_constraint([:tiktok_order_id, :tiktok_sku_id])
     |> foreign_key_constraint(:creator_id)

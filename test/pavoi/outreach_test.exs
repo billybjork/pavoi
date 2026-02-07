@@ -134,14 +134,14 @@ defmodule Pavoi.OutreachTest do
         })
 
       {:ok, log} =
-        Outreach.log_outreach(brand.id, creator.id, "email", "sent",
+        Outreach.log_outreach(brand.id, creator.id, :email, :sent,
           provider_id: "sg_abc123",
           lark_preset: "jewelry"
         )
 
       assert log.creator_id == creator.id
-      assert log.channel == "email"
-      assert log.status == "sent"
+      assert log.channel == :email
+      assert log.status == :sent
       assert log.provider_id == "sg_abc123"
       assert log.lark_preset == "jewelry"
     end

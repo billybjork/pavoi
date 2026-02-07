@@ -11,11 +11,11 @@ defmodule Pavoi.ProductSets.MessagePreset do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @valid_colors ~w(amber blue green red purple gray)
+  @valid_colors ~w(amber blue green red purple gray)a
 
   schema "message_presets" do
     field :message_text, :string
-    field :color, :string
+    field :color, Ecto.Enum, values: @valid_colors
     field :position, :integer
 
     belongs_to :brand, Pavoi.Catalog.Brand, type: :id
@@ -34,7 +34,6 @@ defmodule Pavoi.ProductSets.MessagePreset do
     |> cast(attrs, [:message_text, :color, :position])
     |> validate_required([:brand_id, :message_text, :color])
     |> validate_length(:message_text, min: 1, max: 1000)
-    |> validate_inclusion(:color, @valid_colors)
     |> validate_number(:position, greater_than_or_equal_to: 0)
     |> foreign_key_constraint(:brand_id)
   end

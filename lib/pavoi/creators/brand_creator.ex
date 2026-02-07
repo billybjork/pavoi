@@ -8,13 +8,13 @@ defmodule Pavoi.Creators.BrandCreator do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(active inactive blocked)
+  @statuses ~w(active inactive blocked)a
 
   schema "brand_creators" do
     belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :creator, Pavoi.Creators.Creator
 
-    field :status, :string, default: "active"
+    field :status, Ecto.Enum, values: @statuses, default: :active
     field :joined_at, :utc_datetime
     field :notes, :string
 
@@ -26,7 +26,6 @@ defmodule Pavoi.Creators.BrandCreator do
     brand_creator
     |> cast(attrs, [:brand_id, :creator_id, :status, :joined_at, :notes])
     |> validate_required([:brand_id, :creator_id])
-    |> validate_inclusion(:status, @statuses)
     |> unique_constraint([:brand_id, :creator_id])
     |> foreign_key_constraint(:brand_id)
     |> foreign_key_constraint(:creator_id)

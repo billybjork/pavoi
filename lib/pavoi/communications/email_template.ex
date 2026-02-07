@@ -12,8 +12,8 @@ defmodule Pavoi.Communications.EmailTemplate do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @lark_presets ~w(jewelry active top_creators)
-  @template_types ~w(email page)
+  @lark_presets ~w(jewelry active top_creators)a
+  @template_types ~w(email page)a
   @form_config_keys ~w(button_text email_label phone_label phone_placeholder)
 
   schema "email_templates" do
@@ -23,8 +23,8 @@ defmodule Pavoi.Communications.EmailTemplate do
     field :text_body, :string
     field :is_active, :boolean, default: true
     field :is_default, :boolean, default: false
-    field :lark_preset, :string, default: "jewelry"
-    field :type, :string, default: "email"
+    field :lark_preset, Ecto.Enum, values: @lark_presets, default: :jewelry
+    field :type, Ecto.Enum, values: @template_types, default: :email
     field :form_config, :map, default: %{}
 
     belongs_to :brand, Pavoi.Catalog.Brand
@@ -50,8 +50,6 @@ defmodule Pavoi.Communications.EmailTemplate do
       :form_config
     ])
     |> validate_required([:brand_id, :name, :html_body, :type])
-    |> validate_inclusion(:lark_preset, @lark_presets)
-    |> validate_inclusion(:type, @template_types)
     |> validate_subject_for_email()
     |> validate_form_config()
     |> unique_constraint([:brand_id, :name])
@@ -60,7 +58,7 @@ defmodule Pavoi.Communications.EmailTemplate do
 
   # Email templates require a subject line
   defp validate_subject_for_email(changeset) do
-    if get_field(changeset, :type) == "email" do
+    if get_field(changeset, :type) == :email do
       validate_required(changeset, [:subject])
     else
       changeset

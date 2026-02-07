@@ -17,7 +17,7 @@ defmodule Pavoi.Creators.Creator do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)
+  @badge_levels ~w(bronze silver gold platinum ruby emerald sapphire diamond)a
 
   schema "creators" do
     # Identity
@@ -42,7 +42,7 @@ defmodule Pavoi.Creators.Creator do
     field :country, :string, default: "US"
 
     # TikTok Shop Creator Badge
-    field :tiktok_badge_level, :string
+    field :tiktok_badge_level, Ecto.Enum, values: @badge_levels
 
     # Internal classification
     field :is_whitelisted, :boolean, default: false
@@ -151,9 +151,6 @@ defmodule Pavoi.Creators.Creator do
     ])
     |> validate_required([])
     |> normalize_username()
-    |> validate_inclusion(:tiktok_badge_level, @badge_levels,
-      message: "must be a valid badge level"
-    )
     |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "must be a valid email")
     |> unique_constraint(:tiktok_username)
   end

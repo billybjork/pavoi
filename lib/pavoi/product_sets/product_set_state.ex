@@ -9,12 +9,14 @@ defmodule Pavoi.ProductSets.ProductSetState do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @valid_colors ~w(amber blue green red purple gray)a
+
   schema "product_set_states" do
     field :current_image_index, :integer, default: 0
     field :current_host_message_text, :string
     field :current_host_message_id, :string
     field :current_host_message_timestamp, :utc_datetime
-    field :current_host_message_color, :string
+    field :current_host_message_color, Ecto.Enum, values: @valid_colors
     field :updated_at, :utc_datetime
 
     belongs_to :product_set, Pavoi.ProductSets.ProductSet

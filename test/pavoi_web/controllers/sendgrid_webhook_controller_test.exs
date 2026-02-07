@@ -165,7 +165,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
         })
 
       {:ok, log} =
-        Outreach.log_outreach(brand.id, creator.id, "email", "sent", provider_id: "engage123")
+        Outreach.log_outreach(brand.id, creator.id, :email, :sent, provider_id: "engage123")
 
       assert log.delivered_at == nil
 
@@ -182,7 +182,7 @@ defmodule PavoiWeb.SendgridWebhookControllerTest do
       # Verify delivered_at was set
       updated_log = Outreach.find_outreach_log_by_provider_id("engage123")
       assert updated_log.delivered_at != nil
-      assert updated_log.status == "delivered"
+      assert updated_log.status == :delivered
     end
   end
 

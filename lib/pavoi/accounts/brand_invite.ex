@@ -5,11 +5,11 @@ defmodule Pavoi.Accounts.BrandInvite do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(owner admin viewer)
+  @roles ~w(owner admin viewer)a
 
   schema "brand_invites" do
     field :email, :string
-    field :role, :string, default: "viewer"
+    field :role, Ecto.Enum, values: @roles, default: :viewer
     field :expires_at, :utc_datetime
     field :accepted_at, :utc_datetime
 
@@ -24,7 +24,6 @@ defmodule Pavoi.Accounts.BrandInvite do
     |> cast(attrs, [:email, :role, :expires_at, :accepted_at, :brand_id, :invited_by_user_id])
     |> validate_required([:email, :role, :brand_id])
     |> validate_format(:email, ~r/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-    |> validate_inclusion(:role, @roles)
     |> unique_constraint(:email, name: :brand_invites_brand_id_email_index)
   end
 end

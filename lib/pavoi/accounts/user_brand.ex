@@ -5,12 +5,12 @@ defmodule Pavoi.Accounts.UserBrand do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(owner admin viewer)
+  @roles ~w(owner admin viewer)a
 
   schema "user_brands" do
     belongs_to :user, Pavoi.Accounts.User
     belongs_to :brand, Pavoi.Catalog.Brand
-    field :role, :string, default: "viewer"
+    field :role, Ecto.Enum, values: @roles, default: :viewer
 
     timestamps()
   end
@@ -25,6 +25,5 @@ defmodule Pavoi.Accounts.UserBrand do
     user_brand
     |> cast(attrs, [:role])
     |> validate_required([:role])
-    |> validate_inclusion(:role, @roles)
   end
 end

@@ -8,8 +8,8 @@ defmodule Pavoi.Outreach.OutreachLog do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @channels ~w(email sms)
-  @statuses ~w(sent failed bounced delivered)
+  @channels ~w(email sms)a
+  @statuses ~w(sent failed bounced delivered)a
 
   alias Pavoi.Outreach.EmailEvent
 
@@ -18,14 +18,14 @@ defmodule Pavoi.Outreach.OutreachLog do
     belongs_to :creator, Pavoi.Creators.Creator
     has_many :email_events, EmailEvent
 
-    # Channel: "email" or "sms"
-    field :channel, :string
+    # Channel: :email or :sms
+    field :channel, Ecto.Enum, values: @channels
 
     # Lark preset used for this outreach (jewelry, active, top_creators)
     field :lark_preset, :string
 
-    # Status: "sent", "failed", "bounced", "delivered"
-    field :status, :string
+    # Status: :sent, :failed, :bounced, :delivered
+    field :status, Ecto.Enum, values: @statuses
 
     # Provider message ID (SendGrid message ID or Twilio SID)
     field :provider_id, :string
@@ -66,8 +66,6 @@ defmodule Pavoi.Outreach.OutreachLog do
       :unsubscribed_at
     ])
     |> validate_required([:brand_id, :creator_id, :channel, :status, :sent_at])
-    |> validate_inclusion(:channel, @channels)
-    |> validate_inclusion(:status, @statuses)
     |> foreign_key_constraint(:creator_id)
     |> foreign_key_constraint(:brand_id)
   end
@@ -124,10 +122,10 @@ defmodule Pavoi.Outreach.OutreachLog do
 
   defp status_outcome(log) do
     case log.status do
-      "sent" -> {"Sent", :sent}
-      "delivered" -> {"Delivered", :delivered}
-      "bounced" -> {"Bounced", :bounced}
-      "failed" -> {"Failed", :bounced}
+      :sent -> {"Sent", :sent}
+      :delivered -> {"Delivered", :delivered}
+      :bounced -> {"Bounced", :bounced}
+      :failed -> {"Failed", :bounced}
       _ -> {"Sent", :sent}
     end
   end
