@@ -45,7 +45,7 @@ defmodule SocialObjectsWeb.NavHooks do
     socket.private
     |> Map.get(:lifecycle, %{})
     |> Map.get(:handle_info, [])
-    |> Enum.any?(fn {id, _} -> id == :feature_flags_update end)
+    |> Enum.any?(fn hook -> hook.id == :feature_flags_update end)
   end
 
   defp handle_feature_flags_info(:feature_flags_changed, socket) do
