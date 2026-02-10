@@ -555,171 +555,6 @@ defmodule PavoiWeb.CoreComponents do
     ~H"""
     <nav id="global-nav" class="navbar" phx-hook="NavCollapse">
       <div class="navbar__start">
-        <div class="navbar__brand-switcher">
-          <%= if length(@user_brands) > 1 do %>
-            <button
-              type="button"
-              class="brand-switcher__toggle"
-              aria-haspopup="true"
-              aria-label="Switch brand"
-              phx-click={
-                JS.toggle(to: "#brand-switcher-menu", in: "fade-in", out: "fade-out", display: "flex")
-              }
-            >
-              <span class="brand-switcher__label">{@current_brand.name}</span>
-              <svg
-                class="size-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
-            <div
-              id="brand-switcher-menu"
-              class="brand-switcher__menu"
-              phx-click-away={JS.hide(to: "#brand-switcher-menu", transition: "fade-out")}
-            >
-              <.link
-                :for={user_brand <- @user_brands}
-                navigate={nav_path(@current_page, user_brand.brand, nil)}
-                class={[
-                  "brand-switcher__item",
-                  user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
-                ]}
-              >
-                <span class="brand-switcher__item-name">{user_brand.brand.name}</span>
-                <.icon
-                  :if={user_brand.brand.id == @current_brand.id}
-                  name="hero-check"
-                  class="size-4"
-                />
-              </.link>
-            </div>
-          <% else %>
-            <span class="brand-switcher__label">{@current_brand.name}</span>
-          <% end %>
-        </div>
-      </div>
-
-      <div class="navbar__nav" data-nav-links>
-        <.link
-          navigate={nav_path(:products, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
-          data-nav-link
-        >
-          Products
-        </.link>
-        <.link
-          navigate={nav_path(:streams, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :streams && "navbar__link--active"]}
-          data-nav-link
-        >
-          Streams
-        </.link>
-        <.link
-          navigate={nav_path(:creators, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
-          data-nav-link
-        >
-          Creators
-        </.link>
-        <.link
-          navigate={nav_path(:videos, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
-          data-nav-link
-        >
-          Videos
-        </.link>
-        <.link
-          navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
-          data-nav-link
-        >
-          Analytics
-        </.link>
-      </div>
-
-      <div class="navbar__end">
-        <div class="navbar__nav-dropdown">
-          <button
-            type="button"
-            class="navbar__nav-dropdown-trigger"
-            aria-haspopup="true"
-            aria-label="Navigation menu"
-            phx-click={
-              JS.toggle(to: "#nav-dropdown-menu", in: "fade-in", out: "fade-out", display: "flex")
-            }
-          >
-            <span class="navbar__nav-dropdown-label">{nav_label(@current_page)}</span>
-            <svg
-              class="size-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-          <div
-            id="nav-dropdown-menu"
-            class="navbar__nav-dropdown-menu"
-            phx-click-away={JS.hide(to: "#nav-dropdown-menu", transition: "fade-out")}
-          >
-            <.link
-              navigate={nav_path(:products, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :products && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Products
-            </.link>
-            <.link
-              navigate={nav_path(:streams, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :streams && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Streams
-            </.link>
-            <.link
-              navigate={nav_path(:creators, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :creators && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Creators
-            </.link>
-            <.link
-              navigate={nav_path(:videos, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :videos && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Videos
-            </.link>
-            <.link
-              navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :shop_analytics && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Analytics
-            </.link>
-          </div>
-        </div>
         <div class="navbar__menu-container">
           <button
             class="navbar__menu-trigger"
@@ -731,7 +566,7 @@ defmodule PavoiWeb.CoreComponents do
           </button>
           <div
             id="navbar-menu"
-            class="navbar__menu"
+            class="navbar__menu navbar__menu--left"
             phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
           >
             <%= if @current_page == :streams and @stream_scan_enabled do %>
@@ -909,29 +744,194 @@ defmodule PavoiWeb.CoreComponents do
                 </.button>
               </div>
             </div>
-            <div class="navbar__menu-section navbar__menu-section--row">
+            <div class="navbar__menu-section">
               <.theme_toggle />
-              <.link
-                navigate={~p"/users/settings"}
-                class="navbar__menu-profile-link"
-                aria-label="Account settings"
-              >
-                <svg
-                  class="size-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </.link>
             </div>
           </div>
         </div>
+        <div class="navbar__brand-switcher">
+          <%= if length(@user_brands) > 1 do %>
+            <button
+              type="button"
+              class="brand-switcher__toggle"
+              aria-haspopup="true"
+              aria-label="Switch brand"
+              phx-click={
+                JS.toggle(to: "#brand-switcher-menu", in: "fade-in", out: "fade-out", display: "flex")
+              }
+            >
+              <span class="brand-switcher__label">{@current_brand.name}</span>
+              <svg
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            <div
+              id="brand-switcher-menu"
+              class="brand-switcher__menu"
+              phx-click-away={JS.hide(to: "#brand-switcher-menu", transition: "fade-out")}
+            >
+              <.link
+                :for={user_brand <- @user_brands}
+                navigate={nav_path(@current_page, user_brand.brand, nil)}
+                class={[
+                  "brand-switcher__item",
+                  user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
+                ]}
+              >
+                <span class="brand-switcher__item-name">{user_brand.brand.name}</span>
+                <.icon
+                  :if={user_brand.brand.id == @current_brand.id}
+                  name="hero-check"
+                  class="size-4"
+                />
+              </.link>
+            </div>
+          <% else %>
+            <span class="brand-switcher__label">{@current_brand.name}</span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="navbar__nav" data-nav-links>
+        <.link
+          navigate={nav_path(:products, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+          data-nav-link
+        >
+          Products
+        </.link>
+        <.link
+          navigate={nav_path(:streams, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :streams && "navbar__link--active"]}
+          data-nav-link
+        >
+          Streams
+        </.link>
+        <.link
+          navigate={nav_path(:creators, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
+          data-nav-link
+        >
+          Creators
+        </.link>
+        <.link
+          navigate={nav_path(:videos, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
+          data-nav-link
+        >
+          Videos
+        </.link>
+        <.link
+          navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
+          data-nav-link
+        >
+          Analytics
+        </.link>
+      </div>
+
+      <div class="navbar__end">
+        <div class="navbar__nav-dropdown">
+          <button
+            type="button"
+            class="navbar__nav-dropdown-trigger"
+            aria-haspopup="true"
+            aria-label="Navigation menu"
+            phx-click={
+              JS.toggle(to: "#nav-dropdown-menu", in: "fade-in", out: "fade-out", display: "flex")
+            }
+          >
+            <span class="navbar__nav-dropdown-label">{nav_label(@current_page)}</span>
+            <svg
+              class="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          <div
+            id="nav-dropdown-menu"
+            class="navbar__nav-dropdown-menu"
+            phx-click-away={JS.hide(to: "#nav-dropdown-menu", transition: "fade-out")}
+          >
+            <.link
+              navigate={nav_path(:products, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :products && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Products
+            </.link>
+            <.link
+              navigate={nav_path(:streams, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :streams && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Streams
+            </.link>
+            <.link
+              navigate={nav_path(:creators, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :creators && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Creators
+            </.link>
+            <.link
+              navigate={nav_path(:videos, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :videos && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Videos
+            </.link>
+            <.link
+              navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :shop_analytics && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Analytics
+            </.link>
+          </div>
+        </div>
+        <.link
+          navigate={~p"/users/settings"}
+          class="navbar__profile-link"
+          aria-label="Account settings"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </.link>
       </div>
     </nav>
     """
