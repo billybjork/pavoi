@@ -13,6 +13,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
         |> live(~p"/users/settings")
 
       assert html =~ "Change Email"
+      assert html =~ "Change Password"
     end
 
     test "redirects if user is not logged in", %{conn: conn} do
@@ -54,8 +55,9 @@ defmodule PavoiWeb.UserLive.SettingsTest do
         })
         |> render_submit()
 
-      assert result =~ "A link to confirm your email"
-      assert Accounts.get_user_by_email(user.email)
+      assert result =~ "Email changed successfully"
+      refute Accounts.get_user_by_email(user.email)
+      assert Accounts.get_user_by_email(new_email)
     end
 
     test "renders errors with invalid data (phx-change)", %{conn: conn} do
@@ -88,53 +90,44 @@ defmodule PavoiWeb.UserLive.SettingsTest do
     end
   end
 
-  describe "confirm email" do
+  describe "update password form" do
     setup %{conn: conn} do
       user = user_fixture()
-      email = unique_user_email()
-
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_user_update_email_instructions(%{user | email: email}, user.email, url)
-        end)
-
-      %{conn: log_in_user(conn, user), token: token, email: email, user: user}
+      %{conn: log_in_user(conn, user), user: user}
     end
 
-    test "updates the user email once", %{conn: conn, user: user, token: token, email: email} do
-      {:error, redirect} = live(conn, ~p"/users/settings/confirm-email/#{token}")
+    test "updates the user password", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
-      assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/users/settings"
-      assert %{"info" => message} = flash
-      assert message == "Email changed successfully."
-      refute Accounts.get_user_by_email(user.email)
-      assert Accounts.get_user_by_email(email)
+      result =
+        lv
+        |> form("#password_form", %{
+          "user" => %{
+            "password" => "new_password123",
+            "password_confirmation" => "new_password123"
+          }
+        })
+        |> render_submit()
 
-      # use confirm token again
-      {:error, redirect} = live(conn, ~p"/users/settings/confirm-email/#{token}")
-      assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/users/settings"
-      assert %{"error" => message} = flash
-      assert message == "This link has expired. Please try again."
+      assert result =~ "Password changed successfully"
+      assert Accounts.get_user_by_email_and_password(user.email, "new_password123")
     end
 
-    test "does not update email with invalid token", %{conn: conn, user: user} do
-      {:error, redirect} = live(conn, ~p"/users/settings/confirm-email/oops")
-      assert {:live_redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/users/settings"
-      assert %{"error" => message} = flash
-      assert message == "This link has expired. Please try again."
-      assert Accounts.get_user_by_email(user.email)
-    end
+    test "renders errors with invalid data", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
-    test "redirects if user is not logged in", %{token: token} do
-      conn = build_conn()
-      {:error, redirect} = live(conn, ~p"/users/settings/confirm-email/#{token}")
-      assert {:redirect, %{to: path, flash: flash}} = redirect
-      assert path == ~p"/users/log-in"
-      assert %{"error" => message} = flash
-      assert message == "Log in to see this page."
+      result =
+        lv
+        |> form("#password_form", %{
+          "user" => %{
+            "password" => "short",
+            "password_confirmation" => "mismatch"
+          }
+        })
+        |> render_submit()
+
+      assert result =~ "should be at least 12 character"
+      assert result =~ "does not match password"
     end
   end
 end

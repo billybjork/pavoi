@@ -2,51 +2,54 @@ defmodule PavoiWeb.UserSessionControllerTest do
   use PavoiWeb.ConnCase, async: true
 
   import Pavoi.AccountsFixtures
-  alias Pavoi.Accounts
 
   setup do
-    %{unconfirmed_user: unconfirmed_user_fixture(), user: user_fixture()}
+    %{user: user_fixture()}
   end
 
-  describe "POST /users/log-in - magic link" do
-    test "logs the user in", %{conn: conn, user: user} do
-      {token, _hashed_token} = generate_user_magic_link_token(user)
-
+  describe "POST /users/log-in" do
+    test "logs the user in with valid credentials", %{conn: conn, user: user} do
       conn =
         post(conn, ~p"/users/log-in", %{
-          "user" => %{"token" => token}
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      assert get_session(conn, :user_token)
+      assert redirected_to(conn) == ~p"/"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome back!"
+    end
+
+    test "logs the user in with remember me", %{conn: conn, user: user} do
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{
+            "email" => user.email,
+            "password" => valid_user_password(),
+            "remember_me" => "true"
+          }
         })
 
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
     end
 
-    test "confirms unconfirmed user", %{conn: conn, unconfirmed_user: user} do
-      {token, _hashed_token} = generate_user_magic_link_token(user)
-      refute user.confirmed_at
-
+    test "redirects to login page with invalid credentials", %{conn: conn, user: user} do
       conn =
         post(conn, ~p"/users/log-in", %{
-          "user" => %{"token" => token},
-          "_action" => "confirmed"
+          "user" => %{"email" => user.email, "password" => "invalid"}
         })
 
-      assert get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
-
-      assert Accounts.get_user!(user.id).confirmed_at
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
+      assert redirected_to(conn) == ~p"/users/log-in"
     end
 
-    test "redirects to login page when magic link is invalid", %{conn: conn} do
+    test "redirects to login page with non-existent email", %{conn: conn} do
       conn =
         post(conn, ~p"/users/log-in", %{
-          "user" => %{"token" => "invalid"}
+          "user" => %{"email" => "nonexistent@example.com", "password" => "somepassword"}
         })
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "This link has expired. Please request a new one."
-
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
       assert redirected_to(conn) == ~p"/users/log-in"
     end
   end
