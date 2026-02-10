@@ -29,10 +29,9 @@ defmodule SocialObjectsWeb.NavHooks do
       |> Phoenix.Component.assign(:user_brands, user_brands)
       |> Phoenix.Component.assign(:feature_flags, feature_flags)
 
-    # Only attach the hook and subscribe when connected (not during static render)
-    # This prevents duplicate hook attachment errors
+    # Only attach the hook and subscribe when connected and not already attached
     socket =
-      if Phoenix.LiveView.connected?(socket) do
+      if Phoenix.LiveView.connected?(socket) and not hook_attached?(socket) do
         SocialObjects.FeatureFlags.subscribe()
         attach_hook(socket, :feature_flags_update, :handle_info, &handle_feature_flags_info/2)
       else
@@ -40,6 +39,13 @@ defmodule SocialObjectsWeb.NavHooks do
       end
 
     {:cont, socket}
+  end
+
+  defp hook_attached?(socket) do
+    socket.private
+    |> Map.get(:lifecycle, %{})
+    |> Map.get(:handle_info, [])
+    |> Enum.any?(fn {id, _} -> id == :feature_flags_update end)
   end
 
   defp handle_feature_flags_info(:feature_flags_changed, socket) do
