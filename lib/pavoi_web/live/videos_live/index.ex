@@ -151,7 +151,10 @@ defmodule PavoiWeb.VideosLive.Index do
     socket =
       socket
       |> assign(:video_syncing, false)
-      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(socket.assigns.brand_id))
+      |> assign(
+        :videos_last_import_at,
+        Settings.get_videos_last_import_at(socket.assigns.brand_id)
+      )
       |> assign(:page, 1)
       |> start_async_video_load()
       |> put_flash(
