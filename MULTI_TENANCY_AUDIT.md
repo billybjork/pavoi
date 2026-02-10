@@ -244,9 +244,9 @@ Dual-mode routing is now implemented in `router.ex` with:
 
 **Default host (path-based):**
 ```
-/b/:brand_slug/product-sets
-/b/:brand_slug/product-sets/:id/host
-/b/:brand_slug/product-sets/:id/controller
+/b/:brand_slug/products
+/b/:brand_slug/products/:id/host
+/b/:brand_slug/products/:id/controller
 /b/:brand_slug/streams
 /b/:brand_slug/creators
 /b/:brand_slug/templates/...
@@ -254,9 +254,9 @@ Dual-mode routing is now implemented in `router.ex` with:
 
 **Custom domain (host-based, no brand prefix):**
 ```
-/product-sets
-/product-sets/:id/host
-/product-sets/:id/controller
+/products
+/products/:id/host
+/products/:id/controller
 /streams
 /creators
 /templates/...
@@ -278,8 +278,8 @@ live_session :authenticated,
   ] do
   # Default host (path-based)
   scope "/b/:brand_slug", PavoiWeb do
-    live "/product-sets", ProductSetsLive.Index
-    live "/product-sets/:id/host", ProductSetHostLive.Index
+    live "/products", ProductsLive.Index
+    live "/products/:id/host", ProductHostLive.Index
     live "/streams", TiktokLive.Index
     live "/creators", CreatorsLive.Index
     # ...
@@ -287,8 +287,8 @@ live_session :authenticated,
 
   # Custom domains (host-based)
   scope "/", PavoiWeb do
-    live "/product-sets", ProductSetsLive.Index
-    live "/product-sets/:id/host", ProductSetHostLive.Index
+    live "/products", ProductsLive.Index
+    live "/products/:id/host", ProductHostLive.Index
     live "/streams", TiktokLive.Index
     live "/creators", CreatorsLive.Index
     # ...
@@ -302,8 +302,8 @@ get "/", HomeController, :index
 ### Login → Brand Resolution Flow
 1. User clicks magic link → session created → redirected to `/`
 2. `PageController.redirect_to_brand` looks up user's brands
-3. If one brand → redirect to that brand’s **primary domain** (if set), otherwise `/b/:slug/product-sets`
-4. If multiple brands → redirect to the default brand (domain if set, otherwise `/b/:slug/product-sets`)
+3. If one brand → redirect to that brand's **primary domain** (if set), otherwise `/b/:slug/products`
+4. If multiple brands → redirect to the default brand (domain if set, otherwise `/b/:slug/products`)
 5. If no brands → show "no brands" page or onboarding flow
 
 ## 4a. Brand Switcher UX
@@ -465,7 +465,7 @@ defmodule PavoiWeb.BrandAuth do
 end
 
 # Individual LiveViews just use @current_brand — no auth boilerplate
-defmodule PavoiWeb.ProductSetsLive.Index do
+defmodule PavoiWeb.ProductsLive.Index do
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
     product_sets = ProductSets.list_product_sets_with_details(brand_id)
