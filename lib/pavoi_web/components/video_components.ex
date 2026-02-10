@@ -4,6 +4,8 @@ defmodule PavoiWeb.VideoComponents do
   """
   use Phoenix.Component
 
+  alias Phoenix.LiveView.JS
+
   import PavoiWeb.CoreComponents
   import PavoiWeb.ViewHelpers
 
@@ -13,16 +15,13 @@ defmodule PavoiWeb.VideoComponents do
   Displays thumbnail with play overlay, duration badge, creator info, title, and metrics.
   """
   attr :video, :any, required: true
-  attr :on_click, :string, default: nil
 
   def video_card(assigns) do
     ~H"""
     <div
+      id={"video-card-#{@video.id}"}
       class="video-card"
-      phx-click={@on_click}
-      phx-value-id={@video.id}
-      role="button"
-      tabindex="0"
+      data-video-id={@video.id}
     >
       <div class="video-card__thumbnail-container">
         <.video_thumbnail video={@video} />
@@ -70,6 +69,18 @@ defmodule PavoiWeb.VideoComponents do
           <%= if @video.items_sold && @video.items_sold > 0 do %>
             <span class="video-card__items-sold">{@video.items_sold} sold</span>
           <% end %>
+          <a
+            href={video_url(@video)}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="video-card__tiktok-link"
+            title="Watch on TikTok"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" class="video-card__tiktok-icon">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+            </svg>
+            <span>TikTok</span>
+          </a>
         </div>
       </div>
     </div>
@@ -77,26 +88,35 @@ defmodule PavoiWeb.VideoComponents do
   end
 
   @doc """
-  Renders video thumbnail with TikTok video placeholder.
+  Renders video thumbnail with actual image or placeholder fallback.
   """
   attr :video, :any, required: true
 
   def video_thumbnail(assigns) do
     ~H"""
     <div class="video-thumbnail">
-      <div class="video-thumbnail__placeholder">
-        <svg
-          class="video-thumbnail__icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
-        </svg>
-      </div>
+      <%= if @video.thumbnail_url do %>
+        <img
+          src={@video.thumbnail_url}
+          alt=""
+          class="video-thumbnail__image"
+          loading="lazy"
+        />
+      <% else %>
+        <div class="video-thumbnail__placeholder">
+          <svg
+            class="video-thumbnail__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
+          </svg>
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -154,14 +174,13 @@ defmodule PavoiWeb.VideoComponents do
   Renders the video grid container.
   """
   attr :videos, :list, required: true
-  attr :on_card_click, :string, default: nil
   attr :has_more, :boolean, default: false
   attr :loading, :boolean, default: false
   attr :is_empty, :boolean, default: false
 
   def video_grid(assigns) do
     ~H"""
-    <div class="video-grid">
+    <div class="video-grid" id="video-grid-container" phx-hook="VideoGridHover">
       <%= if @is_empty do %>
         <div class="video-grid__empty">
           <svg
@@ -182,10 +201,11 @@ defmodule PavoiWeb.VideoComponents do
         <div
           id="videos-grid"
           class="video-grid__grid"
+          phx-update="replace"
           phx-viewport-bottom={@has_more && !@loading && "load_more"}
         >
           <%= for video <- @videos do %>
-            <.video_card video={video} on_click={@on_card_click} />
+            <.video_card video={video} />
           <% end %>
         </div>
 
@@ -208,30 +228,36 @@ defmodule PavoiWeb.VideoComponents do
   attr :sort_dir, :string, default: "desc"
   attr :creators, :list, default: []
   attr :selected_creator_id, :any, default: nil
+  attr :total, :integer, default: 0
 
   def video_filters(assigns) do
     ~H"""
     <div class="video-filters">
       <div class="video-filters__left">
-        <div class="video-filters__search">
+        <div class="video-filters__search-wrapper">
           <.search_input
             value={@search_query}
             on_change="search"
             placeholder="Search by title, creator, or hashtag..."
+            debounce={400}
           />
+          <span class="videos-count">{format_number(@total)} videos</span>
         </div>
 
         <%= if length(@creators) > 0 do %>
-          <form phx-change="filter_creator" class="video-filters__creator">
-            <select name="creator_id" class="filter-select">
-              <option value="">All Creators</option>
-              <%= for creator <- @creators do %>
-                <option value={creator.id} selected={@selected_creator_id == creator.id}>
-                  @{creator.tiktok_username}
-                </option>
-              <% end %>
-            </select>
-          </form>
+          <%!-- Wrap in phx-update="ignore" to prevent morphdom from diffing all options on every update --%>
+          <div id="creator-filter-wrapper" phx-update="ignore">
+            <form phx-change="filter_creator" class="video-filters__creator">
+              <select name="creator_id" class="filter-select" id="creator-filter-select">
+                <option value="">All Creators</option>
+                <%= for creator <- @creators do %>
+                  <option value={creator.id} selected={@selected_creator_id == creator.id}>
+                    @{creator.tiktok_username}
+                  </option>
+                <% end %>
+              </select>
+            </form>
+          </div>
         <% end %>
       </div>
 
@@ -264,26 +290,47 @@ defmodule PavoiWeb.VideoComponents do
             </option>
           </select>
         </form>
-
-        <button
-          type="button"
-          class="video-filters__sort-toggle"
-          phx-click="toggle_sort_dir"
-          title={"Sort #{if @sort_dir == "desc", do: "ascending", else: "descending"}"}
-        >
-          <svg
-            class={["size-5", @sort_dir == "asc" && "rotate-180"]}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
       </div>
     </div>
     """
+  end
+
+  @doc """
+  Renders a hover player overlay centered in viewport.
+  Minimal player without info (already shown in card).
+  """
+  attr :video, :any, default: nil
+
+  def video_hover_player(assigns) do
+    ~H"""
+    <%= if @video do %>
+      <div
+        class="video-hover-player video-hover-player--hidden"
+        id="video-hover-player"
+        phx-mounted={show_video_player()}
+      >
+        <div class="video-hover-player__backdrop"></div>
+        <div
+          class="video-hover-player__container"
+          id="video-hover-player-container"
+          phx-hook="TikTokEmbed"
+          data-video-id={@video.tiktok_video_id}
+          data-video-url={video_url(@video)}
+        >
+          <button type="button" class="video-hover-player__close" aria-label="Close video">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div id="tiktok-embed" phx-update="ignore"></div>
+        </div>
+      </div>
+    <% end %>
+    """
+  end
+
+  defp show_video_player(js \\ %JS{}) do
+    JS.remove_class(js, "video-hover-player--hidden", to: "#video-hover-player")
   end
 
   # Helper functions
@@ -355,6 +402,15 @@ defmodule PavoiWeb.VideoComponents do
       String.slice(title, 0, 50) <> "..."
     else
       title
+    end
+  end
+
+  defp video_url(video) do
+    if video.video_url && video.video_url != "" do
+      video.video_url
+    else
+      username = video.creator && video.creator.tiktok_username
+      "https://www.tiktok.com/@#{username || "unknown"}/video/#{video.tiktok_video_id}"
     end
   end
 end

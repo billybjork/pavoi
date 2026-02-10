@@ -13,6 +13,8 @@
   @apply grid gap-4;
   /* 4 cols desktop, 3 tablet, 2 mobile */
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* Containment for faster layout recalculation */
+  contain: layout style;
 }
 
 @media (max-width: 1200px) {
@@ -40,6 +42,8 @@
   background: var(--color-surface-primary);
   border: 1px solid var(--color-border-secondary);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  /* Containment for layout performance - prevents card changes from affecting siblings */
+  contain: layout style paint;
 }
 
 .video-card:hover {
@@ -53,11 +57,10 @@
   box-shadow: 0 0 0 2px var(--color-primary-50);
 }
 
-/* Thumbnail Container */
+/* Thumbnail Container - 9:16 vertical video aspect ratio */
 .video-card__thumbnail-container {
-  @apply relative w-full;
+  @apply relative w-full overflow-hidden;
   aspect-ratio: 9 / 16;
-  max-height: 280px;
 }
 
 /* Video Thumbnail */
@@ -169,6 +172,23 @@
   color: var(--color-accent-green);
 }
 
+/* TikTok Link */
+.video-card__tiktok-link {
+  @apply inline-flex items-center gap-1 ml-auto text-xs font-medium no-underline rounded px-1.5 py-0.5;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.video-card__tiktok-link:hover {
+  color: #fe2c55;
+  background: var(--color-bg-secondary);
+}
+
+.video-card__tiktok-icon {
+  @apply w-3 h-3;
+}
+
 /* Empty State */
 .video-grid__empty {
   @apply flex flex-col items-center justify-center py-16 text-center;
@@ -201,6 +221,7 @@
 
 .video-filters {
   @apply flex flex-wrap items-center justify-between gap-4 mb-6;
+  padding-top: var(--space-5);
 }
 
 .video-filters__left {
@@ -211,28 +232,13 @@
   @apply flex items-center gap-2;
 }
 
-.video-filters__search {
-  @apply flex-1 min-w-[200px] max-w-[400px];
+.video-filters__search-wrapper {
+  @apply relative flex-1 min-w-[200px] max-w-[400px];
 }
 
 .video-filters__creator,
 .video-filters__sort {
   @apply shrink-0;
-}
-
-.video-filters__sort-toggle {
-  @apply flex items-center justify-center w-9 h-9 rounded-md;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-secondary);
-  transition: all var(--transition-fast);
-}
-
-.video-filters__sort-toggle:hover {
-  border-color: var(--color-primary);
-}
-
-.video-filters__sort-toggle svg {
-  transition: transform var(--transition-fast);
 }
 
 /* Mobile Responsive */
@@ -246,7 +252,7 @@
     @apply w-full;
   }
 
-  .video-filters__search {
+  .video-filters__search-wrapper {
     @apply max-w-none;
   }
 
@@ -268,6 +274,169 @@
 }
 
 .videos-count {
-  @apply font-normal ml-2;
+  @apply absolute text-xs text-text-secondary font-medium whitespace-nowrap;
+  bottom: 100%;
+  left: 2px;
+  margin-bottom: var(--space-1);
+}
+
+/* ============================================================================
+   VIDEO THUMBNAIL IMAGE
+   ============================================================================ */
+
+.video-thumbnail__image {
+  @apply absolute inset-0 w-full h-full object-cover;
+}
+
+/* ============================================================================
+   VIDEO HOVER PLAYER
+   ============================================================================
+   Fixed overlay that appears when hovering over a video card.
+   Centered in viewport with 9:16 aspect ratio player.
+   ============================================================================ */
+
+/* Container - fixed centered overlay */
+.video-hover-player {
+  @apply fixed inset-0 flex items-center justify-center;
+  z-index: var(--z-modal);
+  pointer-events: none;
+}
+
+/* Hidden state */
+.video-hover-player--hidden {
+  @apply invisible;
+}
+
+/* Backdrop - dimmed background (shared with modal) */
+.video-hover-player__backdrop {
+  @apply fixed inset-0;
+  background-color: var(--color-backdrop);
+  opacity: 1;
+  transition: opacity var(--transition-fast);
+  /* No pointer events on desktop - allows hover to work through backdrop */
+  pointer-events: none;
+}
+
+.video-hover-player--hidden .video-hover-player__backdrop {
+  opacity: 0;
+}
+
+/* Enable backdrop click on touch devices for tap-to-dismiss */
+@media (hover: none) {
+  .video-hover-player__backdrop {
+    pointer-events: auto;
+  }
+}
+
+/* Also enable on narrow screens (likely mobile) */
+@media (max-width: 768px) {
+  .video-hover-player__backdrop {
+    pointer-events: auto;
+  }
+}
+
+/* Player container - 9:16 vertical video */
+.video-hover-player__container {
+  @apply relative overflow-hidden rounded-lg shadow-2xl;
+  background: var(--color-bg-tertiary);
+  aspect-ratio: 9 / 16;
+  height: min(70vh, 600px);
+  pointer-events: auto;
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.video-hover-player--hidden .video-hover-player__container {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Close button - always rendered but hidden on hover-capable devices */
+.video-hover-player__close {
+  @apply absolute top-3 right-3 z-10;
+  @apply w-10 h-10 p-2;
+  @apply flex items-center justify-center;
+  @apply rounded-full;
+  @apply text-white bg-black/50 border-none cursor-pointer;
+  @apply opacity-0 pointer-events-none;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.video-hover-player__close svg {
+  @apply w-5 h-5;
+}
+
+.video-hover-player__close:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Show close button on touch devices (no hover capability) */
+@media (hover: none) {
+  .video-hover-player__close {
+    @apply opacity-100 pointer-events-auto;
+  }
+}
+
+/* Also show close button on narrow screens (likely mobile) */
+@media (max-width: 768px) {
+  .video-hover-player__close {
+    @apply opacity-100 pointer-events-auto;
+  }
+}
+
+/* TikTok iframe player */
+.tiktok-player {
+  @apply absolute inset-0 w-full h-full border-0;
+}
+
+/* TikTok player loading state - skeleton loader */
+.tiktok-player-loading {
+  @apply absolute inset-0 flex items-center justify-center;
+  background: var(--color-bg-tertiary);
+}
+
+.tiktok-player-loading__spinner {
+  @apply w-10 h-10;
+  color: var(--color-text-tertiary);
+  animation: spin 1s linear infinite;
+}
+
+/* TikTok player fallback */
+.tiktok-player-fallback {
+  @apply absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center;
+  background: var(--color-bg-tertiary);
+}
+
+.tiktok-player-fallback svg {
+  opacity: 0.5;
+  color: var(--color-text-tertiary);
+}
+
+.tiktok-player-fallback p {
+  @apply m-0 text-sm;
   color: var(--color-text-secondary);
+}
+
+.tiktok-player-fallback__link {
+  @apply inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white no-underline rounded-md;
+  background: #fe2c55;
+  transition: opacity var(--transition-fast);
+}
+
+.tiktok-player-fallback__link:hover {
+  opacity: 0.9;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .video-hover-player__container {
+    height: min(70vh, 500px);
+    @apply rounded-md;
+  }
+
+  .video-hover-player__close {
+    @apply top-2 right-2 w-9 h-9;
+  }
 }

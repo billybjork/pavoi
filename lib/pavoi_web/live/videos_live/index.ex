@@ -6,17 +6,35 @@ defmodule PavoiWeb.VideosLive.Index do
   """
   use PavoiWeb, :live_view
 
+  import Ecto.Query
+
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.Creators
+  alias Pavoi.Settings
+  alias Pavoi.Workers.VideoSyncWorker
   alias PavoiWeb.BrandRoutes
 
   import PavoiWeb.VideoComponents
-  import PavoiWeb.ViewHelpers
 
   @impl true
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
+
+    # Subscribe to video sync events
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "video:sync:#{brand_id}")
+    end
+
+    # Load creators once on mount (doesn't change based on search/filters)
+    available_creators =
+      if connected?(socket) do
+        Creators.list_creators_with_videos(brand_id)
+      else
+        []
+      end
+
+    video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
 
     socket =
       socket
@@ -30,8 +48,14 @@ defmodule PavoiWeb.VideosLive.Index do
       |> assign(:has_more, false)
       |> assign(:loading_videos, false)
       |> assign(:selected_creator_id, nil)
-      |> assign(:available_creators, [])
+      |> assign(:available_creators, available_creators)
       |> assign(:brand_id, brand_id)
+      |> assign(:selected_video, nil)
+      # Version counter for search - used to ignore stale async results
+      |> assign(:search_version, 0)
+      # Sync state
+      |> assign(:video_syncing, video_syncing)
+      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
 
     {:ok, socket}
   end
@@ -41,28 +65,32 @@ defmodule PavoiWeb.VideosLive.Index do
     socket =
       socket
       |> apply_params(params)
-      |> load_videos()
+      |> start_async_video_load()
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("search", %{"value" => query}, socket) do
-    params = build_query_params(socket, search_query: query, page: 1)
-    {:noreply, push_patch(socket, to: videos_path(socket, params))}
+    # Skip if query hasn't actually changed (can happen with rapid events)
+    if query == socket.assigns.search_query do
+      {:noreply, socket}
+    else
+      # Handle search locally without push_patch to avoid URL/render churn
+      socket =
+        socket
+        |> assign(:search_query, query)
+        |> assign(:page, 1)
+        |> start_async_video_load()
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("sort_videos", %{"sort" => sort_value}, socket) do
     {sort_by, sort_dir} = parse_sort(sort_value)
     params = build_query_params(socket, sort_by: sort_by, sort_dir: sort_dir, page: 1)
-    {:noreply, push_patch(socket, to: videos_path(socket, params))}
-  end
-
-  @impl true
-  def handle_event("toggle_sort_dir", _params, socket) do
-    new_dir = if socket.assigns.sort_dir == "desc", do: "asc", else: "desc"
-    params = build_query_params(socket, sort_dir: new_dir, page: 1)
     {:noreply, push_patch(socket, to: videos_path(socket, params))}
   end
 
@@ -74,21 +102,32 @@ defmodule PavoiWeb.VideosLive.Index do
   end
 
   @impl true
-  def handle_event("open_video", %{"id" => id}, socket) do
+  def handle_event("hover_video", %{"id" => id}, socket) do
     video = Enum.find(socket.assigns.videos, &(&1.id == String.to_integer(id)))
+    {:noreply, assign(socket, :selected_video, video)}
+  end
 
-    if video do
-      url = build_tiktok_url(video)
-      {:noreply, redirect(socket, external: url)}
-    else
-      {:noreply, put_flash(socket, :error, "Could not open video")}
-    end
+  @impl true
+  def handle_event("leave_video", _params, socket) do
+    {:noreply, assign(socket, :selected_video, nil)}
   end
 
   @impl true
   def handle_event("load_more", _params, socket) do
     send(self(), :load_more_videos)
     {:noreply, assign(socket, :loading_videos, true)}
+  end
+
+  @impl true
+  def handle_event("trigger_video_sync", _params, socket) do
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       VideoSyncWorker,
+       %{"brand_id" => socket.assigns.brand_id},
+       :video_syncing,
+       "Video performance sync started..."
+     )}
   end
 
   @impl true
@@ -101,16 +140,64 @@ defmodule PavoiWeb.VideosLive.Index do
     {:noreply, socket}
   end
 
-  # Private functions
+  # Video sync PubSub handlers
+  @impl true
+  def handle_info({:video_sync_started}, socket) do
+    {:noreply, assign(socket, :video_syncing, true)}
+  end
 
-  defp build_tiktok_url(video) do
-    if video.video_url && video.video_url != "" do
-      video.video_url
+  @impl true
+  def handle_info({:video_sync_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(socket.assigns.brand_id))
+      |> assign(:page, 1)
+      |> start_async_video_load()
+      |> put_flash(
+        :info,
+        "Synced #{stats.videos_synced} videos (#{stats.creators_created} new creators)"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:video_sync_failed, _reason}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> put_flash(:error, "Video sync failed. Please try again.")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_async({:load_videos, version}, {:ok, result}, socket) do
+    # Only apply results if this is the latest search version
+    # Ignore stale results from previous searches
+    if version == socket.assigns.search_version do
+      socket =
+        socket
+        |> assign(:loading_videos, false)
+        |> assign(:videos, result.videos)
+        |> assign(:total, result.total)
+        |> assign(:has_more, result.has_more)
+        |> assign(:page, 1)
+
+      {:noreply, socket}
     else
-      username = video.creator && video.creator.tiktok_username
-      "https://www.tiktok.com/@#{username || "unknown"}/video/#{video.tiktok_video_id}"
+      # Stale result, ignore it
+      {:noreply, socket}
     end
   end
+
+  @impl true
+  def handle_async({:load_videos, _version}, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :loading_videos, false)}
+  end
+
+  # Private functions
 
   defp videos_path(socket, params) when is_map(params) do
     query = URI.encode_query(params)
@@ -149,15 +236,19 @@ defmodule PavoiWeb.VideosLive.Index do
   defp parse_creator_id(""), do: nil
   defp parse_creator_id(id) when is_binary(id), do: String.to_integer(id)
 
-  defp load_videos(socket) do
+  defp start_async_video_load(socket) do
     %{
       search_query: search_query,
       sort_by: sort_by,
       sort_dir: sort_dir,
       per_page: per_page,
       selected_creator_id: creator_id,
-      brand_id: brand_id
+      brand_id: brand_id,
+      search_version: current_version
     } = socket.assigns
+
+    # Increment version to track this search request
+    new_version = current_version + 1
 
     opts =
       [
@@ -170,18 +261,14 @@ defmodule PavoiWeb.VideosLive.Index do
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:creator_id, creator_id)
 
-    result = Creators.search_videos_paginated(opts)
-
-    # Load distinct creators for filter dropdown
-    available_creators = Creators.list_creators_with_videos(brand_id)
-
     socket
-    |> assign(:loading_videos, false)
-    |> assign(:videos, result.videos)
-    |> assign(:total, result.total)
-    |> assign(:has_more, result.has_more)
-    |> assign(:page, 1)
-    |> assign(:available_creators, available_creators)
+    |> assign(:loading_videos, true)
+    |> assign(:search_version, new_version)
+    |> start_async({:load_videos, new_version}, fn ->
+      # Include version in result so we can check if it's stale
+      result = Creators.search_videos_paginated(opts)
+      Map.put(result, :version, new_version)
+    end)
   end
 
   defp load_more_videos(socket) do
@@ -264,4 +351,37 @@ defmodule PavoiWeb.VideosLive.Index do
   defp default_value?({:page, 1}), do: true
   defp default_value?({:sort, "gmv_desc"}), do: true
   defp default_value?(_), do: false
+
+  # Check if there's a job that would block new inserts due to uniqueness constraint
+  # This includes: available, scheduled, or executing jobs
+  defp sync_job_blocked?(worker, brand_id) do
+    worker_name = inspect(worker)
+
+    from(j in Oban.Job,
+      where: j.worker == ^worker_name,
+      where: j.state in ["available", "scheduled", "executing"],
+      where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
+    )
+    |> Pavoi.Repo.exists?()
+  end
+
+  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
+    case worker.new(args) |> Oban.insert() do
+      {:ok, %Oban.Job{conflict?: true}} ->
+        # Uniqueness constraint returned an existing job
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, "Sync already in progress or scheduled.")
+
+      {:ok, _job} ->
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, success_message)
+
+      {:error, _changeset} ->
+        socket
+        |> assign(assign_key, false)
+        |> put_flash(:error, "Couldn't start sync. Please try again.")
+    end
+  end
 end

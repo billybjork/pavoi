@@ -6,6 +6,7 @@ defmodule PavoiWeb.Router do
   # Custom CSP that allows GrapesJS template editor to function
   # The editor needs 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
   # Also allows cdnjs.cloudflare.com for Font Awesome (used by newsletter plugin)
+  # TikTok domains needed for video embed player
   @csp_header %{
     "content-security-policy" =>
       "default-src 'self'; " <>
@@ -14,7 +15,7 @@ defmodule PavoiWeb.Router do
         "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
         "img-src 'self' data: blob: https:; " <>
         "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
-        "frame-src 'self' blob: data:; " <>
+        "frame-src 'self' blob: data: https://www.tiktok.com; " <>
         "child-src 'self' blob: data:; " <>
         "connect-src 'self' ws: wss: https://storage.railway.app; " <>
         "frame-ancestors 'self'; " <>
@@ -83,16 +84,18 @@ defmodule PavoiWeb.Router do
     pipe_through [:browser]
 
     live_session :require_authenticated_user,
+      layout: {PavoiWeb.Layouts, :app},
       on_mount: [
         {PavoiWeb.UserAuth, :require_authenticated},
         {PavoiWeb.BrandAuth, :set_brand},
-        {PavoiWeb.BrandAuth, :require_brand_access}
+        {PavoiWeb.BrandAuth, :require_brand_access},
+        {PavoiWeb.NavHooks, :set_current_page}
       ] do
       # Default host (path-based)
       scope "/b/:brand_slug" do
-        live "/product-sets", ProductSetsLive.Index
-        live "/product-sets/:id/host", ProductSetHostLive.Index
-        live "/product-sets/:id/controller", ProductSetControllerLive.Index
+        live "/products", ProductsLive.Index
+        live "/products/:id/host", ProductHostLive.Index
+        live "/products/:id/controller", ProductControllerLive.Index
         live "/creators", CreatorsLive.Index
         live "/videos", VideosLive.Index
         live "/templates/new", TemplateEditorLive, :new
@@ -104,9 +107,9 @@ defmodule PavoiWeb.Router do
 
       # Custom domains (host-based)
       scope "/" do
-        live "/product-sets", ProductSetsLive.Index
-        live "/product-sets/:id/host", ProductSetHostLive.Index
-        live "/product-sets/:id/controller", ProductSetControllerLive.Index
+        live "/products", ProductsLive.Index
+        live "/products/:id/host", ProductHostLive.Index
+        live "/products/:id/controller", ProductControllerLive.Index
         live "/creators", CreatorsLive.Index
         live "/videos", VideosLive.Index
         live "/templates/new", TemplateEditorLive, :new
@@ -137,21 +140,6 @@ defmodule PavoiWeb.Router do
       live "/users", AdminLive.Users, :index
       live "/invites", AdminLive.Invites, :index
     end
-  end
-
-  # Legacy redirects for bookmarks
-  scope "/b/:brand_slug", PavoiWeb do
-    pipe_through [:browser, :require_authenticated_user]
-
-    get "/sessions", Redirector, :redirect_to_product_sets
-    get "/products", Redirector, :redirect_to_product_sets_products
-  end
-
-  scope "/", PavoiWeb do
-    pipe_through [:browser, :require_authenticated_user]
-
-    get "/sessions", Redirector, :redirect_to_product_sets
-    get "/products", Redirector, :redirect_to_product_sets_products
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
