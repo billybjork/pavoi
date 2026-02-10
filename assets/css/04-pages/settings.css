@@ -170,3 +170,12 @@
 .settings-hint strong {
   @apply text-text-secondary;
 }
+
+/* Settings form spacing */
+.settings-section form > * + * {
+  margin-top: 1rem;
+}
+
+.settings-section form > *:last-child {
+  margin-top: 1.5rem;
+}

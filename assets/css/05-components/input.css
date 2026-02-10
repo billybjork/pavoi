@@ -114,6 +114,10 @@
   @apply block mt-2 text-sm text-accent-red;
 }
 
+.error-message {
+  @apply flex items-center gap-1.5 mt-2 text-sm text-accent-red;
+}
+
 /* ============================================================================
    SIZE VARIANTS
    ============================================================================ */
