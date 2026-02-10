@@ -25,6 +25,7 @@
     <:actions>
       <%= if @page_tab == "sets" do %>
         <.button
+          :if={can_edit?(assigns)}
           variant="primary"
           size="sm"
           phx-click="show_new_product_set_modal"
@@ -226,57 +227,59 @@
                     }
                     role="menu"
                   >
-                    <button
-                      class="product-set-menu__item"
-                      role="menuitem"
-                      phx-click={
-                        JS.push("show_edit_product_set_modal")
-                        |> JS.hide(
-                          to: "#product-set-menu-#{product_set.id}",
-                          transition: "fade-out"
-                        )
-                      }
-                      phx-value-product-set-id={product_set.id}
-                    >
-                      <svg
-                        class="size-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
+                    <%= if can_edit?(assigns) do %>
+                      <button
+                        class="product-set-menu__item"
+                        role="menuitem"
+                        phx-click={
+                          JS.push("show_edit_product_set_modal")
+                          |> JS.hide(
+                            to: "#product-set-menu-#{product_set.id}",
+                            transition: "fade-out"
+                          )
+                        }
+                        phx-value-product-set-id={product_set.id}
                       >
-                        <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                      </svg>
-                      Edit
-                    </button>
+                        <svg
+                          class="size-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                        Edit
+                      </button>
 
-                    <button
-                      class="product-set-menu__item"
-                      role="menuitem"
-                      phx-click={
-                        JS.push("duplicate_product_set")
-                        |> JS.hide(
-                          to: "#product-set-menu-#{product_set.id}",
-                          transition: "fade-out"
-                        )
-                      }
-                      phx-value-product-set-id={product_set.id}
-                    >
-                      <svg
-                        class="size-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
+                      <button
+                        class="product-set-menu__item"
+                        role="menuitem"
+                        phx-click={
+                          JS.push("duplicate_product_set")
+                          |> JS.hide(
+                            to: "#product-set-menu-#{product_set.id}",
+                            transition: "fade-out"
+                          )
+                        }
+                        phx-value-product-set-id={product_set.id}
                       >
-                        <rect x="8" y="2" width="10" height="14" rx="2" /><path d="M16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2" />
-                      </svg>
-                      Duplicate
-                    </button>
+                        <svg
+                          class="size-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <rect x="8" y="2" width="10" height="14" rx="2" /><path d="M16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2" />
+                        </svg>
+                        Duplicate
+                      </button>
+                    <% end %>
 
                     <button
                       class="product-set-menu__item"
@@ -339,62 +342,64 @@
                       Share Public URL
                     </button>
 
-                    <button
-                      class="product-set-menu__item"
-                      role="menuitem"
-                      phx-click={
-                        JS.push("generate_product_set_talking_points")
-                        |> JS.hide(
-                          to: "#product-set-menu-#{product_set.id}",
-                          transition: "fade-out"
-                        )
-                      }
-                      phx-value-product-set-id={product_set.id}
-                    >
-                      <span class="size-4" style="display: inline-flex;">
+                    <%= if can_edit?(assigns) do %>
+                      <button
+                        class="product-set-menu__item"
+                        role="menuitem"
+                        phx-click={
+                          JS.push("generate_product_set_talking_points")
+                          |> JS.hide(
+                            to: "#product-set-menu-#{product_set.id}",
+                            transition: "fade-out"
+                          )
+                        }
+                        phx-value-product-set-id={product_set.id}
+                      >
+                        <span class="size-4" style="display: inline-flex;">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            style="width: 100%; height: 100%;"
+                          >
+                            <path d="M12 2L9 9l-7 3 7 3 3 7 3-7 7-3-7-3-3-7z"></path>
+                          </svg>
+                        </span>
+                        Generate Talking Points
+                      </button>
+
+                      <div class="product-set-menu__divider"></div>
+
+                      <button
+                        class="product-set-menu__item product-set-menu__item--danger"
+                        role="menuitem"
+                        phx-click={
+                          JS.push("delete_product_set")
+                          |> JS.hide(
+                            to: "#product-set-menu-#{product_set.id}",
+                            transition: "fade-out"
+                          )
+                        }
+                        phx-value-product-set-id={product_set.id}
+                        data-confirm="Are you sure you want to delete this product set? This action cannot be undone."
+                      >
                         <svg
+                          class="size-4"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           stroke-width="2"
                           stroke-linecap="round"
                           stroke-linejoin="round"
-                          style="width: 100%; height: 100%;"
                         >
-                          <path d="M12 2L9 9l-7 3 7 3 3 7 3-7 7-3-7-3-3-7z"></path>
+                          <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                         </svg>
-                      </span>
-                      Generate Talking Points
-                    </button>
-
-                    <div class="product-set-menu__divider"></div>
-
-                    <button
-                      class="product-set-menu__item product-set-menu__item--danger"
-                      role="menuitem"
-                      phx-click={
-                        JS.push("delete_product_set")
-                        |> JS.hide(
-                          to: "#product-set-menu-#{product_set.id}",
-                          transition: "fade-out"
-                        )
-                      }
-                      phx-value-product-set-id={product_set.id}
-                      data-confirm="Are you sure you want to delete this product set? This action cannot be undone."
-                    >
-                      <svg
-                        class="size-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                      </svg>
-                      Delete
-                    </button>
+                        Delete
+                      </button>
+                    <% end %>
                   </nav>
                 </div>
               </div>
@@ -482,7 +487,7 @@
                           </p>
                         </div>
 
-                        <div class="product-set-card__product-actions">
+                        <div :if={can_edit?(assigns)} class="product-set-card__product-actions">
                           <.button
                             size="xs"
                             variant="ghost"

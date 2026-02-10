@@ -18,6 +18,7 @@ defmodule SocialObjectsWeb.TemplateEditorLive do
   alias SocialObjects.Communications
   alias SocialObjects.Communications.EmailTemplate
   alias SocialObjectsWeb.BrandRoutes
+  import SocialObjectsWeb.BrandPermissions
 
   @impl true
   def mount(_params, _session, socket) do
@@ -100,35 +101,37 @@ defmodule SocialObjectsWeb.TemplateEditorLive do
 
   @impl true
   def handle_event("save", %{"email_template" => params}, socket) do
-    # Decode form_config if it's a JSON string
-    params = decode_form_config(params)
-    brand_id = socket.assigns.current_brand.id
+    authorize socket, :admin do
+      # Decode form_config if it's a JSON string
+      params = decode_form_config(params)
+      brand_id = socket.assigns.current_brand.id
 
-    result =
-      if socket.assigns.is_new do
-        Communications.create_email_template(brand_id, params)
-      else
-        Communications.update_email_template(socket.assigns.template, params)
+      result =
+        if socket.assigns.is_new do
+          Communications.create_email_template(brand_id, params)
+        else
+          Communications.update_email_template(socket.assigns.template, params)
+        end
+
+      case result do
+        {:ok, _template} ->
+          socket =
+            socket
+            |> put_flash(:info, "Template saved successfully")
+            |> push_navigate(
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/creators?pt=templates",
+                  socket.assigns.current_host
+                )
+            )
+
+          {:noreply, socket}
+
+        {:error, changeset} ->
+          {:noreply, assign(socket, :form, to_form(changeset))}
       end
-
-    case result do
-      {:ok, _template} ->
-        socket =
-          socket
-          |> put_flash(:info, "Template saved successfully")
-          |> push_navigate(
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/creators?pt=templates",
-                socket.assigns.current_host
-              )
-          )
-
-        {:noreply, socket}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
 

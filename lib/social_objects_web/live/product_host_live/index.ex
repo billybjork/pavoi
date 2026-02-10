@@ -15,6 +15,7 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
 
   alias SocialObjects.ProductSets
   alias SocialObjectsWeb.BrandRoutes
+  import SocialObjectsWeb.BrandPermissions
 
   @impl true
   def mount(%{"id" => product_set_id}, _session, socket) do
@@ -81,93 +82,105 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
   # PRIMARY NAVIGATION: Direct jump to product by number
   @impl true
   def handle_event("jump_to_product", %{"position" => position}, socket) do
-    position = String.to_integer(position)
+    authorize socket, :admin do
+      position = String.to_integer(position)
 
-    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-      {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                socket.assigns.current_host
-              )
-          )
+      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+        {:ok, new_state} ->
+          socket =
+            push_patch(socket,
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, :invalid_position} ->
-        {:noreply, put_flash(socket, :error, "Invalid product number")}
+        {:error, :invalid_position} ->
+          {:noreply, put_flash(socket, :error, "Invalid product number")}
+      end
     end
   end
 
   # CONVENIENCE: Sequential next/previous with arrow keys
   @impl true
   def handle_event("next_product", _params, socket) do
-    case ProductSets.advance_to_next_product(socket.assigns.product_set_id) do
-      {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
-                socket.assigns.current_host
-              )
-          )
+    authorize socket, :admin do
+      case ProductSets.advance_to_next_product(socket.assigns.product_set_id) do
+        {:ok, new_state} ->
+          socket =
+            push_patch(socket,
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, :end_of_product_set} ->
-        {:noreply, put_flash(socket, :info, "End of product set reached")}
+        {:error, :end_of_product_set} ->
+          {:noreply, put_flash(socket, :info, "End of product set reached")}
+      end
     end
   end
 
   @impl true
   def handle_event("previous_product", _params, socket) do
-    case ProductSets.go_to_previous_product(socket.assigns.product_set_id) do
-      {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
-                socket.assigns.current_host
-              )
-          )
+    authorize socket, :admin do
+      case ProductSets.go_to_previous_product(socket.assigns.product_set_id) do
+        {:ok, new_state} ->
+          socket =
+            push_patch(socket,
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=#{new_state.current_image_index}",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, :start_of_product_set} ->
-        {:noreply, put_flash(socket, :info, "Already at first product")}
+        {:error, :start_of_product_set} ->
+          {:noreply, put_flash(socket, :info, "Already at first product")}
+      end
     end
   end
 
   @impl true
   def handle_event("next_image", _params, socket) do
-    case ProductSets.cycle_product_image(socket.assigns.product_set_id, :next) do
-      {:ok, _state} -> {:noreply, socket}
-      {:error, _} -> {:noreply, socket}
+    authorize socket, :admin do
+      case ProductSets.cycle_product_image(socket.assigns.product_set_id, :next) do
+        {:ok, _state} -> {:noreply, socket}
+        {:error, _} -> {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("previous_image", _params, socket) do
-    case ProductSets.cycle_product_image(socket.assigns.product_set_id, :previous) do
-      {:ok, _state} -> {:noreply, socket}
-      {:error, _} -> {:noreply, socket}
+    authorize socket, :admin do
+      case ProductSets.cycle_product_image(socket.assigns.product_set_id, :previous) do
+        {:ok, _state} -> {:noreply, socket}
+        {:error, _} -> {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("goto_image", %{"index" => index_str}, socket) do
-    index = String.to_integer(index_str)
+    authorize socket, :admin do
+      index = String.to_integer(index_str)
 
-    case ProductSets.set_image_index(socket.assigns.product_set_id, index) do
-      {:ok, _state} -> {:noreply, socket}
-      {:error, _} -> {:noreply, socket}
+      case ProductSets.set_image_index(socket.assigns.product_set_id, index) do
+        {:ok, _state} -> {:noreply, socket}
+        {:error, _} -> {:noreply, socket}
+      end
     end
   end
 
@@ -178,86 +191,94 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
 
   @impl true
   def handle_event("toggle_product_set_panel", _params, socket) do
-    new_collapsed = !socket.assigns.product_set_panel_collapsed
+    authorize socket, :admin do
+      new_collapsed = !socket.assigns.product_set_panel_collapsed
 
-    # Broadcast to controller so toggle stays in sync
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "product_set:#{socket.assigns.product_set_id}:ui",
-      {:product_set_notes_toggle, !new_collapsed}
-    )
+      # Broadcast to controller so toggle stays in sync
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "product_set:#{socket.assigns.product_set_id}:ui",
+        {:product_set_notes_toggle, !new_collapsed}
+      )
 
-    {:noreply, assign(socket, :product_set_panel_collapsed, new_collapsed)}
+      {:noreply, assign(socket, :product_set_panel_collapsed, new_collapsed)}
+    end
   end
 
   @impl true
   def handle_event("select_product_from_panel", %{"position" => position}, socket) do
-    position = String.to_integer(position)
+    authorize socket, :admin do
+      position = String.to_integer(position)
 
-    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-      {:ok, new_state} ->
-        socket =
-          socket
-          |> assign(:products_panel_collapsed, true)
-          |> push_patch(
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                socket.assigns.current_host
-              )
-          )
+      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+        {:ok, new_state} ->
+          socket =
+            socket
+            |> assign(:products_panel_collapsed, true)
+            |> push_patch(
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _} ->
-        {:noreply, socket}
+        {:error, _} ->
+          {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("jump_to_first", _params, socket) do
-    # Jump to position 1 (first product)
-    case ProductSets.jump_to_product(socket.assigns.product_set_id, 1) do
-      {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                socket.assigns.current_host
-              )
-          )
+    authorize socket, :admin do
+      # Jump to position 1 (first product)
+      case ProductSets.jump_to_product(socket.assigns.product_set_id, 1) do
+        {:ok, new_state} ->
+          socket =
+            push_patch(socket,
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _} ->
-        {:noreply, socket}
+        {:error, _} ->
+          {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("jump_to_last", _params, socket) do
-    # Jump to last product (total_products)
-    last_position = socket.assigns.total_products
+    authorize socket, :admin do
+      # Jump to last product (total_products)
+      last_position = socket.assigns.total_products
 
-    case ProductSets.jump_to_product(socket.assigns.product_set_id, last_position) do
-      {:ok, new_state} ->
-        socket =
-          push_patch(socket,
-            to:
-              BrandRoutes.brand_path(
-                socket.assigns.current_brand,
-                "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
-                socket.assigns.current_host
-              )
-          )
+      case ProductSets.jump_to_product(socket.assigns.product_set_id, last_position) do
+        {:ok, new_state} ->
+          socket =
+            push_patch(socket,
+              to:
+                BrandRoutes.brand_path(
+                  socket.assigns.current_brand,
+                  "/products/#{socket.assigns.product_set_id}/host?sp=#{new_state.current_product_set_product_id}&img=0",
+                  socket.assigns.current_host
+                )
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _} ->
-        {:noreply, socket}
+        {:error, _} ->
+          {:noreply, socket}
+      end
     end
   end
 

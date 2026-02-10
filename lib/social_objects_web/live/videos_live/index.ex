@@ -16,6 +16,7 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.VideoComponents
+  import SocialObjectsWeb.BrandPermissions
 
   @impl true
   def mount(_params, _session, socket) do
@@ -120,14 +121,16 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   @impl true
   def handle_event("trigger_video_sync", _params, socket) do
-    {:noreply,
-     enqueue_sync_job(
-       socket,
-       VideoSyncWorker,
-       %{"brand_id" => socket.assigns.brand_id},
-       :video_syncing,
-       "Video performance sync started..."
-     )}
+    authorize socket, :admin do
+      {:noreply,
+       enqueue_sync_job(
+         socket,
+         VideoSyncWorker,
+         %{"brand_id" => socket.assigns.brand_id},
+         :video_syncing,
+         "Video performance sync started..."
+       )}
+    end
   end
 
   @impl true

@@ -27,6 +27,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   import SocialObjectsWeb.CreatorTagComponents
   import SocialObjectsWeb.CreatorTableComponents
   import SocialObjectsWeb.ViewHelpers
+  import SocialObjectsWeb.BrandPermissions
 
   @tag_colors ~w(amber blue green red purple gray)
 
@@ -236,22 +237,24 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("save_contact", %{"creator" => params}, socket) do
-    case Creators.update_creator(socket.assigns.selected_creator, params) do
-      {:ok, creator} ->
-        # Reload with minimal associations (not all tab data)
-        creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
+    authorize socket, :admin do
+      case Creators.update_creator(socket.assigns.selected_creator, params) do
+        {:ok, creator} ->
+          # Reload with minimal associations (not all tab data)
+          creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
 
-        socket =
-          socket
-          |> assign(:selected_creator, creator)
-          |> assign(:editing_contact, false)
-          |> assign(:contact_form, nil)
-          |> put_flash(:info, "Contact info updated")
+          socket =
+            socket
+            |> assign(:selected_creator, creator)
+            |> assign(:editing_contact, false)
+            |> assign(:contact_form, nil)
+            |> put_flash(:info, "Contact info updated")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :contact_form, to_form(changeset))}
+        {:error, changeset} ->
+          {:noreply, assign(socket, :contact_form, to_form(changeset))}
+      end
     end
   end
 
@@ -262,38 +265,44 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("trigger_bigquery_sync", _params, socket) do
-    {:noreply,
-     enqueue_sync_job(
-       socket,
-       BigQueryOrderSyncWorker,
-       %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
-       :bigquery_syncing,
-       "BigQuery orders sync initiated..."
-     )}
+    authorize socket, :admin do
+      {:noreply,
+       enqueue_sync_job(
+         socket,
+         BigQueryOrderSyncWorker,
+         %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
+         :bigquery_syncing,
+         "BigQuery orders sync initiated..."
+       )}
+    end
   end
 
   @impl true
   def handle_event("trigger_enrichment_sync", _params, socket) do
-    {:noreply,
-     enqueue_sync_job(
-       socket,
-       CreatorEnrichmentWorker,
-       %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
-       :enrichment_syncing,
-       "Creator enrichment started..."
-     )}
+    authorize socket, :admin do
+      {:noreply,
+       enqueue_sync_job(
+         socket,
+         CreatorEnrichmentWorker,
+         %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
+         :enrichment_syncing,
+         "Creator enrichment started..."
+       )}
+    end
   end
 
   @impl true
   def handle_event("trigger_video_sync", _params, socket) do
-    {:noreply,
-     enqueue_sync_job(
-       socket,
-       VideoSyncWorker,
-       %{"brand_id" => socket.assigns.brand_id},
-       :video_syncing,
-       "Video performance sync started..."
-     )}
+    authorize socket, :admin do
+      {:noreply,
+       enqueue_sync_job(
+         socket,
+         VideoSyncWorker,
+         %{"brand_id" => socket.assigns.brand_id},
+         :video_syncing,
+         "Video performance sync started..."
+       )}
+    end
   end
 
   @impl true
@@ -432,13 +441,15 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("send_outreach", _params, socket) do
-    with {:ok, template_id} <- validate_template_selected(socket),
+    with :ok <- require_role(socket, :admin),
+         {:ok, template_id} <- validate_template_selected(socket),
          {:ok, sendable_ids} <- get_sendable_creator_ids(socket) do
       {:ok, count} =
         CreatorOutreachWorker.enqueue_batch(socket.assigns.brand_id, sendable_ids, template_id)
 
       {:noreply, handle_outreach_success(socket, count)}
     else
+      {:error, :unauthorized} -> unauthorized_response(socket)
       {:error, message} -> {:noreply, put_flash(socket, :error, message)}
     end
   end
@@ -517,75 +528,79 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("tag_picker_enter", _params, socket) do
-    query = String.trim(socket.assigns.tag_search_query || "")
-    creator_id = socket.assigns.tag_picker_open_for
+    authorize socket, :admin do
+      query = String.trim(socket.assigns.tag_search_query || "")
+      creator_id = socket.assigns.tag_picker_open_for
 
-    # Only create if there's text and no exact match exists
-    if query != "" && creator_id do
-      available_tags = socket.assigns.available_tags
+      # Only create if there's text and no exact match exists
+      if query != "" && creator_id do
+        available_tags = socket.assigns.available_tags
 
-      exact_match =
-        Enum.find(available_tags, fn tag ->
-          String.downcase(tag.name) == String.downcase(query)
-        end)
+        exact_match =
+          Enum.find(available_tags, fn tag ->
+            String.downcase(tag.name) == String.downcase(query)
+          end)
 
-      if exact_match do
-        # If exact match exists, assign that tag
-        Creators.assign_tag_to_creator(creator_id, exact_match.id)
-        selected_tag_ids = [exact_match.id | socket.assigns[:picker_selected_tag_ids] || []]
+        if exact_match do
+          # If exact match exists, assign that tag
+          Creators.assign_tag_to_creator(creator_id, exact_match.id)
+          selected_tag_ids = [exact_match.id | socket.assigns[:picker_selected_tag_ids] || []]
 
-        socket =
-          socket
-          |> assign(:tag_search_query, "")
-          |> assign(:picker_selected_tag_ids, Enum.uniq(selected_tag_ids))
-          |> reload_creator_tags(creator_id)
-          |> maybe_refresh_selected_creator_tags(creator_id)
-          |> assign(:tag_picker_open_for, nil)
-          |> assign(:tag_picker_source, nil)
+          socket =
+            socket
+            |> assign(:tag_search_query, "")
+            |> assign(:picker_selected_tag_ids, Enum.uniq(selected_tag_ids))
+            |> reload_creator_tags(creator_id)
+            |> maybe_refresh_selected_creator_tags(creator_id)
+            |> assign(:tag_picker_open_for, nil)
+            |> assign(:tag_picker_source, nil)
 
-        {:noreply, socket}
+          {:noreply, socket}
+        else
+          # Create new tag - reuse quick_create_tag logic
+          params = %{
+            "name" => query,
+            "creator-id" => to_string(creator_id),
+            "color" => socket.assigns.new_tag_color
+          }
+
+          handle_event("quick_create_tag", params, socket)
+        end
       else
-        # Create new tag - reuse quick_create_tag logic
-        params = %{
-          "name" => query,
-          "creator-id" => to_string(creator_id),
-          "color" => socket.assigns.new_tag_color
-        }
-
-        handle_event("quick_create_tag", params, socket)
+        {:noreply, socket}
       end
-    else
-      {:noreply, socket}
     end
   end
 
   @impl true
   def handle_event("toggle_tag", %{"creator-id" => creator_id, "tag-id" => tag_id}, socket) do
-    creator_id = String.to_integer(creator_id)
-    selected_tag_ids = socket.assigns[:picker_selected_tag_ids] || []
-    _from_modal = socket.assigns.tag_picker_source == :modal
+    authorize socket, :admin do
+      creator_id = String.to_integer(creator_id)
+      selected_tag_ids = socket.assigns[:picker_selected_tag_ids] || []
+      _from_modal = socket.assigns.tag_picker_source == :modal
 
-    # Update the tag assignment
-    new_selected_tag_ids =
-      if tag_id in selected_tag_ids do
-        Creators.remove_tag_from_creator(creator_id, tag_id)
-        List.delete(selected_tag_ids, tag_id)
-      else
-        Creators.assign_tag_to_creator(creator_id, tag_id)
-        [tag_id | selected_tag_ids]
-      end
+      # Update the tag assignment
+      new_selected_tag_ids =
+        if tag_id in selected_tag_ids do
+          Creators.remove_tag_from_creator(creator_id, tag_id)
+          List.delete(selected_tag_ids, tag_id)
+        else
+          Creators.assign_tag_to_creator(creator_id, tag_id)
+          [tag_id | selected_tag_ids]
+        end
 
-    socket =
-      socket
-      |> assign(:tag_search_query, "")
-      |> assign(:picker_selected_tag_ids, new_selected_tag_ids)
-      |> reload_creator_tags(creator_id)
-      |> maybe_refresh_selected_creator_tags(creator_id)
-      # Always close picker after toggling a tag (modal stays open via click_away_disabled)
-      |> assign(:tag_picker_open_for, nil)
-      |> assign(:tag_picker_source, nil)
+      socket =
+        socket
+        |> assign(:tag_search_query, "")
+        |> assign(:picker_selected_tag_ids, new_selected_tag_ids)
+        |> reload_creator_tags(creator_id)
+        |> maybe_refresh_selected_creator_tags(creator_id)
+        # Always close picker after toggling a tag (modal stays open via click_away_disabled)
+        |> assign(:tag_picker_open_for, nil)
+        |> assign(:tag_picker_source, nil)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -599,93 +614,99 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         %{"name" => name, "creator-id" => creator_id} = params,
         socket
       ) do
-    creator_id = String.to_integer(creator_id)
-    brand_id = socket.assigns.brand_id
-    color = Map.get(params, "color", socket.assigns.new_tag_color)
+    authorize socket, :admin do
+      creator_id = String.to_integer(creator_id)
+      brand_id = socket.assigns.brand_id
+      color = Map.get(params, "color", socket.assigns.new_tag_color)
 
-    attrs = %{
-      name: String.trim(name),
-      color: color,
-      brand_id: brand_id
-    }
+      attrs = %{
+        name: String.trim(name),
+        color: color,
+        brand_id: brand_id
+      }
 
-    case Creators.create_tag(attrs) do
-      {:ok, tag} ->
-        # Assign the new tag to the creator
-        Creators.assign_tag_to_creator(creator_id, tag.id)
+      case Creators.create_tag(attrs) do
+        {:ok, tag} ->
+          # Assign the new tag to the creator
+          Creators.assign_tag_to_creator(creator_id, tag.id)
 
-        # Refresh available tags
-        available_tags = Creators.list_tags_for_brand(brand_id)
-        selected_tag_ids = [tag.id | socket.assigns[:picker_selected_tag_ids] || []]
+          # Refresh available tags
+          available_tags = Creators.list_tags_for_brand(brand_id)
+          selected_tag_ids = [tag.id | socket.assigns[:picker_selected_tag_ids] || []]
 
-        socket =
-          socket
-          |> assign(:available_tags, available_tags)
-          |> assign(:tag_search_query, "")
-          |> assign(:picker_selected_tag_ids, selected_tag_ids)
-          |> reload_creator_tags(creator_id)
-          |> maybe_refresh_selected_creator_tags(creator_id)
-          # Always close picker after creating a tag (modal stays open via click_away_disabled)
-          |> assign(:tag_picker_open_for, nil)
-          |> assign(:tag_picker_source, nil)
+          socket =
+            socket
+            |> assign(:available_tags, available_tags)
+            |> assign(:tag_search_query, "")
+            |> assign(:picker_selected_tag_ids, selected_tag_ids)
+            |> reload_creator_tags(creator_id)
+            |> maybe_refresh_selected_creator_tags(creator_id)
+            # Always close picker after creating a tag (modal stays open via click_away_disabled)
+            |> assign(:tag_picker_open_for, nil)
+            |> assign(:tag_picker_source, nil)
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, changeset} ->
-        error_msg =
-          Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
-          |> Enum.map_join(", ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+        {:error, changeset} ->
+          error_msg =
+            Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+            |> Enum.map_join(", ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
 
-        {:noreply, put_flash(socket, :error, "Failed to create tag: #{error_msg}")}
+          {:noreply, put_flash(socket, :error, "Failed to create tag: #{error_msg}")}
+      end
     end
   end
 
   @impl true
   def handle_event("delete_tag", %{"tag-id" => tag_id}, socket) do
-    count = Creators.count_creators_for_tag(tag_id)
+    authorize socket, :admin do
+      count = Creators.count_creators_for_tag(tag_id)
 
-    message =
-      case count do
-        0 -> "Are you sure you want to delete this tag?"
-        1 -> "This tag is currently applied to 1 creator. Are you sure you want to delete it?"
-        n -> "This tag is currently applied to #{n} creators. Are you sure you want to delete it?"
-      end
+      message =
+        case count do
+          0 -> "Are you sure you want to delete this tag?"
+          1 -> "This tag is currently applied to 1 creator. Are you sure you want to delete it?"
+          n -> "This tag is currently applied to #{n} creators. Are you sure you want to delete it?"
+        end
 
-    {:noreply, push_event(socket, "confirm_delete_tag", %{tag_id: tag_id, message: message})}
+      {:noreply, push_event(socket, "confirm_delete_tag", %{tag_id: tag_id, message: message})}
+    end
   end
 
   @impl true
   def handle_event("confirm_delete_tag", %{"tag_id" => tag_id}, socket) do
-    brand_id = socket.assigns.brand_id
+    authorize socket, :admin do
+      brand_id = socket.assigns.brand_id
 
-    case Creators.get_tag(brand_id, tag_id) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "Tag not found")}
+      case Creators.get_tag(brand_id, tag_id) do
+        nil ->
+          {:noreply, put_flash(socket, :error, "Tag not found")}
 
-      tag ->
-        case Creators.delete_tag(tag) do
-          {:ok, _} ->
-            available_tags = Creators.list_tags_for_brand(brand_id)
+        tag ->
+          case Creators.delete_tag(tag) do
+            {:ok, _} ->
+              available_tags = Creators.list_tags_for_brand(brand_id)
 
-            # Remove from filter if it was selected
-            new_filter_ids = Enum.reject(socket.assigns.filter_tag_ids, &(&1 == tag_id))
+              # Remove from filter if it was selected
+              new_filter_ids = Enum.reject(socket.assigns.filter_tag_ids, &(&1 == tag_id))
 
-            new_picker_ids =
-              Enum.reject(socket.assigns.picker_selected_tag_ids || [], &(&1 == tag_id))
+              new_picker_ids =
+                Enum.reject(socket.assigns.picker_selected_tag_ids || [], &(&1 == tag_id))
 
-            socket =
-              socket
-              |> assign(:available_tags, available_tags)
-              |> assign(:filter_tag_ids, new_filter_ids)
-              |> assign(:picker_selected_tag_ids, new_picker_ids)
-              |> put_flash(:info, "Tag deleted")
-              |> load_creators()
+              socket =
+                socket
+                |> assign(:available_tags, available_tags)
+                |> assign(:filter_tag_ids, new_filter_ids)
+                |> assign(:picker_selected_tag_ids, new_picker_ids)
+                |> put_flash(:info, "Tag deleted")
+                |> load_creators()
 
-            {:noreply, socket}
+              {:noreply, socket}
 
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to delete tag")}
-        end
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Failed to delete tag")}
+          end
+      end
     end
   end
 
@@ -760,21 +781,23 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("apply_batch_tags", _params, socket) do
-    creator_ids = get_selected_creator_ids(socket)
-    tag_ids = socket.assigns.batch_selected_tag_ids
-    {:ok, count} = Creators.batch_assign_tags(creator_ids, tag_ids)
+    authorize socket, :admin do
+      creator_ids = get_selected_creator_ids(socket)
+      tag_ids = socket.assigns.batch_selected_tag_ids
+      {:ok, count} = Creators.batch_assign_tags(creator_ids, tag_ids)
 
-    socket =
-      socket
-      |> assign(:show_batch_tag_picker, false)
-      |> assign(:batch_selected_tag_ids, [])
-      |> assign(:selected_ids, MapSet.new())
-      |> assign(:select_all_matching, false)
-      |> assign(:page, 1)
-      |> load_creators()
-      |> put_flash(:info, "Added #{count} tag assignments to #{length(creator_ids)} creators")
+      socket =
+        socket
+        |> assign(:show_batch_tag_picker, false)
+        |> assign(:batch_selected_tag_ids, [])
+        |> assign(:selected_ids, MapSet.new())
+        |> assign(:select_all_matching, false)
+        |> assign(:page, 1)
+        |> load_creators()
+        |> put_flash(:info, "Added #{count} tag assignments to #{length(creator_ids)} creators")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -945,40 +968,44 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("set_default_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(socket.assigns.brand_id, id)
-    {:ok, _} = Communications.set_default_template(template)
+    authorize socket, :admin do
+      template = Communications.get_email_template!(socket.assigns.brand_id, id)
+      {:ok, _} = Communications.set_default_template(template)
 
-    templates =
-      Communications.list_all_templates_by_type(
-        socket.assigns.brand_id,
-        socket.assigns.template_type_filter
-      )
+      templates =
+        Communications.list_all_templates_by_type(
+          socket.assigns.brand_id,
+          socket.assigns.template_type_filter
+        )
 
-    socket =
-      socket
-      |> assign(:templates, templates)
-      |> put_flash(:info, "\"#{template.name}\" is now the default template")
+      socket =
+        socket
+        |> assign(:templates, templates)
+        |> put_flash(:info, "\"#{template.name}\" is now the default template")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("delete_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(socket.assigns.brand_id, id)
-    {:ok, _} = Communications.delete_email_template(template)
+    authorize socket, :admin do
+      template = Communications.get_email_template!(socket.assigns.brand_id, id)
+      {:ok, _} = Communications.delete_email_template(template)
 
-    templates =
-      Communications.list_all_templates_by_type(
-        socket.assigns.brand_id,
-        socket.assigns.template_type_filter
-      )
+      templates =
+        Communications.list_all_templates_by_type(
+          socket.assigns.brand_id,
+          socket.assigns.template_type_filter
+        )
 
-    socket =
-      socket
-      |> assign(:templates, templates)
-      |> put_flash(:info, "Template deleted")
+      socket =
+        socket
+        |> assign(:templates, templates)
+        |> put_flash(:info, "Template deleted")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   # =============================================================================

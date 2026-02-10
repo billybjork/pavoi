@@ -16,6 +16,7 @@ defmodule SocialObjectsWeb.ShopAnalyticsLive.Index do
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.ShopAnalyticsComponents
+  import SocialObjectsWeb.BrandPermissions
 
   @impl true
   def mount(_params, _session, socket) do
@@ -61,20 +62,22 @@ defmodule SocialObjectsWeb.ShopAnalyticsLive.Index do
 
   @impl true
   def handle_event("refresh_analytics", _params, socket) do
-    brand_id = socket.assigns.current_brand.id
+    authorize socket, :admin do
+      brand_id = socket.assigns.current_brand.id
 
-    # Invalidate cache for this brand
-    AnalyticsCache.invalidate_brand(brand_id)
+      # Invalidate cache for this brand
+      AnalyticsCache.invalidate_brand(brand_id)
 
-    # Reload data
-    socket =
-      socket
-      |> assign(:analytics_refreshing, true)
-      |> load_analytics_data()
-      |> assign(:analytics_refreshing, false)
-      |> assign(:analytics_last_fetch_at, DateTime.utc_now())
+      # Reload data
+      socket =
+        socket
+        |> assign(:analytics_refreshing, true)
+        |> load_analytics_data()
+        |> assign(:analytics_refreshing, false)
+        |> assign(:analytics_last_fetch_at, DateTime.utc_now())
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   # Data Loading

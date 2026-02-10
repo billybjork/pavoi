@@ -11,6 +11,7 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
   on_mount {SocialObjectsWeb.NavHooks, :set_current_page}
 
   import SocialObjectsWeb.ViewHelpers
+  import SocialObjectsWeb.BrandPermissions
 
   alias SocialObjects.ProductSets
 
@@ -69,64 +70,74 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
   # Product Navigation - Jump to product
   @impl true
   def handle_event("jump_to_product", %{"position" => position}, socket) do
-    position = String.to_integer(position)
+    if has_role?(socket, :admin) do
+      position = String.to_integer(position)
 
-    case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
-      {:ok, _new_state} ->
-        {:reply, %{success: true, position: position}, socket}
+      case ProductSets.jump_to_product(socket.assigns.product_set_id, position) do
+        {:ok, _new_state} ->
+          {:reply, %{success: true, position: position}, socket}
 
-      {:error, :invalid_position} ->
-        {:reply, %{success: false, error: "Product #{position} not found"}, socket}
+        {:error, :invalid_position} ->
+          {:reply, %{success: false, error: "Product #{position} not found"}, socket}
+      end
+    else
+      {:reply, %{success: false, error: "Permission denied"}, socket}
     end
   end
 
   # Next product (wraps to first)
   @impl true
   def handle_event("next_product", _params, socket) do
-    current = socket.assigns.current_position || 0
-    total = socket.assigns.total_products
+    authorize socket, :admin do
+      current = socket.assigns.current_position || 0
+      total = socket.assigns.total_products
 
-    next_position =
-      if current >= total do
-        1
-      else
-        current + 1
-      end
+      next_position =
+        if current >= total do
+          1
+        else
+          current + 1
+        end
 
-    ProductSets.jump_to_product(socket.assigns.product_set_id, next_position)
-    {:noreply, socket}
+      ProductSets.jump_to_product(socket.assigns.product_set_id, next_position)
+      {:noreply, socket}
+    end
   end
 
   # Previous product (wraps to last)
   @impl true
   def handle_event("previous_product", _params, socket) do
-    current = socket.assigns.current_position || 1
-    total = socket.assigns.total_products
+    authorize socket, :admin do
+      current = socket.assigns.current_position || 1
+      total = socket.assigns.total_products
 
-    prev_position =
-      if current <= 1 do
-        total
-      else
-        current - 1
-      end
+      prev_position =
+        if current <= 1 do
+          total
+        else
+          current - 1
+        end
 
-    ProductSets.jump_to_product(socket.assigns.product_set_id, prev_position)
-    {:noreply, socket}
+      ProductSets.jump_to_product(socket.assigns.product_set_id, prev_position)
+      {:noreply, socket}
+    end
   end
 
   # Product Set Notes Toggle (controls host view)
   @impl true
   def handle_event("toggle_product_set_notes", _params, socket) do
-    new_visible = !socket.assigns.product_set_notes_visible
+    authorize socket, :admin do
+      new_visible = !socket.assigns.product_set_notes_visible
 
-    # Broadcast to host view
-    Phoenix.PubSub.broadcast(
-      SocialObjects.PubSub,
-      "product_set:#{socket.assigns.product_set_id}:ui",
-      {:product_set_notes_toggle, new_visible}
-    )
+      # Broadcast to host view
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "product_set:#{socket.assigns.product_set_id}:ui",
+        {:product_set_notes_toggle, new_visible}
+      )
 
-    {:noreply, assign(socket, :product_set_notes_visible, new_visible)}
+      {:noreply, assign(socket, :product_set_notes_visible, new_visible)}
+    end
   end
 
   # Host Message Controls
@@ -137,19 +148,21 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
   @impl true
   def handle_event("send_host_message", %{"message" => message_text}, socket) do
-    color = socket.assigns.selected_color
+    authorize socket, :admin do
+      color = socket.assigns.selected_color
 
-    case ProductSets.send_host_message(socket.assigns.product_set_id, message_text, color) do
-      {:ok, _state} ->
-        socket =
-          socket
-          |> assign(:message_draft, message_text)
-          |> assign(:message_panel_collapsed, true)
+      case ProductSets.send_host_message(socket.assigns.product_set_id, message_text, color) do
+        {:ok, _state} ->
+          socket =
+            socket
+            |> assign(:message_draft, message_text)
+            |> assign(:message_panel_collapsed, true)
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to send message")}
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to send message")}
+      end
     end
   end
 
@@ -165,12 +178,14 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
   @impl true
   def handle_event("clear_host_message", _params, socket) do
-    case ProductSets.clear_host_message(socket.assigns.product_set_id) do
-      {:ok, _state} ->
-        {:noreply, socket}
+    authorize socket, :admin do
+      case ProductSets.clear_host_message(socket.assigns.product_set_id) do
+        {:ok, _state} ->
+          {:noreply, socket}
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to clear message")}
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to clear message")}
+      end
     end
   end
 
@@ -192,78 +207,84 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
 
   @impl true
   def handle_event("select_preset", %{"id" => preset_id}, socket) do
-    preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
+    authorize socket, :admin do
+      preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
 
-    case preset do
-      nil ->
-        {:noreply, put_flash(socket, :error, "Preset not found")}
+      case preset do
+        nil ->
+          {:noreply, put_flash(socket, :error, "Preset not found")}
 
-      %{message_text: text, color: color} ->
-        case ProductSets.send_host_message(socket.assigns.product_set_id, text, color) do
-          {:ok, _state} ->
-            socket =
-              socket
-              |> assign(:message_draft, text)
-              |> assign(:selected_color, color)
-              |> assign(:show_preset_modal, false)
-              |> assign(:message_panel_collapsed, true)
+        %{message_text: text, color: color} ->
+          case ProductSets.send_host_message(socket.assigns.product_set_id, text, color) do
+            {:ok, _state} ->
+              socket =
+                socket
+                |> assign(:message_draft, text)
+                |> assign(:selected_color, color)
+                |> assign(:show_preset_modal, false)
+                |> assign(:message_panel_collapsed, true)
 
-            {:noreply, socket}
+              {:noreply, socket}
 
-          {:error, _reason} ->
-            {:noreply, put_flash(socket, :error, "Failed to send message")}
-        end
+            {:error, _reason} ->
+              {:noreply, put_flash(socket, :error, "Failed to send message")}
+          end
+      end
     end
   end
 
   @impl true
   def handle_event("create_preset", %{"message_text" => message_text, "color" => color}, socket) do
-    case ProductSets.create_message_preset(socket.assigns.brand_id, %{
-           message_text: message_text,
-           color: color
-         }) do
-      {:ok, _preset} ->
-        message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
+    authorize socket, :admin do
+      case ProductSets.create_message_preset(socket.assigns.brand_id, %{
+             message_text: message_text,
+             color: color
+           }) do
+        {:ok, _preset} ->
+          message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
 
-        socket =
-          socket
-          |> assign(:message_presets, message_presets)
-          |> put_flash(:info, "Preset created")
+          socket =
+            socket
+            |> assign(:message_presets, message_presets)
+            |> put_flash(:info, "Preset created")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, changeset} ->
-        errors =
-          Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
-          |> Enum.map_join("; ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+        {:error, changeset} ->
+          errors =
+            Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+            |> Enum.map_join("; ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
 
-        {:noreply, put_flash(socket, :error, "Failed to create preset: #{errors}")}
+          {:noreply, put_flash(socket, :error, "Failed to create preset: #{errors}")}
+      end
     end
   end
 
   @impl true
   def handle_event("delete_preset", %{"id" => preset_id}, socket) do
-    preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
+    authorize socket, :admin do
+      preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
 
-    case preset do
-      nil ->
-        {:noreply, put_flash(socket, :error, "Preset not found")}
+      case preset do
+        nil ->
+          {:noreply, put_flash(socket, :error, "Preset not found")}
 
-      preset ->
-        case ProductSets.delete_message_preset(preset) do
-          {:ok, _} ->
-            message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
+        preset ->
+          case ProductSets.delete_message_preset(preset) do
+            {:ok, _} ->
+              message_presets = ProductSets.list_message_presets(socket.assigns.brand_id)
 
-            socket =
-              socket
-              |> assign(:message_presets, message_presets)
-              |> put_flash(:info, "Preset deleted")
+              socket =
+                socket
+                |> assign(:message_presets, message_presets)
+                |> put_flash(:info, "Preset deleted")
 
-            {:noreply, socket}
+              {:noreply, socket}
 
-          {:error, _reason} ->
-            {:noreply, put_flash(socket, :error, "Failed to delete preset")}
-        end
+            {:error, _reason} ->
+              {:noreply, put_flash(socket, :error, "Failed to delete preset")}
+          end
+      end
     end
   end
 

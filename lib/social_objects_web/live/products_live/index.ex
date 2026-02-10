@@ -75,6 +75,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.AIComponents
+  import SocialObjectsWeb.BrandPermissions
   import SocialObjectsWeb.ProductComponents
   import SocialObjectsWeb.ViewHelpers
 
@@ -621,134 +622,138 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("save_product_set", %{"product_set" => product_set_params}, socket) do
-    # Generate slug from name
-    slug = ProductSets.slugify(product_set_params["name"])
-    product_set_params = Map.put(product_set_params, "slug", slug)
+    authorize socket, :admin do
+      # Generate slug from name
+      slug = ProductSets.slugify(product_set_params["name"])
+      product_set_params = Map.put(product_set_params, "slug", slug)
 
-    # Handle image upload - consume uploaded entries and get the key
-    # For external uploads, the metadata from presign function is the first arg
-    # We store just the key, not a URL, since we need to generate presigned URLs for display
-    image_key =
-      consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
-        {:ok, meta.key}
-      end)
-      |> List.first()
+      # Handle image upload - consume uploaded entries and get the key
+      # For external uploads, the metadata from presign function is the first arg
+      # We store just the key, not a URL, since we need to generate presigned URLs for display
+      image_key =
+        consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
+          {:ok, meta.key}
+        end)
+        |> List.first()
 
-    product_set_params =
-      if image_key do
-        Map.put(product_set_params, "notes_image_url", image_key)
-      else
-        product_set_params
+      product_set_params =
+        if image_key do
+          Map.put(product_set_params, "notes_image_url", image_key)
+        else
+          product_set_params
+        end
+
+      # Extract selected product IDs in order (preserves paste/selection order)
+      selected_ids = socket.assigns.selected_product_order
+
+      case ProductSets.create_product_set_with_products(
+             socket.assigns.brand_id,
+             product_set_params,
+             selected_ids
+           ) do
+        {:ok, _created_session} ->
+          # Preserve expanded state across reload (or expand the newly created session)
+          expanded_id = socket.assigns.expanded_product_set_id
+
+          # Remove "new" param from URL, preserve expanded session if any
+          path =
+            case expanded_id do
+              nil -> products_path(socket)
+              session_id -> products_path(socket, %{s: session_id})
+            end
+
+          socket =
+            socket
+            |> reload_product_sets()
+            |> assign(:show_new_product_set_modal, false)
+            |> assign(
+              :product_set_form,
+              to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
+            )
+            |> assign(:product_search_query, "")
+            |> assign(:product_page, 1)
+            |> assign(:selected_product_ids, MapSet.new())
+            |> assign(:selected_product_order, [])
+            |> assign(:new_session_display_order, [])
+            |> stream(:new_product_set_products, [], reset: true)
+            |> assign(:new_product_set_has_more, false)
+            |> push_patch(to: path)
+            |> put_flash(:info, "Product set created successfully")
+
+          {:noreply, socket}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          socket =
+            socket
+            |> assign(:product_set_form, to_form(changeset))
+            |> put_flash(:error, "Please fix the errors below")
+
+          {:noreply, socket}
       end
-
-    # Extract selected product IDs in order (preserves paste/selection order)
-    selected_ids = socket.assigns.selected_product_order
-
-    case ProductSets.create_product_set_with_products(
-           socket.assigns.brand_id,
-           product_set_params,
-           selected_ids
-         ) do
-      {:ok, _created_session} ->
-        # Preserve expanded state across reload (or expand the newly created session)
-        expanded_id = socket.assigns.expanded_product_set_id
-
-        # Remove "new" param from URL, preserve expanded session if any
-        path =
-          case expanded_id do
-            nil -> products_path(socket)
-            session_id -> products_path(socket, %{s: session_id})
-          end
-
-        socket =
-          socket
-          |> reload_product_sets()
-          |> assign(:show_new_product_set_modal, false)
-          |> assign(
-            :product_set_form,
-            to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
-          )
-          |> assign(:product_search_query, "")
-          |> assign(:product_page, 1)
-          |> assign(:selected_product_ids, MapSet.new())
-          |> assign(:selected_product_order, [])
-          |> assign(:new_session_display_order, [])
-          |> stream(:new_product_set_products, [], reset: true)
-          |> assign(:new_product_set_has_more, false)
-          |> push_patch(to: path)
-          |> put_flash(:info, "Product set created successfully")
-
-        {:noreply, socket}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        socket =
-          socket
-          |> assign(:product_set_form, to_form(changeset))
-          |> put_flash(:error, "Please fix the errors below")
-
-        {:noreply, socket}
     end
   end
 
   @impl true
   def handle_event("save_products_to_product_set", _params, socket) do
-    session_id = socket.assigns.selected_product_set_for_product.id
-    # Use order list to preserve paste/selection order
-    selected_ids = socket.assigns.add_product_selected_order
+    authorize socket, :admin do
+      session_id = socket.assigns.selected_product_set_for_product.id
+      # Use order list to preserve paste/selection order
+      selected_ids = socket.assigns.add_product_selected_order
 
-    # Add each product to the end of the queue
-    case add_products_to_product_set(session_id, selected_ids) do
-      {:ok, created_psp_ids} ->
-        # Record undo action with created PSP IDs
-        undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
+      # Add each product to the end of the queue
+      case add_products_to_product_set(session_id, selected_ids) do
+        {:ok, created_psp_ids} ->
+          # Record undo action with created PSP IDs
+          undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
 
-        socket =
-          socket
-          |> push_undo_action(session_id, undo_action)
-          |> reload_product_sets()
-          |> assign(:selected_product_set_for_product, nil)
-          |> assign(:show_modal_for_product_set, nil)
-          |> assign(:add_product_search_query, "")
-          |> assign(:add_product_page, 1)
-          |> assign(:add_product_selected_ids, MapSet.new())
-          |> assign(:add_product_selected_order, [])
-          |> assign(:add_product_display_order, [])
-          |> stream(:add_product_products, [], reset: true)
-          |> assign(:add_product_has_more, false)
-          |> put_flash(:info, "#{Enum.count(selected_ids)} product(s) added to product set")
+          socket =
+            socket
+            |> push_undo_action(session_id, undo_action)
+            |> reload_product_sets()
+            |> assign(:selected_product_set_for_product, nil)
+            |> assign(:show_modal_for_product_set, nil)
+            |> assign(:add_product_search_query, "")
+            |> assign(:add_product_page, 1)
+            |> assign(:add_product_selected_ids, MapSet.new())
+            |> assign(:add_product_selected_order, [])
+            |> assign(:add_product_display_order, [])
+            |> stream(:add_product_products, [], reset: true)
+            |> assign(:add_product_has_more, false)
+            |> put_flash(:info, "#{Enum.count(selected_ids)} product(s) added to product set")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:partial, added, skipped, created_psp_ids} ->
-        # Record undo action with created PSP IDs (only the ones that succeeded)
-        undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
+        {:partial, added, skipped, created_psp_ids} ->
+          # Record undo action with created PSP IDs (only the ones that succeeded)
+          undo_action = %{type: :add_products, data: %{added_psp_ids: created_psp_ids}}
 
-        socket =
-          socket
-          |> push_undo_action(session_id, undo_action)
-          |> reload_product_sets()
-          |> assign(:selected_product_set_for_product, nil)
-          |> assign(:show_modal_for_product_set, nil)
-          |> assign(:add_product_search_query, "")
-          |> assign(:add_product_page, 1)
-          |> assign(:add_product_selected_ids, MapSet.new())
-          |> assign(:add_product_selected_order, [])
-          |> assign(:add_product_display_order, [])
-          |> stream(:add_product_products, [], reset: true)
-          |> assign(:add_product_has_more, false)
-          |> put_flash(
-            :warning,
-            "Added #{added} product(s). #{skipped} already in product set (skipped)."
-          )
+          socket =
+            socket
+            |> push_undo_action(session_id, undo_action)
+            |> reload_product_sets()
+            |> assign(:selected_product_set_for_product, nil)
+            |> assign(:show_modal_for_product_set, nil)
+            |> assign(:add_product_search_query, "")
+            |> assign(:add_product_page, 1)
+            |> assign(:add_product_selected_ids, MapSet.new())
+            |> assign(:add_product_selected_order, [])
+            |> assign(:add_product_display_order, [])
+            |> stream(:add_product_products, [], reset: true)
+            |> assign(:add_product_has_more, false)
+            |> put_flash(
+              :warning,
+              "Added #{added} product(s). #{skipped} already in product set (skipped)."
+            )
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, reason} ->
-        socket =
-          socket
-          |> put_flash(:error, reason)
+        {:error, reason} ->
+          socket =
+            socket
+            |> put_flash(:error, reason)
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
@@ -876,38 +881,40 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("remove_product", %{"product-set-product-id" => sp_id}, socket) do
-    sp_id = normalize_id(sp_id)
+    authorize socket, :admin do
+      sp_id = normalize_id(sp_id)
 
-    # Capture product data before deletion for undo
-    psp_data = ProductSets.get_product_set_product_for_undo(sp_id)
+      # Capture product data before deletion for undo
+      psp_data = ProductSets.get_product_set_product_for_undo(sp_id)
 
-    case ProductSets.remove_product_from_product_set(sp_id) do
-      {:ok, _session_product} ->
-        socket =
-          if psp_data do
-            # Record undo action with all data needed to restore
-            undo_action = %{type: :remove_product, data: psp_data}
-            push_undo_action(socket, psp_data.product_set_id, undo_action)
-          else
+      case ProductSets.remove_product_from_product_set(sp_id) do
+        {:ok, _session_product} ->
+          socket =
+            if psp_data do
+              # Record undo action with all data needed to restore
+              undo_action = %{type: :remove_product, data: psp_data}
+              push_undo_action(socket, psp_data.product_set_id, undo_action)
+            else
+              socket
+            end
+
+          socket =
             socket
-          end
+            |> reload_product_sets()
+            |> put_flash(:info, "Product removed from product set")
 
-        socket =
+          {:noreply, socket}
+
+        {:error, :not_found} ->
           socket
-          |> reload_product_sets()
-          |> put_flash(:info, "Product removed from product set")
+          |> put_flash(:error, "Product not found in product set")
+          |> then(&{:noreply, &1})
 
-        {:noreply, socket}
-
-      {:error, :not_found} ->
-        socket
-        |> put_flash(:error, "Product not found in product set")
-        |> then(&{:noreply, &1})
-
-      {:error, _reason} ->
-        socket
-        |> put_flash(:error, "Couldn't remove product. Please try again.")
-        |> then(&{:noreply, &1})
+        {:error, _reason} ->
+          socket
+          |> put_flash(:error, "Couldn't remove product. Please try again.")
+          |> then(&{:noreply, &1})
+      end
     end
   end
 
@@ -916,121 +923,129 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
         %{"product_set_id" => product_set_id, "product_ids" => product_ids},
         socket
       ) do
-    product_set_id = normalize_id(product_set_id)
+    authorize socket, :admin do
+      product_set_id = normalize_id(product_set_id)
 
-    # Capture current order before reordering for undo
-    previous_order = ProductSets.get_current_product_order(product_set_id)
+      # Capture current order before reordering for undo
+      previous_order = ProductSets.get_current_product_order(product_set_id)
 
-    # Convert product IDs to integers
-    product_ids = Enum.map(product_ids, &normalize_id/1)
+      # Convert product IDs to integers
+      product_ids = Enum.map(product_ids, &normalize_id/1)
 
-    # Update positions in database
-    case ProductSets.reorder_products(product_set_id, product_ids) do
-      {:ok, _count} ->
-        # Record undo action with previous order
-        undo_action = %{type: :reorder_products, data: %{previous_order: previous_order}}
+      # Update positions in database
+      case ProductSets.reorder_products(product_set_id, product_ids) do
+        {:ok, _count} ->
+          # Record undo action with previous order
+          undo_action = %{type: :reorder_products, data: %{previous_order: previous_order}}
 
-        socket =
+          socket =
+            socket
+            |> push_undo_action(product_set_id, undo_action)
+            |> reload_product_sets()
+
+          {:noreply, socket}
+
+        {:error, _reason} ->
           socket
-          |> push_undo_action(product_set_id, undo_action)
-          |> reload_product_sets()
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        socket
-        |> put_flash(:error, "Couldn't reorder products. Please try again.")
-        |> then(&{:noreply, &1})
+          |> put_flash(:error, "Couldn't reorder products. Please try again.")
+          |> then(&{:noreply, &1})
+      end
     end
   end
 
   def handle_event("undo_product_set_action", %{"product-set-id" => product_set_id}, socket) do
-    product_set_id = normalize_id(product_set_id)
-    {action, socket} = pop_undo_action(socket, product_set_id)
+    authorize socket, :admin do
+      product_set_id = normalize_id(product_set_id)
+      {action, socket} = pop_undo_action(socket, product_set_id)
 
-    case execute_undo_action(action, product_set_id) do
-      {:ok, message} ->
-        socket =
-          socket
-          |> reload_product_sets()
-          |> put_flash(:info, message)
+      case execute_undo_action(action, product_set_id) do
+        {:ok, message} ->
+          socket =
+            socket
+            |> reload_product_sets()
+            |> put_flash(:info, message)
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, message} ->
-        {:noreply, put_flash(socket, :error, message)}
+        {:error, message} ->
+          {:noreply, put_flash(socket, :error, message)}
 
-      :noop ->
-        {:noreply, put_flash(socket, :info, "Nothing to undo")}
+        :noop ->
+          {:noreply, put_flash(socket, :info, "Nothing to undo")}
+      end
     end
   end
 
   def handle_event("delete_product_set", %{"product-set-id" => session_id}, socket) do
-    session_id = normalize_id(session_id)
-    session = ProductSets.get_product_set!(socket.assigns.brand_id, session_id)
+    authorize socket, :admin do
+      session_id = normalize_id(session_id)
+      session = ProductSets.get_product_set!(socket.assigns.brand_id, session_id)
 
-    case ProductSets.delete_product_set(session) do
-      {:ok, _session} ->
-        # Clear expanded state if deleting the expanded session
-        expanded_id =
-          if socket.assigns.expanded_product_set_id == session_id,
-            do: nil,
-            else: socket.assigns.expanded_product_set_id
+      case ProductSets.delete_product_set(session) do
+        {:ok, _session} ->
+          # Clear expanded state if deleting the expanded session
+          expanded_id =
+            if socket.assigns.expanded_product_set_id == session_id,
+              do: nil,
+              else: socket.assigns.expanded_product_set_id
 
-        # Update URL based on whether we cleared the expanded session
-        path =
-          case expanded_id do
-            nil -> products_path(socket)
-            id -> products_path(socket, %{s: id})
-          end
+          # Update URL based on whether we cleared the expanded session
+          path =
+            case expanded_id do
+              nil -> products_path(socket)
+              id -> products_path(socket, %{s: id})
+            end
 
-        socket =
-          socket
-          |> assign(:expanded_product_set_id, expanded_id)
-          |> reload_product_sets()
-          |> push_patch(to: path)
-          |> put_flash(:info, "Product set deleted successfully")
+          socket =
+            socket
+            |> assign(:expanded_product_set_id, expanded_id)
+            |> reload_product_sets()
+            |> push_patch(to: path)
+            |> put_flash(:info, "Product set deleted successfully")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _changeset} ->
-        socket =
-          socket
-          |> put_flash(:error, "Failed to delete product set")
+        {:error, _changeset} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to delete product set")
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("duplicate_product_set", %{"product-set-id" => session_id}, socket) do
-    session_id = normalize_id(session_id)
+    authorize socket, :admin do
+      session_id = normalize_id(session_id)
 
-    case ProductSets.duplicate_product_set(socket.assigns.brand_id, session_id) do
-      {:ok, new_product_set} ->
-        # Build URL to expand the newly created session
-        path = products_path(socket, %{s: new_product_set.id})
+      case ProductSets.duplicate_product_set(socket.assigns.brand_id, session_id) do
+        {:ok, new_product_set} ->
+          # Build URL to expand the newly created session
+          path = products_path(socket, %{s: new_product_set.id})
 
-        # Prepare edit modal for the duplicated session
-        changeset = ProductSet.changeset(new_product_set, %{})
+          # Prepare edit modal for the duplicated session
+          changeset = ProductSet.changeset(new_product_set, %{})
 
-        socket =
-          socket
-          |> assign(:expanded_product_set_id, new_product_set.id)
-          |> reload_product_sets()
-          |> assign(:editing_product_set, new_product_set)
-          |> assign(:product_set_edit_form, to_form(changeset))
-          |> push_patch(to: path)
-          |> put_flash(:info, "Product set duplicated successfully")
+          socket =
+            socket
+            |> assign(:expanded_product_set_id, new_product_set.id)
+            |> reload_product_sets()
+            |> assign(:editing_product_set, new_product_set)
+            |> assign(:product_set_edit_form, to_form(changeset))
+            |> push_patch(to: path)
+            |> put_flash(:info, "Product set duplicated successfully")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, _changeset} ->
-        socket =
-          socket
-          |> put_flash(:error, "Failed to duplicate product set")
+        {:error, _changeset} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to duplicate product set")
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
@@ -1194,73 +1209,77 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("update_product_set", %{"product_set" => product_set_params}, socket) do
-    # Generate slug from name
-    slug = ProductSets.slugify(product_set_params["name"])
-    product_set_params = Map.put(product_set_params, "slug", slug)
+    authorize socket, :admin do
+      # Generate slug from name
+      slug = ProductSets.slugify(product_set_params["name"])
+      product_set_params = Map.put(product_set_params, "slug", slug)
 
-    # Handle image upload - consume uploaded entries and get the key
-    # For external uploads, the metadata from presign function is the first arg
-    # We store just the key, not a URL, since we need to generate presigned URLs for display
-    image_key =
-      consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
-        {:ok, meta.key}
-      end)
-      |> List.first()
+      # Handle image upload - consume uploaded entries and get the key
+      # For external uploads, the metadata from presign function is the first arg
+      # We store just the key, not a URL, since we need to generate presigned URLs for display
+      image_key =
+        consume_uploaded_entries(socket, :notes_image, fn meta, _entry ->
+          {:ok, meta.key}
+        end)
+        |> List.first()
 
-    product_set_params =
-      if image_key do
-        Map.put(product_set_params, "notes_image_url", image_key)
-      else
-        product_set_params
+      product_set_params =
+        if image_key do
+          Map.put(product_set_params, "notes_image_url", image_key)
+        else
+          product_set_params
+        end
+
+      case ProductSets.update_product_set(socket.assigns.editing_product_set, product_set_params) do
+        {:ok, _session} ->
+          socket =
+            socket
+            |> reload_product_sets()
+            |> assign(:editing_product_set, nil)
+            |> assign(
+              :product_set_edit_form,
+              to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
+            )
+            |> put_flash(:info, "Product set updated successfully")
+
+          {:noreply, socket}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          socket =
+            socket
+            |> assign(:product_set_edit_form, to_form(changeset))
+            |> put_flash(:error, "Please fix the errors below")
+
+          {:noreply, socket}
       end
-
-    case ProductSets.update_product_set(socket.assigns.editing_product_set, product_set_params) do
-      {:ok, _session} ->
-        socket =
-          socket
-          |> reload_product_sets()
-          |> assign(:editing_product_set, nil)
-          |> assign(
-            :product_set_edit_form,
-            to_form(ProductSet.changeset(%ProductSet{brand_id: socket.assigns.brand_id}, %{}))
-          )
-          |> put_flash(:info, "Product set updated successfully")
-
-        {:noreply, socket}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        socket =
-          socket
-          |> assign(:product_set_edit_form, to_form(changeset))
-          |> put_flash(:error, "Please fix the errors below")
-
-        {:noreply, socket}
     end
   end
 
   @impl true
   def handle_event("save_product", %{"product" => product_params}, socket) do
-    # Convert price fields from dollars to cents
-    product_params = convert_prices_to_cents(product_params)
+    authorize socket, :admin do
+      # Convert price fields from dollars to cents
+      product_params = convert_prices_to_cents(product_params)
 
-    case Catalog.update_product(socket.assigns.editing_product, product_params) do
-      {:ok, _product} ->
-        socket =
-          socket
-          |> reload_product_sets()
-          |> assign(:editing_product, nil)
-          |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
-          |> put_flash(:info, "Product updated successfully")
+      case Catalog.update_product(socket.assigns.editing_product, product_params) do
+        {:ok, _product} ->
+          socket =
+            socket
+            |> reload_product_sets()
+            |> assign(:editing_product, nil)
+            |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+            |> put_flash(:info, "Product updated successfully")
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        socket =
-          socket
-          |> assign(:product_edit_form, to_form(changeset))
-          |> put_flash(:error, "Please fix the errors below")
+        {:error, %Ecto.Changeset{} = changeset} ->
+          socket =
+            socket
+            |> assign(:product_edit_form, to_form(changeset))
+            |> put_flash(:error, "Please fix the errors below")
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
@@ -1390,42 +1409,46 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
         %{"product-set-id" => session_id},
         socket
       ) do
-    session_id = normalize_id(session_id)
-    brand_id = socket.assigns.brand_id
+    authorize socket, :admin do
+      session_id = normalize_id(session_id)
+      brand_id = socket.assigns.brand_id
 
-    case AI.generate_product_set_talking_points_async(brand_id, session_id) do
-      {:ok, _generation} ->
-        # The handle_info callbacks will handle the UI updates
-        {:noreply, socket}
+      case AI.generate_product_set_talking_points_async(brand_id, session_id) do
+        {:ok, _generation} ->
+          # The handle_info callbacks will handle the UI updates
+          {:noreply, socket}
 
-      {:error, reason} ->
-        socket =
-          socket
-          |> put_flash(:error, "Failed to start generation: #{reason}")
+        {:error, reason} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to start generation: #{reason}")
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
   @impl true
   def handle_event("generate_product_talking_points", %{"product-id" => product_id}, socket) do
-    product_id = String.to_integer(product_id)
-    brand_id = socket.assigns.brand_id
+    authorize socket, :admin do
+      product_id = String.to_integer(product_id)
+      brand_id = socket.assigns.brand_id
 
-    case AI.generate_talking_points_async(brand_id, product_id) do
-      {:ok, _generation} ->
-        socket =
-          socket
-          |> assign(:generating_in_modal, true)
+      case AI.generate_talking_points_async(brand_id, product_id) do
+        {:ok, _generation} ->
+          socket =
+            socket
+            |> assign(:generating_in_modal, true)
 
-        {:noreply, socket}
+          {:noreply, socket}
 
-      {:error, reason} ->
-        socket =
-          socket
-          |> put_flash(:error, "Failed to start generation: #{reason}")
+        {:error, reason} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to start generation: #{reason}")
 
-        {:noreply, socket}
+          {:noreply, socket}
+      end
     end
   end
 
@@ -1476,26 +1499,28 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("remove_notes_image", _params, socket) do
-    # Clear the notes_image_url from the editing session
-    if socket.assigns.editing_product_set do
-      case ProductSets.update_product_set(socket.assigns.editing_product_set, %{
-             notes_image_url: nil
-           }) do
-        {:ok, updated_session} ->
-          socket =
-            socket
-            |> reload_product_sets()
-            |> assign(:editing_product_set, updated_session)
-            |> assign(:product_set_edit_form, to_form(ProductSet.changeset(updated_session, %{})))
-            |> put_flash(:info, "Product set image removed")
+    authorize socket, :admin do
+      # Clear the notes_image_url from the editing session
+      if socket.assigns.editing_product_set do
+        case ProductSets.update_product_set(socket.assigns.editing_product_set, %{
+               notes_image_url: nil
+             }) do
+          {:ok, updated_session} ->
+            socket =
+              socket
+              |> reload_product_sets()
+              |> assign(:editing_product_set, updated_session)
+              |> assign(:product_set_edit_form, to_form(ProductSet.changeset(updated_session, %{})))
+              |> put_flash(:info, "Product set image removed")
 
-          {:noreply, socket}
+            {:noreply, socket}
 
-        {:error, _changeset} ->
-          {:noreply, put_flash(socket, :error, "Failed to remove image")}
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to remove image")}
+        end
+      else
+        {:noreply, socket}
       end
-    else
-      {:noreply, socket}
     end
   end
 
@@ -1589,32 +1614,36 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("trigger_shopify_sync", _params, socket) do
-    %{"brand_id" => socket.assigns.brand_id}
-    |> ShopifySyncWorker.new()
-    |> Oban.insert()
+    authorize socket, :admin do
+      %{"brand_id" => socket.assigns.brand_id}
+      |> ShopifySyncWorker.new()
+      |> Oban.insert()
 
-    socket =
-      socket
-      |> assign(:syncing, true)
-      |> put_flash(:info, "Shopify sync initiated...")
+      socket =
+        socket
+        |> assign(:syncing, true)
+        |> put_flash(:info, "Shopify sync initiated...")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_event("trigger_tiktok_sync", _params, socket) do
-    brand_args = %{"brand_id" => socket.assigns.brand_id}
+    authorize socket, :admin do
+      brand_args = %{"brand_id" => socket.assigns.brand_id}
 
-    # Sync both TikTok product catalog and product performance
-    brand_args |> TiktokSyncWorker.new() |> Oban.insert()
-    brand_args |> ProductPerformanceSyncWorker.new() |> Oban.insert()
+      # Sync both TikTok product catalog and product performance
+      brand_args |> TiktokSyncWorker.new() |> Oban.insert()
+      brand_args |> ProductPerformanceSyncWorker.new() |> Oban.insert()
 
-    socket =
-      socket
-      |> assign(:tiktok_syncing, true)
-      |> put_flash(:info, "TikTok sync initiated...")
+      socket =
+        socket
+        |> assign(:tiktok_syncing, true)
+        |> put_flash(:info, "TikTok sync initiated...")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   # Presign function for external S3 uploads
