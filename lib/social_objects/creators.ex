@@ -959,16 +959,40 @@ defmodule SocialObjects.Creators do
   If a video with the given tiktok_video_id exists for the brand, updates it.
   Otherwise, creates a new video record.
 
+  Uses `on_conflict` to handle race conditions atomically.
+
   Returns `{:ok, video}` or `{:error, changeset}`.
   """
   def upsert_video_by_tiktok_id(brand_id, tiktok_video_id, attrs) do
-    case get_video_by_tiktok_id(tiktok_video_id) do
-      nil ->
-        create_creator_video(brand_id, Map.put(attrs, :tiktok_video_id, tiktok_video_id))
+    attrs_with_id = Map.put(attrs, :tiktok_video_id, tiktok_video_id)
 
-      existing ->
-        update_creator_video(existing, attrs)
-    end
+    # Fields to update on conflict (exclude immutable fields)
+    update_fields = [
+      :title,
+      :video_url,
+      :posted_at,
+      :gmv_cents,
+      :items_sold,
+      :affiliate_orders,
+      :impressions,
+      :likes,
+      :comments,
+      :shares,
+      :ctr,
+      :est_commission_cents,
+      :gpm_cents,
+      :duration,
+      :hash_tags,
+      :updated_at
+    ]
+
+    %CreatorVideo{brand_id: brand_id}
+    |> CreatorVideo.changeset(attrs_with_id)
+    |> Repo.insert(
+      on_conflict: {:replace, update_fields},
+      conflict_target: :tiktok_video_id,
+      returning: true
+    )
   end
 
   @doc """
