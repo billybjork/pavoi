@@ -224,6 +224,41 @@ defmodule SocialObjects.Accounts do
   end
 
   @doc """
+  Gets the user's role for a brand.
+  Platform admins are treated as owners for all brands.
+  Returns :owner, :admin, :viewer, or nil if no access.
+  """
+  def get_user_brand_role(%User{is_admin: true}, %Brand{}), do: :owner
+
+  def get_user_brand_role(%User{} = user, %Brand{} = brand) do
+    from(ub in UserBrand,
+      where: ub.user_id == ^user.id and ub.brand_id == ^brand.id,
+      select: ub.role
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Checks if a user has at least the specified role for a brand.
+  Platform admins always return true.
+  """
+  def user_has_role?(%User{is_admin: true}, %Brand{}, _min_role), do: true
+
+  def user_has_role?(%User{} = user, %Brand{} = brand, min_role) do
+    case get_user_brand_role(user, brand) do
+      nil -> false
+      role -> role_at_least?(role, min_role)
+    end
+  end
+
+  defp role_at_least?(role, min_role), do: role_level(role) >= role_level(min_role)
+
+  defp role_level(:owner), do: 3
+  defp role_level(:admin), do: 2
+  defp role_level(:viewer), do: 1
+  defp role_level(_), do: 0
+
+  @doc """
   Gets the default brand for a user.
   """
   def get_default_brand_for_user(%User{} = user) do

@@ -64,38 +64,55 @@ defmodule SocialObjectsWeb.BrandAuth do
     end
   end
 
-  # Ensures the current user has access to the resolved brand.
+  # Ensures the current user has access to the resolved brand and assigns their role.
   # Note: user_brands is loaded directly in the app layout, not here,
   # because on_mount assigns don't flow to layouts properly.
   def on_mount(:require_brand_access, _params, _session, socket) do
     if brand_scoped_view?(socket.view) do
-      user =
-        case socket.assigns[:current_scope] do
-          %Scope{user: user} -> user
-          _ -> nil
-        end
-
-      brand = socket.assigns[:current_brand]
-
-      if user && brand && Accounts.user_has_brand_access?(user, brand) do
-        {:cont, socket}
-      else
-        socket =
-          socket
-          |> Phoenix.LiveView.put_flash(:error, "You don't have access to this brand.")
-          |> Phoenix.LiveView.redirect(to: ~p"/")
-
-        {:halt, socket}
-      end
+      check_brand_access(socket)
     else
       {:cont, socket}
     end
   end
 
+  defp check_brand_access(socket) do
+    with user when not is_nil(user) <- extract_user(socket),
+         brand when not is_nil(brand) <- socket.assigns[:current_brand],
+         role when not is_nil(role) <- Accounts.get_user_brand_role(user, brand) do
+      scope = Scope.with_brand(socket.assigns.current_scope, brand, role)
+
+      socket =
+        socket
+        |> Phoenix.Component.assign(:current_scope, scope)
+        |> Phoenix.Component.assign(:current_brand_role, role)
+
+      {:cont, socket}
+    else
+      _ -> halt_with_no_access(socket)
+    end
+  end
+
+  defp extract_user(socket) do
+    case socket.assigns[:current_scope] do
+      %Scope{user: user} -> user
+      _ -> nil
+    end
+  end
+
+  defp halt_with_no_access(socket) do
+    socket =
+      socket
+      |> Phoenix.LiveView.put_flash(:error, "You don't have access to this brand.")
+      |> Phoenix.LiveView.redirect(to: ~p"/")
+
+    {:halt, socket}
+  end
+
   defp maybe_assign_scope_brand(socket, brand) do
     case socket.assigns[:current_scope] do
       %Scope{} = scope ->
-        Phoenix.Component.assign(socket, :current_scope, Scope.with_brand(scope, brand))
+        # Role is assigned later in :require_brand_access
+        Phoenix.Component.assign(socket, :current_scope, Scope.with_brand(scope, brand, nil))
 
       _ ->
         socket

@@ -19,7 +19,7 @@ defmodule SocialObjects.Accounts.Scope do
   alias SocialObjects.Accounts.User
   alias SocialObjects.Catalog.Brand
 
-  defstruct user: nil, brand: nil
+  defstruct user: nil, brand: nil, brand_role: nil
 
   @doc """
   Creates a scope for the given user.
@@ -34,7 +34,10 @@ defmodule SocialObjects.Accounts.Scope do
 
   def for_user(nil, _brand), do: nil
 
-  def with_brand(%__MODULE__{} = scope, %Brand{} = brand) do
-    %{scope | brand: brand}
+  @doc """
+  Assigns a brand and optionally a role to the scope.
+  """
+  def with_brand(%__MODULE__{} = scope, %Brand{} = brand, role \\ nil) do
+    %{scope | brand: brand, brand_role: role}
   end
 end
