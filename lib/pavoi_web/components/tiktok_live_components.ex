@@ -579,10 +579,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               phx-click="change_tab"
               phx-value-tab="product_sets"
             >
-              Product Sets
-              <%= if length(@linked_product_sets) > 0 do %>
-                <span class="tab__badge">{length(@linked_product_sets)}</span>
-              <% end %>
+              Products
             </button>
           </div>
 
@@ -595,7 +592,8 @@ defmodule PavoiWeb.TiktokLiveComponents do
                   search_query={@comment_search_query}
                 />
               <% "product_sets" -> %>
-                <.product_sets_tab
+                <.products_tab
+                  product_performance={@stream.product_performance}
                   linked_product_sets={@linked_product_sets}
                   all_product_sets={@all_product_sets}
                   search_query={@product_set_search_query}
@@ -700,28 +698,87 @@ defmodule PavoiWeb.TiktokLiveComponents do
   end
 
   @doc """
-  Renders the product sets tab for linking product sets to streams.
+  Renders the products tab with sales data, comment mentions, and product set linking.
   """
+  attr :product_performance, :map, default: nil
   attr :linked_product_sets, :list, default: []
   attr :all_product_sets, :list, default: []
   attr :search_query, :string, default: ""
   attr :product_interest, :list, default: []
 
-  def product_sets_tab(assigns) do
-    ~H"""
-    <div class="product-sets-tab">
-      <div class="product-sets-tab__columns">
-        <div class="product-sets-tab__column">
-          <h3 class="product-sets-tab__heading">Linked Product Sets</h3>
+  def products_tab(assigns) do
+    # Extract top 5 products from performance data
+    top_products =
+      case assigns.product_performance do
+        %{"products" => products} when is_list(products) -> Enum.take(products, 5)
+        _ -> []
+      end
 
-          <%= if Enum.empty?(@linked_product_sets) do %>
-            <div class="empty-state empty-state--sm">
-              <p class="empty-state__title">No product sets linked</p>
-              <p class="empty-state__description">
-                Link a product set to track product mentions in comments
-              </p>
-            </div>
-          <% else %>
+    assigns = assign(assigns, :top_products, top_products)
+
+    ~H"""
+    <div class="products-tab">
+      <%!-- Top Selling Products section (from TikTok Analytics API) --%>
+      <%= if length(@top_products) > 0 do %>
+        <div class="products-tab__section">
+          <h3 class="products-tab__heading">
+            Top Selling Products <span class="products-tab__heading-badge">Sales Data</span>
+          </h3>
+          <div class="top-selling-list">
+            <%= for {product, rank} <- Enum.with_index(@top_products, 1) do %>
+              <div class="top-selling-item">
+                <span class="top-selling-item__rank">#{rank}</span>
+                <div class="top-selling-item__info">
+                  <span class="top-selling-item__name">
+                    {shorten_product_name(product["product_name"] || "Unknown")}
+                  </span>
+                  <span class="top-selling-item__stats">
+                    {format_gmv(product["gmv_cents"] || 0)} · {product["items_sold"] || 0} sold
+                  </span>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <%!-- Most Mentioned section (from comment parsing) --%>
+      <%= if length(@product_interest) > 0 do %>
+        <div class="products-tab__section">
+          <h3 class="products-tab__heading">
+            Most Mentioned in Comments <span class="products-tab__heading-badge">Comment Data</span>
+          </h3>
+          <div class="product-interest-list">
+            <%= for item <- @product_interest do %>
+              <div class="product-interest-item">
+                <span class="product-interest-item__number">#{item.product_number}</span>
+                <span class="product-interest-item__name">{item.product_name || "Unknown"}</span>
+                <span class="product-interest-item__count">{item.comment_count} mentions</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <%!-- Empty state if no product data at all --%>
+      <%= if length(@top_products) == 0 && length(@product_interest) == 0 do %>
+        <div class="products-tab__empty">
+          <div class="empty-state empty-state--sm">
+            <p class="empty-state__title">No product data available</p>
+            <p class="empty-state__description">
+              Sales data syncs ~48 hours after stream. Link a product set below to track comment mentions.
+            </p>
+          </div>
+        </div>
+      <% end %>
+
+      <%!-- Link Product Set section --%>
+      <div class="products-tab__linking">
+        <h3 class="products-tab__heading products-tab__heading--subtle">Link Product Set</h3>
+
+        <%= if not Enum.empty?(@linked_product_sets) do %>
+          <div class="products-tab__linked-section">
+            <h4 class="products-tab__subheading">Linked</h4>
             <div class="linked-product-sets-list">
               <%= for session <- @linked_product_sets do %>
                 <div class="linked-product-set-item">
@@ -742,39 +799,20 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 </div>
               <% end %>
             </div>
+          </div>
+        <% end %>
 
-            <%= if length(@product_interest) > 0 do %>
-              <h4 class="product-sets-tab__subheading">Product Interest</h4>
-              <div class="product-interest-list">
-                <%= for item <- @product_interest do %>
-                  <div class="product-interest-item">
-                    <span class="product-interest-item__number">#{item.product_number}</span>
-                    <span class="product-interest-item__name">{item.product_name || "Unknown"}</span>
-                    <span class="product-interest-item__count">{item.comment_count} mentions</span>
-                  </div>
-                <% end %>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
-
-        <div class="product-sets-tab__column">
-          <h3 class="product-sets-tab__heading">Link a Product Set</h3>
-
-          <div class="product-sets-tab__search">
+        <div class="products-tab__available-section">
+          <h4 class="products-tab__subheading">Available</h4>
+          <div class="products-tab__search">
             <.search_input
               value={@search_query}
               on_change="search_product_sets"
-              placeholder="Search product sets..."
+              placeholder="Search..."
             />
           </div>
-
           <%= if Enum.empty?(@all_product_sets) do %>
-            <div class="empty-state empty-state--sm">
-              <p class="empty-state__description">
-                No available product sets found
-              </p>
-            </div>
+            <p class="text-text-tertiary text-sm">No product sets found</p>
           <% else %>
             <div class="available-product-sets-list">
               <%= for session <- @all_product_sets do %>
@@ -898,6 +936,23 @@ defmodule PavoiWeb.TiktokLiveComponents do
       <% end %>
     </div>
     """
+  end
+
+  defp shorten_product_name(name) do
+    name
+    |> String.split(" - ")
+    |> List.first()
+    |> String.replace(~r/^PAVOI\s+/, "")
+    |> String.replace(~r/^14K Gold Plated\s+/, "")
+    |> truncate_string(40)
+  end
+
+  defp truncate_string(text, max_len) do
+    if String.length(text) > max_len do
+      String.slice(text, 0, max_len - 3) <> "..."
+    else
+      text
+    end
   end
 
   @doc """

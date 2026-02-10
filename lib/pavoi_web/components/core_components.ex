@@ -454,13 +454,14 @@ defmodule PavoiWeb.CoreComponents do
 
     ~H"""
     <div class="search-input">
-      <form phx-change={@on_change} phx-submit={@on_submit} phx-debounce={@debounce}>
+      <form phx-change={@on_change} phx-submit={@on_submit}>
         <input
           id={@input_id}
           type="text"
           name={@name}
           placeholder={@placeholder}
           value={@value}
+          phx-debounce={@debounce}
           class={["input input--sm search-input__field", @class]}
         />
         <%= if @value != "" do %>
@@ -523,7 +524,7 @@ defmodule PavoiWeb.CoreComponents do
 
   ## Examples
 
-      <.nav_tabs current_page={:product_sets} />
+      <.nav_tabs current_page={:products} />
   """
   attr :current_page, :atom, required: true
   attr :current_scope, :map, required: true
@@ -552,7 +553,7 @@ defmodule PavoiWeb.CoreComponents do
 
   def nav_tabs(assigns) do
     ~H"""
-    <nav id="global-nav" class="navbar">
+    <nav id="global-nav" class="navbar" phx-hook="NavCollapse">
       <div class="navbar__start">
         <div class="navbar__brand-switcher">
           <%= if length(@user_brands) > 1 do %>
@@ -585,7 +586,7 @@ defmodule PavoiWeb.CoreComponents do
             >
               <.link
                 :for={user_brand <- @user_brands}
-                navigate={nav_path(@current_page, user_brand.brand, @current_host)}
+                navigate={nav_path(@current_page, user_brand.brand, nil)}
                 class={[
                   "brand-switcher__item",
                   user_brand.brand.id == @current_brand.id && "brand-switcher__item--active"
@@ -605,58 +606,120 @@ defmodule PavoiWeb.CoreComponents do
         </div>
       </div>
 
-      <div class="navbar__nav">
+      <div class="navbar__nav" data-nav-links>
         <.link
-          navigate={nav_path(:product_sets, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :product_sets && "navbar__link--active"]}
+          navigate={nav_path(:products, @current_brand, @current_host)}
+          class={["navbar__link", @current_page == :products && "navbar__link--active"]}
+          data-nav-link
         >
-          Product Sets
+          Products
         </.link>
         <.link
           navigate={nav_path(:streams, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :streams && "navbar__link--active"]}
+          data-nav-link
         >
           Streams
         </.link>
         <.link
           navigate={nav_path(:creators, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :creators && "navbar__link--active"]}
+          data-nav-link
         >
           Creators
         </.link>
         <.link
           navigate={nav_path(:videos, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
+          data-nav-link
         >
           Videos
         </.link>
         <.link
           navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
           class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
+          data-nav-link
         >
           Analytics
         </.link>
       </div>
 
       <div class="navbar__end">
-        <.link
-          navigate={~p"/users/settings"}
-          class="navbar__profile-link"
-          aria-label="Account settings"
-        >
-          <svg
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+        <div class="navbar__nav-dropdown">
+          <button
+            type="button"
+            class="navbar__nav-dropdown-trigger"
+            aria-haspopup="true"
+            aria-label="Navigation menu"
+            phx-click={
+              JS.toggle(to: "#nav-dropdown-menu", in: "fade-in", out: "fade-out", display: "flex")
+            }
           >
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </.link>
+            <span class="navbar__nav-dropdown-label">{nav_label(@current_page)}</span>
+            <svg
+              class="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          <div
+            id="nav-dropdown-menu"
+            class="navbar__nav-dropdown-menu"
+            phx-click-away={JS.hide(to: "#nav-dropdown-menu", transition: "fade-out")}
+          >
+            <.link
+              navigate={nav_path(:products, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :products && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Products
+            </.link>
+            <.link
+              navigate={nav_path(:streams, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :streams && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Streams
+            </.link>
+            <.link
+              navigate={nav_path(:creators, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :creators && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Creators
+            </.link>
+            <.link
+              navigate={nav_path(:videos, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :videos && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Videos
+            </.link>
+            <.link
+              navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+              class={[
+                "navbar__nav-dropdown-item",
+                @current_page == :shop_analytics && "navbar__nav-dropdown-item--active"
+              ]}
+            >
+              Analytics
+            </.link>
+          </div>
+        </div>
         <div class="navbar__menu-container">
           <button
             class="navbar__menu-trigger"
@@ -712,7 +775,7 @@ defmodule PavoiWeb.CoreComponents do
                 <% end %>
               </form>
             <% end %>
-            <%= if @current_page == :product_sets do %>
+            <%= if @current_page == :products do %>
               <div class="navbar__sync-group">
                 <.button
                   variant="primary"
@@ -796,6 +859,24 @@ defmodule PavoiWeb.CoreComponents do
                 </div>
               </div>
             <% end %>
+            <%= if @current_page == :videos do %>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_video_sync"
+                  class={@video_syncing && "button--disabled"}
+                  disabled={@video_syncing}
+                >
+                  {if @video_syncing, do: "Syncing...", else: "Sync Videos"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @videos_last_import_at,
+                    do: format_relative_time(@videos_last_import_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+            <% end %>
             <%= if @current_page == :shop_analytics do %>
               <div class="navbar__sync-group">
                 <.button
@@ -821,8 +902,33 @@ defmodule PavoiWeb.CoreComponents do
                 </.button>
               </div>
             </div>
-            <div class="navbar__menu-section">
+            <div :if={@current_page != :readme} class="navbar__menu-section">
+              <div class="navbar__sync-group">
+                <.button navigate={~p"/readme"} variant="outline" size="sm">
+                  About
+                </.button>
+              </div>
+            </div>
+            <div class="navbar__menu-section navbar__menu-section--row">
               <.theme_toggle />
+              <.link
+                navigate={~p"/users/settings"}
+                class="navbar__menu-profile-link"
+                aria-label="Account settings"
+              >
+                <svg
+                  class="size-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </.link>
             </div>
           </div>
         </div>
@@ -835,14 +941,21 @@ defmodule PavoiWeb.CoreComponents do
     BrandRoutes.brand_path(brand, nav_page_path(page), current_host)
   end
 
-  defp nav_page_path(:product_sets), do: "/product-sets"
+  defp nav_page_path(:products), do: "/products"
   defp nav_page_path(:streams), do: "/streams"
   defp nav_page_path(:creators), do: "/creators"
   defp nav_page_path(:videos), do: "/videos"
   defp nav_page_path(:shop_analytics), do: "/shop-analytics"
   defp nav_page_path(:readme), do: "/readme"
-  # Non-brand-scoped pages default to product-sets when switching brands
-  defp nav_page_path(_), do: "/product-sets"
+  # Non-brand-scoped pages default to products when switching brands
+  defp nav_page_path(_), do: "/products"
+
+  defp nav_label(:products), do: "Products"
+  defp nav_label(:streams), do: "Streams"
+  defp nav_label(:creators), do: "Creators"
+  defp nav_label(:videos), do: "Videos"
+  defp nav_label(:shop_analytics), do: "Analytics"
+  defp nav_label(_), do: "Menu"
 
   @doc """
   Renders a table with generic styling.

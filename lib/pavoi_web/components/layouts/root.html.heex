@@ -18,6 +18,10 @@
     <link rel="icon" type="image/x-icon" href={~p"/favicon.ico"} />
     <link rel="icon" type="image/png" sizes="16x16" href={~p"/images/favicon-16x16.png"} />
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/images/favicon-32x32.png"} />
+    <%!-- TikTok embed preconnect hints for faster video player loading --%>
+    <link rel="preconnect" href="https://www.tiktok.com" crossorigin />
+    <link rel="preconnect" href="https://lf16-tiktok-web.ttwstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://www.tiktok.com" />
     <%!-- FOUC Prevention: Apply theme class before styles load --%>
     <script>
       (function() {

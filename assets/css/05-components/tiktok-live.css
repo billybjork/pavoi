@@ -655,6 +655,83 @@
   @apply text-xs text-text-secondary shrink-0;
 }
 
+/* Products tab */
+.products-tab {
+  @apply flex flex-col gap-6;
+}
+
+.products-tab__section {
+  @apply pb-4 border-b border-border-primary;
+}
+
+.products-tab__section:last-of-type {
+  @apply border-b-0 pb-0;
+}
+
+.products-tab__heading {
+  @apply text-sm font-semibold text-text-primary mb-3 flex items-center gap-2;
+}
+
+.products-tab__heading--subtle {
+  @apply text-text-secondary;
+}
+
+.products-tab__heading-badge {
+  @apply text-[10px] font-medium text-text-tertiary uppercase px-1.5 py-0.5 rounded;
+  background: var(--color-surface-secondary);
+  letter-spacing: 0.03em;
+}
+
+.products-tab__subheading {
+  @apply text-xs font-medium text-text-secondary mb-2;
+}
+
+.products-tab__empty {
+  @apply py-4;
+}
+
+.products-tab__linking {
+  @apply pt-2;
+}
+
+.products-tab__linked-section {
+  @apply mb-4;
+}
+
+.products-tab__available-section {
+  @apply flex flex-col gap-2;
+}
+
+.products-tab__search {
+  @apply mb-2;
+}
+
+/* Top selling products list */
+.top-selling-list {
+  @apply flex flex-col gap-2;
+}
+
+.top-selling-item {
+  @apply flex items-center gap-3 py-2 px-3 bg-surface-secondary rounded-sm;
+}
+
+.top-selling-item__rank {
+  @apply flex items-center justify-center w-6 h-6 text-green-600 rounded-sm font-semibold text-xs shrink-0;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.top-selling-item__info {
+  @apply flex-1 min-w-0;
+}
+
+.top-selling-item__name {
+  @apply block text-sm text-text-primary truncate;
+}
+
+.top-selling-item__stats {
+  @apply block text-xs text-text-secondary mt-0.5;
+}
+
 /* Tab badge */
 .tab__badge {
   @apply inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-primary text-white font-semibold ml-1;
@@ -662,11 +739,6 @@
   font-size: 11px;
 }
 
-@media (max-width: 768px) {
-  .product-sets-tab__columns {
-    @apply grid-cols-1 gap-4;
-  }
-}
 
 /* ============================================================================
    GMV STAT & INFO TOOLTIPS
