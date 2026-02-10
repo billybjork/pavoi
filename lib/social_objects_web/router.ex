@@ -66,7 +66,6 @@ defmodule SocialObjectsWeb.Router do
   scope "/", SocialObjectsWeb do
     pipe_through :browser
 
-    get "/invite/:token", UserInviteController, :accept
     get "/unsubscribe/:token", UnsubscribeController, :unsubscribe
     live "/join/:token", JoinLive, :index
     live "/share/:token", PublicProductSetLive, :index
@@ -139,7 +138,6 @@ defmodule SocialObjectsWeb.Router do
       live "/", AdminLive.Dashboard, :index
       live "/brands", AdminLive.Brands, :index
       live "/users", AdminLive.Users, :index
-      live "/invites", AdminLive.Invites, :index
     end
   end
 

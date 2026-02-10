@@ -14,6 +14,7 @@ defmodule SocialObjectsWeb.AdminLive.Users do
   @impl true
   def mount(_params, _session, socket) do
     users = Accounts.list_all_users()
+    brands = Catalog.list_brands()
 
     # Fetch last session timestamps for all users
     users_with_sessions =
@@ -26,8 +27,13 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      socket
      |> assign(:page_title, "Users")
      |> assign(:users, users_with_sessions)
+     |> assign(:brands, brands)
      |> assign(:selected_user, nil)
-     |> assign(:selected_user_last_session, nil)}
+     |> assign(:selected_user_last_session, nil)
+     |> assign(:show_new_user_modal, false)
+     |> assign(:new_user_form, to_form(%{"email" => ""}))
+     |> assign(:created_user_email, nil)
+     |> assign(:created_user_temp_password, nil)}
   end
 
   @impl true
@@ -46,7 +52,55 @@ defmodule SocialObjectsWeb.AdminLive.Users do
     {:noreply,
      socket
      |> assign(:selected_user, nil)
-     |> assign(:selected_user_last_session, nil)}
+     |> assign(:selected_user_last_session, nil)
+     |> assign(:show_new_user_modal, false)
+     |> assign(:created_user_email, nil)
+     |> assign(:created_user_temp_password, nil)}
+  end
+
+  @impl true
+  def handle_event("show_new_user_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_new_user_modal, true)
+     |> assign(:new_user_form, to_form(%{"email" => ""}))}
+  end
+
+  @impl true
+  def handle_event("create_user", params, socket) do
+    email = String.trim(params["email"] || "")
+    is_admin = params["is_admin"] == "true"
+    brand_assignments = parse_brand_assignments(params["brands"] || %{})
+
+    case Accounts.create_user_with_temp_password(email) do
+      {:ok, user, temp_password} ->
+        # Set admin status if requested
+        if is_admin do
+          Accounts.set_admin_status(user, true)
+        end
+
+        # Assign to selected brands
+        for {brand_id, role} <- brand_assignments do
+          brand = Catalog.get_brand!(brand_id)
+          Accounts.create_user_brand(user, brand, role)
+        end
+
+        # Reload users list
+        users = reload_users()
+
+        {:noreply,
+         socket
+         |> assign(:users, users)
+         |> assign(:show_new_user_modal, false)
+         |> assign(:new_user_form, to_form(%{"email" => ""}))
+         |> assign(:created_user_email, email)
+         |> assign(:created_user_temp_password, temp_password)}
+
+      {:error, changeset} ->
+        error_msg = format_changeset_errors(changeset)
+
+        {:noreply, put_flash(socket, :error, "Failed to create user: #{error_msg}")}
+    end
   end
 
   @impl true
@@ -98,23 +152,15 @@ defmodule SocialObjectsWeb.AdminLive.Users do
     end
   end
 
-  defp update_user_in_list(users, updated_user, last_session) do
-    Enum.map(users, fn user ->
-      if user.id == updated_user.id do
-        updated_user
-        |> Map.put(:last_session_at, last_session)
-      else
-        user
-      end
-    end)
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
     <div class="admin-page">
       <div class="admin-page__header">
         <h1 class="admin-page__title">Users</h1>
+        <.button phx-click="show_new_user_modal" variant="primary">
+          Add User
+        </.button>
       </div>
 
       <div class="admin-panel">
@@ -151,6 +197,20 @@ defmodule SocialObjectsWeb.AdminLive.Users do
         last_session_at={@selected_user_last_session}
         on_cancel={JS.push("close_modal")}
       />
+
+      <.new_user_modal
+        :if={@show_new_user_modal}
+        form={@new_user_form}
+        brands={@brands}
+        on_cancel={JS.push("close_modal")}
+      />
+
+      <.user_created_modal
+        :if={@created_user_temp_password}
+        email={@created_user_email}
+        temp_password={@created_user_temp_password}
+        on_close={JS.push("close_modal")}
+      />
     </div>
     """
   end
@@ -170,4 +230,43 @@ defmodule SocialObjectsWeb.AdminLive.Users do
   defp format_datetime(%NaiveDateTime{} = dt) do
     Calendar.strftime(dt, "%b %d, %Y %H:%M")
   end
+
+  defp reload_users do
+    Accounts.list_all_users()
+    |> Enum.map(fn user ->
+      last_session = Accounts.get_last_session_at(user)
+      Map.put(user, :last_session_at, last_session)
+    end)
+  end
+
+  defp format_changeset_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map_join(", ", fn {field, errors} -> "#{field} #{Enum.join(errors, ", ")}" end)
+  end
+
+  defp update_user_in_list(users, updated_user, last_session) do
+    Enum.map(users, fn user ->
+      if user.id == updated_user.id do
+        updated_user
+        |> Map.put(:last_session_at, last_session)
+      else
+        user
+      end
+    end)
+  end
+
+  defp parse_brand_assignments(brands_params) when is_map(brands_params) do
+    brands_params
+    |> Enum.filter(fn {_brand_id, params} -> params["enabled"] == "true" end)
+    |> Enum.map(fn {brand_id, params} ->
+      role = String.to_existing_atom(params["role"] || "viewer")
+      {brand_id, role}
+    end)
+  end
+
+  defp parse_brand_assignments(_), do: []
 end

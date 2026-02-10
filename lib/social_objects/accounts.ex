@@ -6,10 +6,8 @@ defmodule SocialObjects.Accounts do
   import Ecto.Query, warn: false
   alias SocialObjects.Repo
 
-  alias SocialObjects.Accounts.{BrandInvite, User, UserBrand, UserNotifier, UserToken}
+  alias SocialObjects.Accounts.{User, UserBrand, UserToken}
   alias SocialObjects.Catalog.Brand
-
-  @invite_ttl_days 7
 
   ## Platform Admin
 
@@ -47,19 +45,6 @@ defmodule SocialObjects.Accounts do
       select: max(t.inserted_at)
     )
     |> Repo.one()
-  end
-
-  @doc """
-  Lists all pending (unexpired, unaccepted) invites across all brands.
-  """
-  def list_all_pending_invites do
-    from(i in BrandInvite,
-      where: is_nil(i.accepted_at),
-      where: i.expires_at > ^DateTime.utc_now(),
-      preload: [:brand],
-      order_by: [desc: i.inserted_at]
-    )
-    |> Repo.all()
   end
 
   @doc """
@@ -174,11 +159,45 @@ defmodule SocialObjects.Accounts do
     end)
   end
 
+  @doc """
+  Creates a user with a temporary password.
+
+  The user will be required to change their password on first login.
+  Returns {:ok, user, temp_password} on success.
+  """
+  def create_user_with_temp_password(email) when is_binary(email) do
+    temp_password = generate_temp_password()
+
+    changeset =
+      %User{}
+      |> User.email_changeset(%{email: email})
+      |> User.password_changeset(%{password: temp_password}, hash_password: true)
+      |> Ecto.Changeset.put_change(:must_change_password, true)
+
+    case Repo.insert(changeset) do
+      {:ok, user} -> {:ok, user, temp_password}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  defp generate_temp_password do
+    :crypto.strong_rand_bytes(12)
+    |> Base.url_encode64()
+    |> binary_part(0, 16)
+  end
+
   ## User brands
 
   @doc """
   Lists brand memberships for a user with brand preloaded.
+  For admin users, returns all brands in the system.
   """
+  def list_user_brands(%User{is_admin: true}) do
+    # Admins have access to all brands
+    SocialObjects.Catalog.list_brands()
+    |> Enum.map(fn brand -> %{brand: brand} end)
+  end
+
   def list_user_brands(%User{} = user) do
     from(ub in UserBrand,
       where: ub.user_id == ^user.id,
@@ -190,7 +209,10 @@ defmodule SocialObjects.Accounts do
 
   @doc """
   Returns true if the user has access to the brand.
+  Admin users have access to all brands.
   """
+  def user_has_brand_access?(%User{is_admin: true}, %Brand{}), do: true
+
   def user_has_brand_access?(%User{} = user, %Brand{} = brand) do
     Repo.exists?(
       from(ub in UserBrand,
@@ -222,139 +244,6 @@ defmodule SocialObjects.Accounts do
     %UserBrand{user_id: user.id, brand_id: brand.id}
     |> UserBrand.changeset(%{role: role})
     |> Repo.insert()
-  end
-
-  ## Brand invites
-
-  @doc """
-  Creates or refreshes a brand invite for the given email.
-
-  If an invite already exists for the brand + email, it is refreshed.
-  """
-  def create_brand_invite(%Brand{} = brand, email, role \\ :viewer, invited_by_user \\ nil)
-      when is_binary(email) do
-    invited_by_user_id =
-      case invited_by_user do
-        %User{id: id} -> id
-        _ -> nil
-      end
-
-    attrs = %{
-      brand_id: brand.id,
-      email: String.downcase(String.trim(email)),
-      role: role,
-      invited_by_user_id: invited_by_user_id,
-      expires_at: DateTime.add(DateTime.utc_now(), @invite_ttl_days, :day),
-      accepted_at: nil
-    }
-
-    case Repo.get_by(BrandInvite, brand_id: brand.id, email: attrs.email) do
-      nil ->
-        %BrandInvite{}
-        |> BrandInvite.changeset(attrs)
-        |> Repo.insert()
-
-      invite ->
-        invite
-        |> BrandInvite.changeset(attrs)
-        |> Repo.update()
-    end
-  end
-
-  @doc """
-  Delivers a brand invite email with a signed token URL.
-  """
-  def deliver_brand_invite(%BrandInvite{} = invite, %Brand{} = brand, invite_url_fun)
-      when is_function(invite_url_fun, 1) do
-    token = generate_brand_invite_token(invite)
-    UserNotifier.deliver_brand_invite(invite.email, brand, invite_url_fun.(token))
-  end
-
-  @doc """
-  Generates a signed invite token for the given invite.
-  """
-  def generate_brand_invite_token(%BrandInvite{id: id}) do
-    Phoenix.Token.sign(SocialObjectsWeb.Endpoint, "brand_invite", id)
-  end
-
-  @doc """
-  Verifies a signed invite token and returns the invite if valid.
-  """
-  def verify_brand_invite_token(token) when is_binary(token) do
-    max_age = @invite_ttl_days * 24 * 60 * 60
-
-    with {:ok, invite_id} <-
-           Phoenix.Token.verify(SocialObjectsWeb.Endpoint, "brand_invite", token,
-             max_age: max_age
-           ),
-         %BrandInvite{} = invite <- Repo.get(BrandInvite, invite_id) do
-      {:ok, invite}
-    else
-      {:error, :expired} -> {:error, :expired}
-      {:error, :invalid} -> {:error, :invalid}
-      nil -> {:error, :not_found}
-    end
-  end
-
-  @doc """
-  Accepts a brand invite and ensures the user is associated to the brand.
-  """
-  def accept_brand_invite(token) when is_binary(token) do
-    with {:ok, invite} <- verify_brand_invite_token(token),
-         :ok <- ensure_invite_active(invite),
-         %Brand{} = brand <- Repo.get(Brand, invite.brand_id) do
-      Repo.transaction(fn ->
-        user = get_or_create_user(invite.email)
-
-        with {:ok, _} <- ensure_user_brand(user, brand, invite.role),
-             {:ok, _} <- mark_invite_accepted(invite) do
-          {user, brand}
-        else
-          {:error, reason} -> Repo.rollback(reason)
-          {:ok, :already_member} -> {user, brand}
-        end
-      end)
-      |> case do
-        {:ok, {user, brand}} -> {:ok, user, brand}
-        {:error, reason} -> {:error, reason}
-      end
-    end
-  end
-
-  defp ensure_invite_active(%BrandInvite{accepted_at: %DateTime{}}), do: {:error, :accepted}
-
-  defp ensure_invite_active(%BrandInvite{expires_at: %DateTime{} = expires_at}) do
-    if DateTime.compare(expires_at, DateTime.utc_now()) == :lt do
-      {:error, :expired}
-    else
-      :ok
-    end
-  end
-
-  defp ensure_invite_active(_invite), do: :ok
-
-  defp get_or_create_user(email) do
-    case get_user_by_email(email) do
-      %User{} = user ->
-        user
-
-      nil ->
-        {:ok, user} = register_user(%{email: email})
-        user
-    end
-  end
-
-  defp ensure_user_brand(%User{} = user, %Brand{} = brand, role) do
-    case Repo.get_by(UserBrand, user_id: user.id, brand_id: brand.id) do
-      nil -> create_user_brand(user, brand, role)
-      _existing -> {:ok, :already_member}
-    end
-  end
-
-  defp mark_invite_accepted(%BrandInvite{} = invite) do
-    invite
-    |> BrandInvite.changeset(%{accepted_at: DateTime.utc_now() |> DateTime.truncate(:second)})
-    |> Repo.update()
   end
 
   ## Settings

@@ -55,18 +55,6 @@ defmodule SocialObjectsWeb.BrandRoutes do
     end
   end
 
-  def brand_invite_url(%Brand{} = brand, token) when is_binary(token) do
-    path = "/invite/#{token}"
-
-    case brand.primary_domain do
-      domain when is_binary(domain) and domain != "" ->
-        "https://#{domain}#{path}"
-
-      _ ->
-        SocialObjectsWeb.Endpoint.url() <> path
-    end
-  end
-
   defp normalize_path(path) do
     if String.starts_with?(path, "/"), do: path, else: "/" <> path
   end
