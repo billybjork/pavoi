@@ -8,54 +8,45 @@ defmodule PavoiWeb.UserLive.Settings do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app
-      flash={@flash}
-      current_scope={@current_scope}
-      current_brand={@current_brand}
-      current_page={@current_page}
-      user_brands={@user_brands}
-      current_host={@current_host}
-    >
-      <div class="container container--sm region">
-        <div class="settings-page">
-          <section class="settings-section">
-            <div class="settings-section__header">
-              <h2 class="settings-section__title">Email Address</h2>
-              <p class="settings-section__description">
-                Update your email address. A confirmation link will be sent to the new address.
-              </p>
+    <div class="container container--sm region">
+      <div class="settings-page">
+        <section class="settings-section">
+          <div class="settings-section__header">
+            <h2 class="settings-section__title">Email Address</h2>
+            <p class="settings-section__description">
+              Update your email address. A confirmation link will be sent to the new address.
+            </p>
+          </div>
+
+          <.form
+            for={@email_form}
+            id="email_form"
+            phx-submit="update_email"
+            phx-change="validate_email"
+            class="stack"
+          >
+            <.input
+              field={@email_form[:email]}
+              type="email"
+              label="Email"
+              autocomplete="username"
+              required
+            />
+            <div>
+              <.button variant="primary" phx-disable-with="Changing...">
+                Change Email
+              </.button>
             </div>
+          </.form>
+        </section>
 
-            <.form
-              for={@email_form}
-              id="email_form"
-              phx-submit="update_email"
-              phx-change="validate_email"
-              class="stack"
-            >
-              <.input
-                field={@email_form[:email]}
-                type="email"
-                label="Email"
-                autocomplete="username"
-                required
-              />
-              <div>
-                <.button variant="primary" phx-disable-with="Changing...">
-                  Change Email
-                </.button>
-              </div>
-            </.form>
-          </section>
-
-          <section class="settings-section">
-            <.button href={~p"/users/log-out"} method="delete" variant="outline">
-              Log out
-            </.button>
-          </section>
-        </div>
+        <section class="settings-section">
+          <.button href={~p"/users/log-out"} method="delete" variant="outline">
+            Log out
+          </.button>
+        </section>
       </div>
-    </Layouts.app>
+    </div>
     """
   end
 

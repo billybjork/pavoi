@@ -113,169 +113,160 @@ defmodule PavoiWeb.ReadmeLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app
-      flash={@flash}
-      current_scope={@current_scope}
-      current_brand={@current_brand}
-      current_page={@current_page}
-    >
-      <div class="readme-page">
-        <section class="readme-section">
-          <h2 class="readme-section__title">Pages</h2>
-          <div class="readme-cards readme-cards--pages">
-            <.page_card
-              emoji="🎬"
-              title="Product Sets"
-              description="Manage product catalog and create curated product sets for live streams"
-              href={BrandRoutes.brand_path(@current_brand, "/product-sets", @current_host)}
-              stat={@stats.product_sets}
-              stat_label="product sets"
-              stat2={@stats.products}
-              stat2_label="products"
-            >
-              <:features>
-                <li>Unified product catalog from Shopify and TikTok Shop</li>
-                <li>Curate product sets with custom lineups for live streams</li>
-                <li>Host view for displaying products during streams</li>
-                <li>Mobile controller for navigation and messaging</li>
-                <li>AI-generated talking points for each product</li>
-                <li>Share public URLs with hosts (read-only, 90-day expiry)</li>
-              </:features>
-            </.page_card>
+    <div class="readme-page">
+      <section class="readme-section">
+        <h2 class="readme-section__title">Pages</h2>
+        <div class="readme-cards readme-cards--pages">
+          <.page_card
+            emoji="🎬"
+            title="Products"
+            description="Manage product catalog and create curated product sets for live streams"
+            href={BrandRoutes.brand_path(@current_brand, "/products", @current_host)}
+            stat={@stats.product_sets}
+            stat_label="product sets"
+            stat2={@stats.products}
+            stat2_label="products"
+          >
+            <:features>
+              <li>Unified product catalog from Shopify and TikTok Shop</li>
+              <li>Curate product sets with custom lineups for live streams</li>
+              <li>Host view for displaying products during streams</li>
+              <li>Mobile controller for navigation and messaging</li>
+              <li>AI-generated talking points for each product</li>
+              <li>Share public URLs with hosts (read-only, 90-day expiry)</li>
+            </:features>
+          </.page_card>
 
-            <.page_card
-              emoji="📺"
-              title="Streams"
-              description="Capture and analyze TikTok Live stream data in real-time"
-              href={BrandRoutes.brand_path(@current_brand, "/streams", @current_host)}
-              stat={@stats.streams}
-              stat_label="streams captured"
-            >
-              <:features>
-                <li>Real-time comment capture during live streams</li>
-                <li>AI sentiment classification (positive/neutral/negative)</li>
-                <li>Comment categorization (praise, questions, requests, etc.)</li>
-                <li>Viewer metrics and engagement tracking</li>
-                <li>GMV and sales analytics</li>
-              </:features>
-            </.page_card>
+          <.page_card
+            emoji="📺"
+            title="Streams"
+            description="Capture and analyze TikTok Live stream data in real-time"
+            href={BrandRoutes.brand_path(@current_brand, "/streams", @current_host)}
+            stat={@stats.streams}
+            stat_label="streams captured"
+          >
+            <:features>
+              <li>Real-time comment capture during live streams</li>
+              <li>AI sentiment classification (positive/neutral/negative)</li>
+              <li>Comment categorization (praise, questions, requests, etc.)</li>
+              <li>Viewer metrics and engagement tracking</li>
+              <li>GMV and sales analytics</li>
+            </:features>
+          </.page_card>
 
-            <.page_card
-              emoji="👥"
-              title="Creators"
-              description="Manage creator relationships and run outreach campaigns"
-              href={BrandRoutes.brand_path(@current_brand, "/creators", @current_host)}
-              stat={@stats.creators}
-              stat_label="creators"
-            >
-              <:features>
-                <li>Creator CRM with performance tracking (GMV, ROI)</li>
-                <li>Tag-based organization and filtering</li>
-                <li>Email template builder with variables</li>
-                <li>Batch email outreach campaigns</li>
-                <li>Delivery tracking via SendGrid webhooks</li>
-              </:features>
-            </.page_card>
-          </div>
-        </section>
+          <.page_card
+            emoji="👥"
+            title="Creators"
+            description="Manage creator relationships and run outreach campaigns"
+            href={BrandRoutes.brand_path(@current_brand, "/creators", @current_host)}
+            stat={@stats.creators}
+            stat_label="creators"
+          >
+            <:features>
+              <li>Creator CRM with performance tracking (GMV, ROI)</li>
+              <li>Tag-based organization and filtering</li>
+              <li>Email template builder with variables</li>
+              <li>Batch email outreach campaigns</li>
+              <li>Delivery tracking via SendGrid webhooks</li>
+            </:features>
+          </.page_card>
+        </div>
+      </section>
 
-        <section class="readme-section">
-          <h2 class="readme-section__title">Integrations</h2>
-          <div class="readme-cards readme-cards--integrations">
-            <.integration_card
-              title="Shopify"
-              logo="shopify.svg"
-              status={:ok}
-              status_text={format_last_sync(@integrations.shopify.last_sync)}
-            >
-              <li>Product catalog sync via GraphQL API</li>
-              <li>Brand and collection import</li>
-              <li>Image handling with S3 storage</li>
-            </.integration_card>
+      <section class="readme-section">
+        <h2 class="readme-section__title">Integrations</h2>
+        <div class="readme-cards readme-cards--integrations">
+          <.integration_card
+            title="Shopify"
+            logo="shopify.svg"
+            status={:ok}
+            status_text={format_last_sync(@integrations.shopify.last_sync)}
+          >
+            <li>Product catalog sync via GraphQL API</li>
+            <li>Brand and collection import</li>
+            <li>Image handling with S3 storage</li>
+          </.integration_card>
 
-            <.integration_card
-              title="TikTok Shop"
-              logo="tiktok.svg"
-              status={:ok}
-              status_text={format_last_sync(@integrations.tiktok_shop.last_sync)}
-            >
-              <li>OAuth 2.0 service account authentication</li>
-              <li>Product catalog access</li>
-              <li>Shop credentials management</li>
-            </.integration_card>
+          <.integration_card
+            title="TikTok Shop"
+            logo="tiktok.svg"
+            status={:ok}
+            status_text={format_last_sync(@integrations.tiktok_shop.last_sync)}
+          >
+            <li>OAuth 2.0 service account authentication</li>
+            <li>Product catalog access</li>
+            <li>Shop credentials management</li>
+          </.integration_card>
 
-            <.integration_card
-              title="BigQuery"
-              logo="bigquery.svg"
-              status={:ok}
-              status_text={format_last_sync(@integrations.bigquery.last_sync)}
-            >
-              <li>Creator performance data (GMV, purchases)</li>
-              <li>Order history and analytics</li>
-              <li>JWT-based service account auth</li>
-            </.integration_card>
+          <.integration_card
+            title="BigQuery"
+            logo="bigquery.svg"
+            status={:ok}
+            status_text={format_last_sync(@integrations.bigquery.last_sync)}
+          >
+            <li>Creator performance data (GMV, purchases)</li>
+            <li>Order history and analytics</li>
+            <li>JWT-based service account auth</li>
+          </.integration_card>
 
-            <.integration_card
-              title="TikTok Live Bridge"
-              logo="tiktok-bridge.svg"
-              status={bridge_status(@integrations.tiktok_bridge)}
-              status_text={bridge_status_text(@integrations.tiktok_bridge)}
-            >
-              <li>Custom Node.js bridge service</li>
-              <li>WebSocket connection to TikTok WebCast</li>
-              <li>Real-time: comments, gifts, likes, viewers</li>
-              <li>Stream status detection via page scraping</li>
-            </.integration_card>
+          <.integration_card
+            title="TikTok Live Bridge"
+            logo="tiktok-bridge.svg"
+            status={bridge_status(@integrations.tiktok_bridge)}
+            status_text={bridge_status_text(@integrations.tiktok_bridge)}
+          >
+            <li>Custom Node.js bridge service</li>
+            <li>WebSocket connection to TikTok WebCast</li>
+            <li>Real-time: comments, gifts, likes, viewers</li>
+            <li>Stream status detection via page scraping</li>
+          </.integration_card>
 
-            <.integration_card
-              title="OpenAI"
-              logo="openai.svg"
-              status={if @integrations.openai.configured, do: :ok, else: :not_configured}
-              status_text={
-                if @integrations.openai.configured, do: "Configured", else: "Not configured"
-              }
-            >
-              <li>Product talking points generation</li>
-              <li>Comment sentiment classification</li>
-              <li>Comment categorization (7 categories)</li>
-            </.integration_card>
+          <.integration_card
+            title="OpenAI"
+            logo="openai.svg"
+            status={if @integrations.openai.configured, do: :ok, else: :not_configured}
+            status_text={if @integrations.openai.configured, do: "Configured", else: "Not configured"}
+          >
+            <li>Product talking points generation</li>
+            <li>Comment sentiment classification</li>
+            <li>Comment categorization (7 categories)</li>
+          </.integration_card>
 
-            <.integration_card
-              title="SendGrid"
-              logo="sendgrid.svg"
-              status={if @integrations.sendgrid.configured, do: :ok, else: :not_configured}
-              status_text={
-                format_last_activity(
-                  "Sent",
-                  @integrations.sendgrid.last_sent,
-                  @integrations.sendgrid.configured
-                )
-              }
-            >
-              <li>Transactional email delivery</li>
-              <li>Webhook integration for events</li>
-              <li>Open/click/bounce tracking</li>
-            </.integration_card>
+          <.integration_card
+            title="SendGrid"
+            logo="sendgrid.svg"
+            status={if @integrations.sendgrid.configured, do: :ok, else: :not_configured}
+            status_text={
+              format_last_activity(
+                "Sent",
+                @integrations.sendgrid.last_sent,
+                @integrations.sendgrid.configured
+              )
+            }
+          >
+            <li>Transactional email delivery</li>
+            <li>Webhook integration for events</li>
+            <li>Open/click/bounce tracking</li>
+          </.integration_card>
 
-            <.integration_card
-              title="Slack"
-              logo="slack.svg"
-              status={if @integrations.slack.configured, do: :ok, else: :not_configured}
-              status_text={
-                format_last_activity(
-                  "Report",
-                  @integrations.slack.last_report,
-                  @integrations.slack.configured
-                )
-              }
-            >
-              <li>Stream report notifications</li>
-              <li>Post-stream analytics summaries</li>
-            </.integration_card>
-          </div>
-        </section>
-      </div>
-    </Layouts.app>
+          <.integration_card
+            title="Slack"
+            logo="slack.svg"
+            status={if @integrations.slack.configured, do: :ok, else: :not_configured}
+            status_text={
+              format_last_activity(
+                "Report",
+                @integrations.slack.last_report,
+                @integrations.slack.configured
+              )
+            }
+          >
+            <li>Stream report notifications</li>
+            <li>Post-stream analytics summaries</li>
+          </.integration_card>
+        </div>
+      </section>
+    </div>
     """
   end
 
