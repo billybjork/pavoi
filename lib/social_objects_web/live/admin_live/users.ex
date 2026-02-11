@@ -7,9 +7,9 @@ defmodule SocialObjectsWeb.AdminLive.Users do
 
   import SocialObjectsWeb.AdminComponents
 
+  alias Phoenix.LiveView.JS
   alias SocialObjects.Accounts
   alias SocialObjects.Catalog
-  alias Phoenix.LiveView.JS
 
   @impl true
   def mount(_params, _session, socket) do

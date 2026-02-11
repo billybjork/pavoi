@@ -7,11 +7,11 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
 
   import SocialObjectsWeb.AdminComponents
 
+  alias Phoenix.LiveView.JS
   alias SocialObjects.Catalog
   alias SocialObjects.Catalog.Brand
   alias SocialObjects.Settings
   alias SocialObjects.TiktokShop
-  alias Phoenix.LiveView.JS
 
   # Keys that contain sensitive data and should be masked
   @secret_keys ~w(slack_bot_token bigquery_private_key shopify_client_secret)

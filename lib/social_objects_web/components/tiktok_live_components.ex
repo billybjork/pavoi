@@ -8,8 +8,8 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
   import SocialObjectsWeb.CreatorTableComponents, only: [sort_header: 1]
   import SocialObjectsWeb.ViewHelpers
 
-  alias SocialObjects.TiktokLive.Stream
   alias Phoenix.LiveView.JS
+  alias SocialObjects.TiktokLive.Stream
 
   use Phoenix.VerifiedRoutes,
     endpoint: SocialObjectsWeb.Endpoint,

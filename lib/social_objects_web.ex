@@ -90,8 +90,8 @@ defmodule SocialObjectsWeb do
       import SocialObjectsWeb.ThemeComponents
 
       # Common modules used in templates
-      alias SocialObjectsWeb.Layouts
       alias Phoenix.LiveView.JS
+      alias SocialObjectsWeb.Layouts
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

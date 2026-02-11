@@ -22,9 +22,9 @@ defmodule SocialObjectsWeb.CoreComponents do
   use Phoenix.Component
   use Gettext, backend: SocialObjectsWeb.Gettext
 
-  alias SocialObjectsWeb.BrandRoutes
   alias Phoenix.HTML.{Form, FormField}
   alias Phoenix.LiveView.JS
+  alias SocialObjectsWeb.BrandRoutes
 
   # Verified routes for navigation
   use Phoenix.VerifiedRoutes,

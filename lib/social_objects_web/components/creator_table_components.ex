@@ -9,8 +9,8 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   import SocialObjectsWeb.CreatorComponents
   import SocialObjectsWeb.CreatorTagComponents
 
-  alias SocialObjects.Creators.Creator
   alias Phoenix.LiveView.JS
+  alias SocialObjects.Creators.Creator
 
   use Phoenix.VerifiedRoutes,
     endpoint: SocialObjectsWeb.Endpoint,

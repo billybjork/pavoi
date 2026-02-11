@@ -753,7 +753,7 @@ defmodule SocialObjectsWeb.AdminComponents do
             :for={worker <- @workers}
             worker={worker}
             status={get_worker_status(@statuses, @brand_id, worker.status_key)}
-            is_running={is_worker_running?(@running_workers, worker.key)}
+            is_running={worker_running?(@running_workers, worker.key)}
             rate_limit_info={if worker.key == :creator_enrichment, do: @rate_limit_info, else: nil}
             brand_id={@brand_id}
           />
@@ -900,7 +900,7 @@ defmodule SocialObjectsWeb.AdminComponents do
     Map.get(statuses, {brand_id, status_key})
   end
 
-  defp is_worker_running?(running_workers, worker_key) do
+  defp worker_running?(running_workers, worker_key) do
     Enum.any?(running_workers, fn rw -> rw.worker_key == worker_key end)
   end
 

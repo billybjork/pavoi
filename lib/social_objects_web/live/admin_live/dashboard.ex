@@ -191,8 +191,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   defp trigger_worker(worker, brand_id) do
     args = %{"brand_id" => brand_id}
 
-    worker.module
-    |> apply(:new, [args])
+    worker.module.new(args)
     |> Oban.insert()
   end
 

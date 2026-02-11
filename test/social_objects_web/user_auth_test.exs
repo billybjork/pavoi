@@ -1,10 +1,10 @@
 defmodule SocialObjectsWeb.UserAuthTest do
   use SocialObjectsWeb.ConnCase, async: true
 
+  alias Phoenix.LiveView
   alias SocialObjects.Accounts
   alias SocialObjects.Accounts.Scope
   alias SocialObjectsWeb.UserAuth
-  alias Phoenix.LiveView
 
   import SocialObjects.AccountsFixtures
 
