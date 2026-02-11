@@ -1,16 +1,27 @@
 defmodule SocialObjectsWeb.UserLive.Settings do
   use SocialObjectsWeb, :live_view
 
-  on_mount {SocialObjectsWeb.UserAuth, :require_sudo_mode}
+  on_mount {SocialObjectsWeb.UserAuth, :require_authenticated}
 
   alias SocialObjects.Accounts
-  alias SocialObjectsWeb.UserAuth
+  alias SocialObjects.Accounts.User
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="container container--sm region">
       <div class="settings-page">
+        <section class="settings-section">
+          <div class="settings-section__header">
+            <h2 class="settings-section__title">Appearance</h2>
+          </div>
+
+          <div class="settings-theme-row">
+            <span class="settings-theme-row__label">Theme</span>
+            <.theme_switch />
+          </div>
+        </section>
+
         <section class="settings-section">
           <div class="settings-section__header">
             <h2 class="settings-section__title">Email Address</h2>
@@ -28,8 +39,16 @@ defmodule SocialObjectsWeb.UserLive.Settings do
             <.input
               field={@email_form[:email]}
               type="email"
-              label="Email"
+              label="New email"
               autocomplete="username"
+              required
+            />
+            <.input
+              field={@email_form[:current_password]}
+              id="email_form_current_password"
+              type="password"
+              label="Current password"
+              autocomplete="current-password"
               required
             />
             <div>
@@ -54,6 +73,14 @@ defmodule SocialObjectsWeb.UserLive.Settings do
             phx-submit="update_password"
             phx-change="validate_password"
           >
+            <.input
+              field={@password_form[:current_password]}
+              id="password_form_current_password"
+              type="password"
+              label="Current password"
+              autocomplete="current-password"
+              required
+            />
             <.input
               field={@password_form[:password]}
               type="password"
@@ -129,19 +156,27 @@ defmodule SocialObjectsWeb.UserLive.Settings do
   def handle_event("update_email", params, socket) do
     %{"user" => user_params} = params
     user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
+    current_password = user_params["current_password"]
 
-    case Accounts.update_user_email(user, user_params) do
-      {:ok, updated_user} ->
-        email_changeset = Accounts.change_user_email(updated_user, %{}, validate_unique: false)
+    if User.valid_password?(user, current_password) do
+      case Accounts.update_user_email(user, user_params) do
+        {:ok, updated_user} ->
+          email_changeset = Accounts.change_user_email(updated_user, %{}, validate_unique: false)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Email changed successfully.")
-         |> assign(:email_form, to_form(email_changeset))}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Email changed successfully.")
+           |> assign(:email_form, to_form(email_changeset))}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
+        {:error, changeset} ->
+          {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
+      end
+    else
+      changeset =
+        Accounts.change_user_email(user, user_params, validate_unique: false)
+        |> Ecto.Changeset.add_error(:current_password, "is incorrect")
+
+      {:noreply, assign(socket, :email_form, to_form(changeset, action: :insert))}
     end
   end
 
@@ -160,20 +195,28 @@ defmodule SocialObjectsWeb.UserLive.Settings do
   def handle_event("update_password", params, socket) do
     %{"user" => user_params} = params
     user = socket.assigns.current_scope.user
-    true = Accounts.sudo_mode?(user)
+    current_password = user_params["current_password"]
 
-    case Accounts.update_user_password(user, user_params) do
-      {:ok, {_user, tokens}} ->
-        UserAuth.disconnect_sessions(tokens)
-        password_changeset = Accounts.change_user_password(user, %{}, hash_password: false)
+    if User.valid_password?(user, current_password) do
+      case Accounts.update_user_password(user, user_params) do
+        {:ok, {_user, tokens}} ->
+          SocialObjectsWeb.UserAuth.disconnect_sessions(tokens)
+          password_changeset = Accounts.change_user_password(user, %{}, hash_password: false)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Password changed successfully.")
-         |> assign(:password_form, to_form(password_changeset))}
+          {:noreply,
+           socket
+           |> put_flash(:info, "Password changed successfully.")
+           |> assign(:password_form, to_form(password_changeset))}
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, :password_form, to_form(changeset, action: :insert))}
+        {:error, changeset} ->
+          {:noreply, assign(socket, :password_form, to_form(changeset, action: :insert))}
+      end
+    else
+      changeset =
+        Accounts.change_user_password(user, user_params, hash_password: false)
+        |> Ecto.Changeset.add_error(:current_password, "is incorrect")
+
+      {:noreply, assign(socket, :password_form, to_form(changeset, action: :insert))}
     end
   end
 end

@@ -23,18 +23,6 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
       assert path == ~p"/users/log-in"
       assert %{"error" => "Log in to see this page."} = flash
     end
-
-    test "redirects if user is not in sudo mode", %{conn: conn} do
-      {:ok, conn} =
-        conn
-        |> log_in_user(user_fixture(),
-          token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
-        )
-        |> live(~p"/users/settings")
-        |> follow_redirect(conn, ~p"/users/log-in")
-
-      assert conn.resp_body =~ "Log in to see this page."
-    end
   end
 
   describe "update email form" do
@@ -51,7 +39,7 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
       result =
         lv
         |> form("#email_form", %{
-          "user" => %{"email" => new_email}
+          "user" => %{"email" => new_email, "current_password" => valid_user_password()}
         })
         |> render_submit()
 
@@ -81,12 +69,26 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
       result =
         lv
         |> form("#email_form", %{
-          "user" => %{"email" => user.email}
+          "user" => %{"email" => user.email, "current_password" => valid_user_password()}
         })
         |> render_submit()
 
       assert result =~ "Change Email"
       assert result =~ "did not change"
+    end
+
+    test "renders error with incorrect password", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> form("#email_form", %{
+          "user" => %{"email" => unique_user_email(), "current_password" => "wrong"}
+        })
+        |> render_submit()
+
+      assert result =~ "Change Email"
+      assert result =~ "is incorrect"
     end
   end
 
@@ -103,6 +105,7 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
         lv
         |> form("#password_form", %{
           "user" => %{
+            "current_password" => valid_user_password(),
             "password" => "new_password123",
             "password_confirmation" => "new_password123"
           }
@@ -120,6 +123,7 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
         lv
         |> form("#password_form", %{
           "user" => %{
+            "current_password" => valid_user_password(),
             "password" => "short",
             "password_confirmation" => "mismatch"
           }
@@ -128,6 +132,24 @@ defmodule SocialObjectsWeb.UserLive.SettingsTest do
 
       assert result =~ "should be at least 12 character"
       assert result =~ "does not match password"
+    end
+
+    test "renders error with incorrect current password", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> form("#password_form", %{
+          "user" => %{
+            "current_password" => "wrong",
+            "password" => "new_password123",
+            "password_confirmation" => "new_password123"
+          }
+        })
+        |> render_submit()
+
+      assert result =~ "Change Password"
+      assert result =~ "is incorrect"
     end
   end
 end
