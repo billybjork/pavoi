@@ -65,3 +65,9 @@ erl_crash.dump
 
 # Local tool versions (not used by Railway)
 .tool-versions.local
+
+# Temporary files
+/tmp/
+
+# Local scripts (may contain credentials)
+/scripts/
