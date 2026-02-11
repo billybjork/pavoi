@@ -6,17 +6,13 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   """
   use SocialObjectsWeb, :live_view
 
-  import Ecto.Query
-
   on_mount {SocialObjectsWeb.NavHooks, :set_current_page}
 
   alias SocialObjects.Creators
   alias SocialObjects.Settings
-  alias SocialObjects.Workers.VideoSyncWorker
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.VideoComponents
-  import SocialObjectsWeb.BrandPermissions
 
   @impl true
   def mount(_params, _session, socket) do
@@ -35,8 +31,6 @@ defmodule SocialObjectsWeb.VideosLive.Index do
         []
       end
 
-    video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
-
     socket =
       socket
       |> assign(:videos, [])
@@ -54,8 +48,6 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       |> assign(:selected_video, nil)
       # Version counter for search - used to ignore stale async results
       |> assign(:search_version, 0)
-      # Sync state
-      |> assign(:video_syncing, video_syncing)
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
 
     {:ok, socket}
@@ -120,20 +112,6 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   end
 
   @impl true
-  def handle_event("trigger_video_sync", _params, socket) do
-    authorize socket, :admin do
-      {:noreply,
-       enqueue_sync_job(
-         socket,
-         VideoSyncWorker,
-         %{"brand_id" => socket.assigns.brand_id},
-         :video_syncing,
-         "Video performance sync started..."
-       )}
-    end
-  end
-
-  @impl true
   def handle_info(:load_more_videos, socket) do
     socket =
       socket
@@ -143,17 +121,16 @@ defmodule SocialObjectsWeb.VideosLive.Index do
     {:noreply, socket}
   end
 
-  # Video sync PubSub handlers
+  # Video sync PubSub handlers - auto-refresh when sync completes from admin dashboard
   @impl true
   def handle_info({:video_sync_started}, socket) do
-    {:noreply, assign(socket, :video_syncing, true)}
+    {:noreply, socket}
   end
 
   @impl true
   def handle_info({:video_sync_completed, stats}, socket) do
     socket =
       socket
-      |> assign(:video_syncing, false)
       |> assign(
         :videos_last_import_at,
         Settings.get_videos_last_import_at(socket.assigns.brand_id)
@@ -170,12 +147,7 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   @impl true
   def handle_info({:video_sync_failed, _reason}, socket) do
-    socket =
-      socket
-      |> assign(:video_syncing, false)
-      |> put_flash(:error, "Video sync failed. Please try again.")
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :error, "Video sync failed. Please try again.")}
   end
 
   @impl true
@@ -357,37 +329,4 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   defp default_value?({:page, 1}), do: true
   defp default_value?({:sort, "gmv_desc"}), do: true
   defp default_value?(_), do: false
-
-  # Check if there's a job that would block new inserts due to uniqueness constraint
-  # This includes: available, scheduled, or executing jobs
-  defp sync_job_blocked?(worker, brand_id) do
-    worker_name = inspect(worker)
-
-    from(j in Oban.Job,
-      where: j.worker == ^worker_name,
-      where: j.state in ["available", "scheduled", "executing"],
-      where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
-    )
-    |> SocialObjects.Repo.exists?()
-  end
-
-  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
-    case worker.new(args) |> Oban.insert() do
-      {:ok, %Oban.Job{conflict?: true}} ->
-        # Uniqueness constraint returned an existing job
-        socket
-        |> assign(assign_key, true)
-        |> put_flash(:info, "Sync already in progress or scheduled.")
-
-      {:ok, _job} ->
-        socket
-        |> assign(assign_key, true)
-        |> put_flash(:info, success_message)
-
-      {:error, _changeset} ->
-        socket
-        |> assign(assign_key, false)
-        |> put_flash(:error, "Couldn't start sync. Please try again.")
-    end
-  end
 end

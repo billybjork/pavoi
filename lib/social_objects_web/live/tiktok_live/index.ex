@@ -144,24 +144,6 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_event("scan_streams", _params, socket) do
-    authorize socket, :admin do
-      socket =
-        case TiktokLiveContext.check_live_status_now(socket.assigns.brand_id, "manual") do
-          {:ok, _job} ->
-            assign(socket, :scanning, true)
-
-          {:error, _changeset} ->
-            socket
-            |> assign(:scanning, false)
-            |> put_flash(:error, "Couldn't scan streams. Please try again.")
-        end
-
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
   def handle_event("navigate_to_stream", %{"id" => id} = params, socket) do
     # Optionally navigate directly to a specific tab (e.g., "product_sets")
     tab = Map.get(params, "tab")

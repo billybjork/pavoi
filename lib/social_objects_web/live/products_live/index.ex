@@ -67,11 +67,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   alias SocialObjects.Catalog.Product
   alias SocialObjects.ProductSets
   alias SocialObjects.ProductSets.{ProductSet, ProductSetProduct}
-  alias SocialObjects.Settings
   alias SocialObjects.Storage
-  alias SocialObjects.Workers.ProductPerformanceSyncWorker
-  alias SocialObjects.Workers.ShopifySyncWorker
-  alias SocialObjects.Workers.TiktokSyncWorker
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.AIComponents
@@ -96,12 +92,6 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     user = socket.assigns.current_scope.user
     user_brands = Accounts.list_user_brands(user)
     brands = Enum.map(user_brands, & &1.brand)
-    last_sync_at = Settings.get_shopify_last_sync_at(brand_id)
-    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at(brand_id)
-
-    # Check if syncs are currently in progress
-    shopify_syncing = sync_job_active?(ShopifySyncWorker, brand_id)
-    tiktok_syncing = sync_job_active?(TiktokSyncWorker, brand_id)
 
     socket =
       socket
@@ -180,10 +170,6 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
         external: &presign_notes_image/2
       )
       # Products tab state (for browsing all products)
-      |> assign(:last_sync_at, last_sync_at)
-      |> assign(:syncing, shopify_syncing)
-      |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
-      |> assign(:tiktok_syncing, tiktok_syncing)
       |> assign(:platform_filter, "")
       |> assign(:browse_product_search_query, "")
       |> assign(:browse_product_sort_by, "")
@@ -220,27 +206,17 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     {:noreply, socket}
   end
 
+  # Shopify sync PubSub handlers - auto-refresh when sync completes from admin dashboard
   @impl true
   def handle_info({:sync_started}, socket) do
-    socket =
-      socket
-      |> assign(:syncing, true)
-      |> put_flash(:info, "Syncing product catalog from Shopify...")
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :info, "Syncing product catalog from Shopify...")}
   end
 
   @impl true
   def handle_info({:sync_completed, counts}, socket) do
     # Reload sessions to pick up any product changes
-    # Reset pagination to page 1 and reload
-    brand_id = socket.assigns.current_brand.id
-    last_sync_at = Settings.get_shopify_last_sync_at(brand_id)
-
     socket =
       socket
-      |> assign(:syncing, false)
-      |> assign(:last_sync_at, last_sync_at)
       |> assign(:product_set_page, 1)
       |> load_product_sets()
       |> maybe_reload_browse_products()
@@ -260,34 +236,19 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
         _ -> "Shopify sync failed. Please try again."
       end
 
-    socket =
-      socket
-      |> assign(:syncing, false)
-      |> put_flash(:error, message)
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :error, message)}
   end
 
-  # TikTok sync event handlers
+  # TikTok sync PubSub handlers - auto-refresh when sync completes from admin dashboard
   @impl true
   def handle_info({:tiktok_sync_started}, socket) do
-    socket =
-      socket
-      |> assign(:tiktok_syncing, true)
-      |> put_flash(:info, "Syncing product catalog from TikTok Shop...")
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :info, "Syncing product catalog from TikTok Shop...")}
   end
 
   @impl true
   def handle_info({:tiktok_sync_completed, _counts}, socket) do
-    brand_id = socket.assigns.current_brand.id
-    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at(brand_id)
-
     socket =
       socket
-      |> assign(:tiktok_syncing, false)
-      |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
       |> assign(:product_set_page, 1)
       |> load_product_sets()
       |> maybe_reload_browse_products()
@@ -298,14 +259,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_info({:tiktok_sync_failed, _reason}, socket) do
-    message = "TikTok sync failed. Please try again."
-
-    socket =
-      socket
-      |> assign(:tiktok_syncing, false)
-      |> put_flash(:error, message)
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :error, "TikTok sync failed. Please try again.")}
   end
 
   # Generation event handlers - only update UI for batch (session-wide) generation
@@ -1612,40 +1566,6 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     {:noreply, socket}
   end
 
-  @impl true
-  def handle_event("trigger_shopify_sync", _params, socket) do
-    authorize socket, :admin do
-      %{"brand_id" => socket.assigns.brand_id}
-      |> ShopifySyncWorker.new()
-      |> Oban.insert()
-
-      socket =
-        socket
-        |> assign(:syncing, true)
-        |> put_flash(:info, "Shopify sync initiated...")
-
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("trigger_tiktok_sync", _params, socket) do
-    authorize socket, :admin do
-      brand_args = %{"brand_id" => socket.assigns.brand_id}
-
-      # Sync both TikTok product catalog and product performance
-      brand_args |> TiktokSyncWorker.new() |> Oban.insert()
-      brand_args |> ProductPerformanceSyncWorker.new() |> Oban.insert()
-
-      socket =
-        socket
-        |> assign(:tiktok_syncing, true)
-        |> put_flash(:info, "TikTok sync initiated...")
-
-      {:noreply, socket}
-    end
-  end
-
   # Presign function for external S3 uploads
   defp presign_notes_image(entry, socket) do
     # Generate a unique key for the image
@@ -2305,21 +2225,6 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
     else
       socket
     end
-  end
-
-  # Check if a sync job is currently active (executing or available)
-  defp sync_job_active?(worker_module, brand_id) do
-    import Ecto.Query
-
-    worker_name = inspect(worker_module)
-
-    SocialObjects.Repo.exists?(
-      from(j in Oban.Job,
-        where: j.worker == ^worker_name,
-        where: j.state in ["executing", "available", "scheduled"],
-        where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
-      )
-    )
   end
 
   defp products_path(socket, params \\ "")

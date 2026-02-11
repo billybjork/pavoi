@@ -264,48 +264,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("trigger_bigquery_sync", _params, socket) do
-    authorize socket, :admin do
-      {:noreply,
-       enqueue_sync_job(
-         socket,
-         BigQueryOrderSyncWorker,
-         %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
-         :bigquery_syncing,
-         "BigQuery orders sync initiated..."
-       )}
-    end
-  end
-
-  @impl true
-  def handle_event("trigger_enrichment_sync", _params, socket) do
-    authorize socket, :admin do
-      {:noreply,
-       enqueue_sync_job(
-         socket,
-         CreatorEnrichmentWorker,
-         %{"source" => "manual", "brand_id" => socket.assigns.brand_id},
-         :enrichment_syncing,
-         "Creator enrichment started..."
-       )}
-    end
-  end
-
-  @impl true
-  def handle_event("trigger_video_sync", _params, socket) do
-    authorize socket, :admin do
-      {:noreply,
-       enqueue_sync_job(
-         socket,
-         VideoSyncWorker,
-         %{"brand_id" => socket.assigns.brand_id},
-         :video_syncing,
-         "Video performance sync started..."
-       )}
-    end
-  end
-
-  @impl true
   def handle_event("refresh_creator_data", %{"id" => id}, socket) do
     # Phase 1: Set refreshing state immediately and return
     # The actual refresh happens in handle_info (Phase 2)
@@ -1323,26 +1281,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
     )
     |> SocialObjects.Repo.exists?()
-  end
-
-  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
-    case worker.new(args) |> Oban.insert() do
-      {:ok, %Oban.Job{conflict?: true}} ->
-        # Uniqueness constraint returned an existing job
-        socket
-        |> assign(assign_key, true)
-        |> put_flash(:info, "Sync already in progress or scheduled.")
-
-      {:ok, _job} ->
-        socket
-        |> assign(assign_key, true)
-        |> put_flash(:info, success_message)
-
-      {:error, _changeset} ->
-        socket
-        |> assign(assign_key, false)
-        |> put_flash(:error, "Couldn't start sync. Please try again.")
-    end
   end
 
   defp creators_path(socket, params) when is_map(params) do
