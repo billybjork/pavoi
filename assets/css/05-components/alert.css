@@ -13,50 +13,47 @@
     0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-/* Variant styles - colored backgrounds for visibility */
+/* Variant styles - colored backgrounds for visibility
+   Uses opacity tokens that auto-adjust for dark mode via color-mix() */
 .alert--info {
   border-left: 4px solid var(--color-accent-blue);
-  background-color: #EFF6FF;
-  color: #1E40AF;
+  background-color: var(--color-accent-blue-10);
+  color: var(--color-accent-blue);
 }
 
 .alert--error {
   border-left: 4px solid var(--color-accent-red);
-  background-color: #FEF2F2;
-  color: #991B1B;
+  background-color: var(--color-accent-red-10);
+  color: var(--color-accent-red);
 }
 
 .alert--success {
   border-left: 4px solid var(--color-accent-green);
-  background-color: #F0FDF4;
-  color: #166534;
+  background-color: var(--color-accent-green-10);
+  color: var(--color-accent-green);
 }
 
 .alert--warning {
   border-left: 4px solid var(--color-accent-amber);
-  background-color: #FFFBEB;
-  color: #92400E;
+  background-color: var(--color-accent-amber-10);
+  color: var(--color-accent-amber);
 }
 
-/* Dark mode variants */
+/* Dark mode - slightly stronger backgrounds for visibility on dark surfaces */
 .dark .alert--info {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #93C5FD;
+  background-color: var(--color-accent-blue-15);
 }
 
 .dark .alert--error {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #FCA5A5;
+  background-color: var(--color-accent-red-15);
 }
 
 .dark .alert--success {
-  background-color: rgba(34, 197, 94, 0.15);
-  color: #86EFAC;
+  background-color: var(--color-accent-green-15);
 }
 
 .dark .alert--warning {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: #FCD34D;
+  background-color: var(--color-accent-amber-15);
 }
 
 /* Icon */
@@ -99,36 +96,12 @@
   transition: all var(--transition-fast);
 }
 
-.alert--info .alert__close {
-  color: #1E40AF;
-}
-
-.alert--error .alert__close {
-  color: #991B1B;
-}
-
-.alert--success .alert__close {
-  color: #166534;
-}
-
+/* Close button colors inherit from parent alert via currentColor */
+.alert--info .alert__close,
+.alert--error .alert__close,
+.alert--success .alert__close,
 .alert--warning .alert__close {
-  color: #92400E;
-}
-
-.dark .alert--info .alert__close {
-  color: #93C5FD;
-}
-
-.dark .alert--error .alert__close {
-  color: #FCA5A5;
-}
-
-.dark .alert--success .alert__close {
-  color: #86EFAC;
-}
-
-.dark .alert--warning .alert__close {
-  color: #FCD34D;
+  color: currentColor;
 }
 
 .alert__close:hover {

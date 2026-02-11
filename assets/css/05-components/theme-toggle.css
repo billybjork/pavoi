@@ -114,6 +114,12 @@
   transition: background-color 200ms ease, border-color 200ms ease;
 }
 
+/* Dark mode: increase track visibility with lighter background and border */
+.dark .theme-switch__track {
+  background-color: var(--color-surface-secondary);
+  border-color: var(--color-panel-border);
+}
+
 .theme-switch:hover .theme-switch__track {
   border-color: var(--color-border-focus);
 }
@@ -134,9 +140,10 @@
   transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms ease;
 }
 
-/* Move thumb to the right in dark mode */
+/* Move thumb to the right in dark mode, with lighter color for visibility */
 .dark .theme-switch__thumb {
   transform: translateX(20px);
+  background-color: var(--color-text-primary);
 }
 
 /* ============================================================================

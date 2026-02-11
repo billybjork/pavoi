@@ -64,7 +64,7 @@
 
 .status-badge--live {
   @apply inline-flex items-center gap-1 font-semibold;
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-accent-red-15);
   color: var(--color-accent-red);
 }
 
@@ -90,7 +90,7 @@
 }
 
 .status-badge--failed {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-accent-red-10);
   color: var(--color-accent-red);
 }
 
@@ -716,8 +716,9 @@
 }
 
 .top-selling-item__rank {
-  @apply flex items-center justify-center w-6 h-6 text-green-600 rounded-sm font-semibold text-xs shrink-0;
-  background: rgba(34, 197, 94, 0.1);
+  @apply flex items-center justify-center w-6 h-6 rounded-sm font-semibold text-xs shrink-0;
+  color: var(--color-accent-green);
+  background: var(--color-accent-green-10);
 }
 
 .top-selling-item__info {
@@ -746,14 +747,14 @@
 
 .stream-modal-stat--highlight {
   @apply px-2 rounded-md;
-  background: rgba(34, 197, 94, 0.1);
+  background: var(--color-accent-green-10);
   padding-top: var(--spacing-1);
   padding-bottom: var(--spacing-1);
   margin: calc(-1 * var(--spacing-1)) 0;
 }
 
 .stream-modal-stat--highlight .stream-modal-stat__value {
-  color: rgb(34, 197, 94);
+  color: var(--color-accent-green);
 }
 
 .stream-modal-stat__label {
@@ -811,11 +812,11 @@
 }
 
 .stats-legend__item--viewers .stats-legend__color {
-  background: rgb(59, 130, 246);
+  background: var(--color-accent-blue);
 }
 
 .stats-legend__item--gmv .stats-legend__color {
-  background: rgb(34, 197, 94);
+  background: var(--color-accent-green);
   height: 3px;
   border-radius: 2px;
 }
@@ -950,8 +951,8 @@
 }
 
 .sentiment-badge--positive {
-  background: rgba(34, 197, 94, 0.15);
-  color: rgb(34, 197, 94);
+  background: var(--color-accent-green-15);
+  color: var(--color-accent-green);
 }
 
 .sentiment-badge--neutral {
@@ -959,7 +960,7 @@
 }
 
 .sentiment-badge--negative {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-accent-red-15);
   color: var(--color-accent-red);
 }
 
@@ -968,33 +969,33 @@
 }
 
 .category-badge--praise_compliment {
-  background: rgba(34, 197, 94, 0.15);
-  color: rgb(34, 197, 94);
+  background: var(--color-accent-green-15);
+  color: var(--color-accent-green);
 }
 
 .category-badge--question_confusion {
-  background: rgba(59, 130, 246, 0.15);
-  color: rgb(59, 130, 246);
+  background: var(--color-accent-blue-15);
+  color: var(--color-accent-blue);
 }
 
 .category-badge--product_request {
-  background: rgba(168, 85, 247, 0.15);
-  color: rgb(168, 85, 247);
+  background: var(--color-accent-purple-15);
+  color: var(--color-accent-purple);
 }
 
 .category-badge--concern_complaint {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-accent-red-15);
   color: var(--color-accent-red);
 }
 
 .category-badge--technical_issue {
-  background: rgba(249, 115, 22, 0.15);
-  color: rgb(249, 115, 22);
+  background: var(--color-accent-amber-15);
+  color: var(--color-accent-amber);
 }
 
 .category-badge--flash_sale {
-  background: rgba(236, 72, 153, 0.15);
-  color: rgb(236, 72, 153);
+  background: var(--color-accent-red-15);
+  color: var(--color-accent-red);
 }
 
 .category-badge--general {
@@ -1114,12 +1115,12 @@
 
 .stream-sentiment-mini__positive {
   @apply h-full;
-  background: rgb(34, 197, 94);
+  background: var(--color-accent-green);
 }
 
 .stream-sentiment-mini__negative {
   @apply h-full;
-  background: rgb(239, 68, 68);
+  background: var(--color-accent-red);
 }
 
 .stream-sentiment-mini--empty {

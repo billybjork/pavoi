@@ -88,6 +88,43 @@
   --color-status-complete: #8B5CF6;     /* Purple */
 
   /* ========================================================================
+     ACCENT COLOR OPACITY VARIANTS
+     ========================================================================
+     Used for badges, alerts, status indicators.
+     Uses color-mix() for maintainability - change the base color, all variants update.
+     ======================================================================== */
+
+  /* Blue opacity variants */
+  --color-accent-blue-10: color-mix(in srgb, var(--color-accent-blue) 10%, transparent);
+  --color-accent-blue-15: color-mix(in srgb, var(--color-accent-blue) 15%, transparent);
+  --color-accent-blue-20: color-mix(in srgb, var(--color-accent-blue) 20%, transparent);
+
+  /* Green opacity variants */
+  --color-accent-green-10: color-mix(in srgb, var(--color-accent-green) 10%, transparent);
+  --color-accent-green-15: color-mix(in srgb, var(--color-accent-green) 15%, transparent);
+  --color-accent-green-20: color-mix(in srgb, var(--color-accent-green) 20%, transparent);
+
+  /* Red opacity variants */
+  --color-accent-red-10: color-mix(in srgb, var(--color-accent-red) 10%, transparent);
+  --color-accent-red-15: color-mix(in srgb, var(--color-accent-red) 15%, transparent);
+  --color-accent-red-20: color-mix(in srgb, var(--color-accent-red) 20%, transparent);
+
+  /* Amber/Warning opacity variants */
+  --color-accent-amber-10: color-mix(in srgb, var(--color-accent-amber) 10%, transparent);
+  --color-accent-amber-15: color-mix(in srgb, var(--color-accent-amber) 15%, transparent);
+  --color-accent-amber-20: color-mix(in srgb, var(--color-accent-amber) 20%, transparent);
+
+  /* Purple opacity variants */
+  --color-accent-purple-10: color-mix(in srgb, var(--color-accent-purple) 10%, transparent);
+  --color-accent-purple-15: color-mix(in srgb, var(--color-accent-purple) 15%, transparent);
+  --color-accent-purple-20: color-mix(in srgb, var(--color-accent-purple) 20%, transparent);
+
+  /* Gray opacity variants (for neutral states) */
+  --color-gray-10: color-mix(in srgb, var(--color-status-draft) 10%, transparent);
+  --color-gray-15: color-mix(in srgb, var(--color-status-draft) 15%, transparent);
+  --color-gray-20: color-mix(in srgb, var(--color-status-draft) 20%, transparent);
+
+  /* ========================================================================
      SPACING
      ======================================================================== */
 
@@ -181,51 +218,55 @@
 
 /* ============================================================================
    DARK MODE
+   ============================================================================
+
+   Warm, comfortable dark theme that mirrors the light mode's cream palette.
+   Elevated from pure black to softer warm grays for extended viewing comfort.
    ============================================================================ */
 
 .dark {
   /* ========================================================================
-     BACKGROUND COLORS
+     BACKGROUND COLORS (Warm Dark Grays)
      ======================================================================== */
 
-  --color-bg-primary: #0A0A0A;          /* Near black */
-  --color-bg-secondary: #141414;        /* Slightly lighter */
-  --color-bg-tertiary: #1F1F1F;         /* Image backgrounds */
-  --color-bg-elevated: #1F1F1F;         /* Elevated cards */
-  --color-bg-hover: #2A2A2A;            /* Hover state */
-  --color-bg-active: #353535;           /* Active state */
+  --color-bg-primary: #161514;          /* Warm dark gray (not pure black) */
+  --color-bg-secondary: #1C1B19;        /* Slightly lighter warm gray */
+  --color-bg-tertiary: #252422;         /* Image backgrounds */
+  --color-bg-elevated: #252422;         /* Elevated cards */
+  --color-bg-hover: #2D2B28;            /* Hover state */
+  --color-bg-active: #3D3A36;           /* Active state */
 
   /* ========================================================================
-     SURFACE COLORS
+     SURFACE COLORS (Warm Surfaces)
      ======================================================================== */
 
-  --color-surface-primary: #1F1F1F;     /* Dark cards */
-  --color-surface-secondary: #2A2A2A;   /* Slightly lighter */
-  --color-surface-tertiary: #141414;    /* Darker inputs */
-  --color-surface: #1F1F1F;
-  --color-background: #0A0A0A;
+  --color-surface-primary: #252422;     /* Warm dark cards */
+  --color-surface-secondary: #2D2B28;   /* Slightly lighter */
+  --color-surface-tertiary: #1C1B19;    /* Darker inputs */
+  --color-surface: #252422;
+  --color-background: #161514;
 
   /* High-contrast panels - clearly visible on dark background */
-  --color-panel-bg: #1A1A1A;            /* Distinct from pure black bg */
-  --color-panel-border: #404040;        /* Visible border */
+  --color-panel-bg: #201F1D;            /* Distinct from background */
+  --color-panel-border: #4A4640;        /* Warm visible border */
 
   /* ========================================================================
-     TEXT COLORS
+     TEXT COLORS (Warm Off-Whites)
      ======================================================================== */
 
-  --color-text-primary: #FFFFFF;        /* Pure white - maximum contrast (20:1) */
-  --color-text-secondary: #A0A0A0;      /* Light grey */
-  --color-text-tertiary: #707070;       /* Medium grey */
-  --color-text-inverse: #000000;        /* Black on light */
+  --color-text-primary: #F5F4F1;        /* Warm off-white (matches light bg) */
+  --color-text-secondary: #A8A5A0;      /* Warm light gray */
+  --color-text-tertiary: #75726D;       /* Warm medium gray */
+  --color-text-inverse: #1C1B19;        /* Warm dark on light */
 
   /* ========================================================================
-     BORDER COLORS
+     BORDER COLORS (Warm Borders)
      ======================================================================== */
 
-  --color-border-primary: #353535;      /* Visible borders */
-  --color-border-secondary: #2A2A2A;    /* Subtle dividers */
+  --color-border-primary: #3D3A36;      /* Warm visible borders */
+  --color-border-secondary: #2F2D2A;    /* Warm subtle dividers */
   --color-border-focus: #3b82f6;        /* Same blue */
-  --color-border: #353535;
+  --color-border: #3D3A36;
 
   /* ========================================================================
      FUNCTIONAL COLORS - Brighter for dark backgrounds
@@ -257,11 +298,11 @@
   --color-status-complete: #A78BFA;
 
   /* ========================================================================
-     SHADOWS - Stronger for dark mode
+     SHADOWS - Adjusted for warmer surfaces
      ======================================================================== */
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
 }

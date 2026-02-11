@@ -130,10 +130,10 @@
   image-rendering: crisp-edges;
 }
 
-/* Status States */
+/* Status States - Uses opacity tokens that auto-adjust for dark mode */
 .voice-status.status-loading {
   @apply text-accent-blue;
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--color-accent-blue-10);
 }
 
 .voice-status.status-loading .status-dot {
@@ -143,7 +143,7 @@
 
 .voice-status.status-ready {
   @apply text-accent-green;
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--color-accent-green-10);
 }
 
 .voice-status.status-ready .status-dot {
@@ -152,7 +152,7 @@
 
 .voice-status.status-listening {
   color: var(--color-accent-amber);
-  background: rgba(245, 158, 11, 0.1);
+  background: var(--color-accent-amber-10);
 }
 
 .voice-status.status-listening .status-dot {
@@ -162,7 +162,7 @@
 
 .voice-status.status-processing {
   @apply text-accent-blue;
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--color-accent-blue-10);
 }
 
 .voice-status.status-processing .status-dot {
@@ -172,7 +172,7 @@
 
 .voice-status.status-success {
   @apply text-accent-green;
-  background: rgba(16, 185, 129, 0.1);
+  background: var(--color-accent-green-10);
 }
 
 .voice-status.status-success .status-dot {
@@ -182,7 +182,7 @@
 
 .voice-status.status-error {
   @apply text-accent-red;
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-accent-red-10);
 }
 
 .voice-status.status-error .status-dot {
@@ -224,27 +224,21 @@
   }
 }
 
-/* Dark Mode Support */
-.dark .voice-status.status-loading {
-  background: rgba(96, 165, 250, 0.15);
+/* Dark Mode - slightly stronger backgrounds for visibility on dark surfaces */
+.dark .voice-status.status-loading,
+.dark .voice-status.status-processing {
+  background: var(--color-accent-blue-15);
 }
 
-.dark .voice-status.status-ready {
-  background: rgba(52, 211, 153, 0.15);
+.dark .voice-status.status-ready,
+.dark .voice-status.status-success {
+  background: var(--color-accent-green-15);
 }
 
 .dark .voice-status.status-listening {
-  background: rgba(251, 191, 36, 0.15);
-}
-
-.dark .voice-status.status-processing {
-  background: rgba(96, 165, 250, 0.15);
-}
-
-.dark .voice-status.status-success {
-  background: rgba(52, 211, 153, 0.15);
+  background: var(--color-accent-amber-15);
 }
 
 .dark .voice-status.status-error {
-  background: rgba(248, 113, 113, 0.15);
+  background: var(--color-accent-red-15);
 }
