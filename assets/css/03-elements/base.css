@@ -18,12 +18,12 @@ body {
 }
 
 a {
-  color: var(--color-accent-blue);
+  color: inherit;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--color-accent-gold);
+  color: inherit;
 }
 
 img {

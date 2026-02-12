@@ -197,7 +197,7 @@
 
 .controller-btn--primary {
   background-color: var(--color-accent-blue);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-primary) !important;
 }
 
 .controller-btn--primary:active {

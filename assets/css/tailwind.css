@@ -51,6 +51,7 @@
   --color-text-secondary: #5A5854;
   --color-text-tertiary: #868379;
   --color-text-inverse: #FFFFFF;
+  --color-text-on-primary: #FFFFFF;
 
   /* ========================================================================
      BORDER COLORS
@@ -209,6 +210,7 @@
   --color-text-secondary: #A8A5A0;
   --color-text-tertiary: #75726D;
   --color-text-inverse: #1C1B19;
+  --color-text-on-primary: #FFFFFF;
 
   /* Border Colors (Warm Borders) */
   --color-border-primary: #3D3A36;
@@ -264,56 +266,60 @@
 
    Import existing CSS files to run both systems in parallel during migration.
    These will be gradually removed as components are migrated to Tailwind.
+   All imported styles are explicitly layered so Tailwind utilities keep
+   predictable precedence in v4.
    ============================================================================ */
 
 /* Settings Layer - Design tokens (still needed for non-Tailwind classes) */
-@import "./01-settings/tokens.css";
+@import "./01-settings/tokens.css" layer(theme);
 
 /* Generic Layer - Reset, normalize, and animations */
-@import "./02-generic/reset.css";
-@import "./02-generic/animations.css";
+@import "./02-generic/reset.css" layer(base);
+@import "./02-generic/animations.css" layer(base);
 
 /* Elements Layer - Base HTML elements */
+/* Keep unlayered because this file defines @utility rules, which Tailwind
+   requires at top level (cannot be nested in a layer wrapper). */
 @import "./03-elements/base.css";
-@import "./03-elements/typography.css";
+@import "./03-elements/typography.css" layer(base);
 
 /* Layouts Layer - Composition patterns */
-@import "./04-layouts/compositions.css";
+@import "./04-layouts/compositions.css" layer(components);
 
 /* Pages Layer - Page-specific styles */
-@import "./04-pages/product-set-index.css";
-@import "./04-pages/product-set-host.css";
-@import "./04-pages/product-set-controller.css";
-@import "./04-pages/creators-index.css";
-@import "./04-pages/join.css";
-@import "./04-pages/login.css";
-@import "./04-pages/settings.css";
-@import "./04-pages/readme.css";
-@import "./04-pages/admin.css";
-@import "./04-pages/shop-analytics.css";
-@import "./04-pages/_public-product-set.css";
+@import "./04-pages/product-set-index.css" layer(components);
+@import "./04-pages/product-set-host.css" layer(components);
+@import "./04-pages/product-set-controller.css" layer(components);
+@import "./04-pages/creators-index.css" layer(components);
+@import "./04-pages/join.css" layer(components);
+@import "./04-pages/login.css" layer(components);
+@import "./04-pages/settings.css" layer(components);
+@import "./04-pages/readme.css" layer(components);
+@import "./04-pages/admin.css" layer(components);
+@import "./04-pages/shop-analytics.css" layer(components);
+@import "./04-pages/_public-product-set.css" layer(components);
 
 /* Components Layer - UI components */
-@import "./05-components/button.css";
-@import "./05-components/card.css";
-@import "./05-components/input.css";
-@import "./05-components/modal.css";
-@import "./05-components/product-grid.css";
-@import "./05-components/product-variants.css";
-@import "./05-components/badge.css";
-@import "./05-components/navbar.css";
-@import "./05-components/page-header.css";
-@import "./05-components/toast.css";
-@import "./05-components/alert.css";
-@import "./05-components/image-carousel.css";
-@import "./05-components/theme-toggle.css";
-@import "./05-components/host-message.css";
-@import "./05-components/voice-control.css";
-@import "./05-components/creator.css";
-@import "./05-components/tiktok-live.css";
-@import "./05-components/filter-dropdown.css";
-@import "./05-components/template-card.css";
-@import "./05-components/template-editor.css";
-@import "./05-components/video-grid.css";
-@import "./05-components/monitoring.css";
-@import "./05-components/data-table.css";
+@import "./05-components/button.css" layer(components);
+@import "./05-components/card.css" layer(components);
+@import "./05-components/input.css" layer(components);
+@import "./05-components/modal.css" layer(components);
+@import "./05-components/product-grid.css" layer(components);
+@import "./05-components/product-variants.css" layer(components);
+@import "./05-components/badge.css" layer(components);
+@import "./05-components/navbar.css" layer(components);
+@import "./05-components/page-header.css" layer(components);
+@import "./05-components/toast.css" layer(components);
+@import "./05-components/alert.css" layer(components);
+@import "./05-components/image-carousel.css" layer(components);
+@import "./05-components/theme-toggle.css" layer(components);
+@import "./05-components/host-message.css" layer(components);
+@import "./05-components/voice-control.css" layer(components);
+@import "./05-components/creator.css" layer(components);
+@import "./05-components/tiktok-live.css" layer(components);
+@import "./05-components/filter-dropdown.css" layer(components);
+@import "./05-components/template-card.css" layer(components);
+@import "./05-components/template-editor.css" layer(components);
+@import "./05-components/video-grid.css" layer(components);
+@import "./05-components/monitoring.css" layer(components);
+@import "./05-components/data-table.css" layer(components);

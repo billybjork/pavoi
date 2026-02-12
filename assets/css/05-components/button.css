@@ -18,36 +18,23 @@
   @apply opacity-50 cursor-not-allowed;
 }
 
-/* Override default link styles when used with button class */
-a.button {
-  @apply text-inherit;
-}
-
-a.button:hover {
-  @apply text-inherit;
-}
-
 /* ============================================================================
    VARIANTS
    ============================================================================ */
 
 .button--primary {
-  @apply bg-accent-blue text-text-inverse;
+  @apply bg-accent-blue;
+  color: var(--color-text-on-primary) !important;
 }
 
 .button--primary:hover:not(:disabled) {
-  @apply bg-accent-blue-hover text-text-inverse;
-}
-
-/* Ensure links with primary button class have white text */
-a.button--primary,
-a.button--primary:hover,
-a.button--primary:visited {
-  @apply text-text-inverse;
+  @apply bg-accent-blue-hover;
+  color: var(--color-text-on-primary) !important;
 }
 
 .button--success {
-  @apply bg-accent-green text-text-inverse;
+  @apply bg-accent-green;
+  color: var(--color-text-on-primary) !important;
 }
 
 .button--success:hover:not(:disabled) {
@@ -55,7 +42,8 @@ a.button--primary:visited {
 }
 
 .button--error {
-  @apply bg-accent-red text-text-inverse;
+  @apply bg-accent-red;
+  color: var(--color-text-on-primary) !important;
 }
 
 .button--error:hover:not(:disabled) {
@@ -83,7 +71,8 @@ a.button--primary:visited {
 }
 
 .button--outline-error:hover:not(:disabled) {
-  @apply bg-accent-red text-text-inverse;
+  @apply bg-accent-red;
+  color: var(--color-text-on-primary) !important;
 }
 
 .button--ghost-error {

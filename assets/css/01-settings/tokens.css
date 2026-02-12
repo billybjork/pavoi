@@ -41,6 +41,7 @@
   --color-text-secondary: #5A5854;      /* Darker for better readability */
   --color-text-tertiary: #868379;       /* Muted but still visible */
   --color-text-inverse: #FFFFFF;        /* White on dark backgrounds */
+  --color-text-on-primary: #FFFFFF;     /* Always white - for colored button backgrounds */
 
   /* ========================================================================
      BORDER COLORS (Stronger, Warmer)
@@ -258,6 +259,7 @@
   --color-text-secondary: #A8A5A0;      /* Warm light gray */
   --color-text-tertiary: #75726D;       /* Warm medium gray */
   --color-text-inverse: #1C1B19;        /* Warm dark on light */
+  --color-text-on-primary: #FFFFFF;     /* Always white - for colored button backgrounds */
 
   /* ========================================================================
      BORDER COLORS (Warm Borders)

@@ -99,11 +99,11 @@
 }
 
 .brand-logo__img {
-  @apply w-full h-full object-cover rounded;
+  @apply absolute inset-0 w-full h-full object-cover rounded z-10;
 }
 
 .brand-logo__fallback {
-  @apply flex items-center justify-center w-full h-full;
+  @apply absolute inset-0 flex items-center justify-center w-full h-full;
   @apply bg-surface-tertiary text-text-primary font-semibold text-xs rounded;
 }
 
@@ -146,7 +146,7 @@
 .navbar__badge {
   @apply inline-flex items-center py-1 px-2;
   @apply text-xs font-semibold rounded-md;
-  color: var(--color-text-on-primary);
+  color: var(--color-text-on-primary) !important;
   background: linear-gradient(135deg, var(--color-accent-blue) 0%, var(--color-accent-purple) 100%);
   letter-spacing: 0.02em;
   @apply uppercase;
@@ -171,7 +171,7 @@
 }
 
 .navbar__link--active {
-  @apply text-accent-blue bg-bg-hover;
+  @apply text-text-primary bg-bg-hover font-semibold;
 }
 
 /* ============================================================================
@@ -254,7 +254,7 @@
 }
 
 .navbar__nav-dropdown-item--active {
-  @apply text-accent-blue bg-bg-hover;
+  @apply text-text-primary bg-bg-hover font-semibold;
 }
 
 /* ============================================================================

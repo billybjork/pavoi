@@ -181,7 +181,7 @@
 
 .stream-link-product-set-btn:hover {
   @apply bg-primary;
-  color: var(--color-text-on-primary);
+  color: var(--color-text-on-primary) !important;
 }
 
 /* ============================================================================

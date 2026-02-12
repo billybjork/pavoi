@@ -16,15 +16,18 @@
    ============================================================================ */
 
 .badge--draft {
-  @apply bg-status-draft text-text-inverse;
+  @apply bg-status-draft;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--live {
-  @apply bg-status-live text-text-inverse;
+  @apply bg-status-live;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--complete {
-  @apply bg-status-complete text-text-inverse;
+  @apply bg-status-complete;
+  color: var(--color-text-on-primary) !important;
 }
 
 /* ============================================================================
@@ -32,19 +35,23 @@
    ============================================================================ */
 
 .badge--primary {
-  @apply bg-accent-blue text-text-inverse;
+  @apply bg-accent-blue;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--success {
-  @apply bg-accent-green text-text-inverse;
+  @apply bg-accent-green;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--error {
-  @apply bg-accent-red text-text-inverse;
+  @apply bg-accent-red;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--warning {
-  @apply bg-accent-amber text-text-inverse;
+  @apply bg-accent-amber;
+  color: var(--color-text-on-primary) !important;
 }
 
 .badge--neutral {
