@@ -7,6 +7,10 @@
    ============================================================================ */
 
 /* Page Layout */
+.app-content:has(.template-editor-page) {
+  padding-top: 0;
+}
+
 .template-editor-page {
   @apply flex flex-col h-screen bg-surface;
 }
@@ -72,6 +76,12 @@
   @apply absolute inset-0;
 }
 
+/* Prevent app-wide component classes/typography from affecting block previews */
+.template-editor-container .gjs-block-label * {
+  all: revert;
+  box-sizing: border-box;
+}
+
 /* ============================================================================
    Theme Colors Only
    ============================================================================ */
@@ -92,4 +102,3 @@
 .template-editor-container .gjs-four-color-h:hover {
   color: #71c5e8;
 }
-
