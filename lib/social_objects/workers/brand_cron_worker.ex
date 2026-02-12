@@ -6,6 +6,7 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   use Oban.Worker, queue: :default, max_attempts: 1
 
   alias SocialObjects.Catalog
+  alias SocialObjects.TiktokShop
 
   alias SocialObjects.Workers.{
     BigQueryOrderSyncWorker,
@@ -35,9 +36,14 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("tiktok_sync", brand_id) do
-    %{"brand_id" => brand_id}
-    |> TiktokSyncWorker.new()
-    |> Oban.insert()
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id}
+      |> TiktokSyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("bigquery_sync", brand_id) do
@@ -47,15 +53,25 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("tiktok_token_refresh", brand_id) do
-    %{"brand_id" => brand_id}
-    |> TiktokTokenRefreshWorker.new()
-    |> Oban.insert()
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id}
+      |> TiktokTokenRefreshWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("tiktok_live_monitor", brand_id) do
-    %{"brand_id" => brand_id, "source" => "cron"}
-    |> TiktokLiveMonitorWorker.new()
-    |> Oban.insert()
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id, "source" => "cron"}
+      |> TiktokLiveMonitorWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("creator_enrichment", brand_id) do
@@ -65,9 +81,14 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("stream_analytics_sync", brand_id) do
-    %{"brand_id" => brand_id}
-    |> StreamAnalyticsSyncWorker.new()
-    |> Oban.insert()
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id}
+      |> StreamAnalyticsSyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand("weekly_stream_recap", brand_id) do
@@ -83,9 +104,14 @@ defmodule SocialObjects.Workers.BrandCronWorker do
   end
 
   defp enqueue_for_brand("product_performance_sync", brand_id) do
-    %{"brand_id" => brand_id}
-    |> ProductPerformanceSyncWorker.new()
-    |> Oban.insert()
+    # Only enqueue if brand has TikTok Shop auth configured
+    if TiktokShop.get_auth(brand_id) do
+      %{"brand_id" => brand_id}
+      |> ProductPerformanceSyncWorker.new()
+      |> Oban.insert()
+    else
+      :ok
+    end
   end
 
   defp enqueue_for_brand(_task, _brand_id), do: :ok
