@@ -26,6 +26,7 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
   require Logger
   import Ecto.Query
 
+  alias SocialObjects.Creators.BrandCreator
   alias SocialObjects.Creators.Creator
   alias SocialObjects.Creators.CreatorPerformanceSnapshot
   alias SocialObjects.Repo
@@ -33,22 +34,36 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
   @batch_size 100
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    run_backfill()
+  def perform(%Oban.Job{args: args}) do
+    brand_id = resolve_brand_id(Map.get(args, "brand_id"))
+    broadcast(brand_id, {:gmv_backfill_started})
+
+    try do
+      :ok = run_backfill(brand_id)
+      broadcast(brand_id, {:gmv_backfill_completed})
+      :ok
+    rescue
+      exception ->
+        reason = Exception.message(exception)
+        broadcast(brand_id, {:gmv_backfill_failed, reason})
+        {:error, reason}
+    end
   end
 
   @doc """
   Run the backfill synchronously (useful for testing).
   """
   def run_sync do
-    run_backfill()
+    run_backfill(nil)
   end
 
-  defp run_backfill do
-    Logger.info("[GmvBackfill] Starting cumulative GMV backfill...")
+  defp run_backfill(brand_id) do
+    Logger.info(
+      "[GmvBackfill] Starting cumulative GMV backfill for #{backfill_scope(brand_id)}..."
+    )
 
     # Find creators with snapshots but no cumulative tracking
-    creators_to_process = get_creators_needing_backfill()
+    creators_to_process = get_creators_needing_backfill(brand_id)
 
     Logger.info("[GmvBackfill] Found #{length(creators_to_process)} creators to process")
 
@@ -73,7 +88,7 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
     :ok
   end
 
-  defp get_creators_needing_backfill do
+  defp get_creators_needing_backfill(nil) do
     # Find creators who:
     # 1. Have no gmv_tracking_started_at (no cumulative tracking)
     # 2. Have at least one performance snapshot with GMV data
@@ -89,6 +104,29 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
                 not is_nil(s.live_gmv_cents)
           )
         ),
+      select: c.id,
+      limit: ^@batch_size
+    )
+    |> Repo.all()
+  end
+
+  defp get_creators_needing_backfill(brand_id) do
+    from(c in Creator,
+      as: :creator,
+      join: bc in BrandCreator,
+      on: bc.creator_id == c.id,
+      where: bc.brand_id == ^brand_id,
+      where: is_nil(c.gmv_tracking_started_at),
+      where:
+        exists(
+          from(s in CreatorPerformanceSnapshot,
+            where: s.creator_id == parent_as(:creator).id,
+            where:
+              not is_nil(s.gmv_cents) or not is_nil(s.video_gmv_cents) or
+                not is_nil(s.live_gmv_cents)
+          )
+        ),
+      distinct: true,
       select: c.id,
       limit: ^@batch_size
     )
@@ -232,5 +270,22 @@ defmodule SocialObjects.Workers.GmvBackfillWorker do
         ]
       )
     end)
+  end
+
+  defp backfill_scope(nil), do: "all brands"
+  defp backfill_scope(brand_id), do: "brand #{brand_id}"
+
+  defp resolve_brand_id(nil), do: nil
+  defp resolve_brand_id(brand_id) when is_integer(brand_id), do: brand_id
+  defp resolve_brand_id(brand_id) when is_binary(brand_id), do: String.to_integer(brand_id)
+
+  defp broadcast(brand_id, message) do
+    if brand_id do
+      Phoenix.PubSub.broadcast(
+        SocialObjects.PubSub,
+        "gmv_backfill:sync:#{brand_id}",
+        message
+      )
+    end
   end
 end

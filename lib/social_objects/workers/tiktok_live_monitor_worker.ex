@@ -35,6 +35,12 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
 
     case resolve_brand_id(Map.get(args, "brand_id")) do
       {:ok, brand_id} ->
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "tiktok_live:scan:#{brand_id}",
+          {:scan_started, source}
+        )
+
         accounts = monitored_accounts(brand_id)
 
         Logger.debug("Checking live status for accounts: #{inspect(accounts)}")

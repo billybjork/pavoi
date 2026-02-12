@@ -28,6 +28,7 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   import Ecto.Query
 
   alias SocialObjects.Repo
+  alias SocialObjects.Settings
   alias SocialObjects.TiktokLive.Stream
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjects.TiktokShop.Parsers
@@ -36,13 +37,29 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
+    broadcast(brand_id, {:stream_analytics_sync_started})
     streams = find_unsynced_streams(brand_id)
 
     if Enum.empty?(streams) do
       Logger.debug("No unsynced streams found for brand #{brand_id}")
+      Settings.update_stream_analytics_last_sync_at(brand_id)
+      broadcast(brand_id, {:stream_analytics_sync_completed, %{streams_processed: 0}})
       :ok
     else
-      sync_streams(brand_id, streams)
+      case sync_streams(brand_id, streams) do
+        {:ok, stats} ->
+          Settings.update_stream_analytics_last_sync_at(brand_id)
+          broadcast(brand_id, {:stream_analytics_sync_completed, stats})
+          :ok
+
+        {:snooze, seconds} ->
+          broadcast(brand_id, {:stream_analytics_sync_failed, :rate_limited})
+          {:snooze, seconds}
+
+        {:error, reason} ->
+          broadcast(brand_id, {:stream_analytics_sync_failed, reason})
+          {:error, reason}
+      end
     end
   end
 
@@ -66,7 +83,8 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
 
     case fetch_live_sessions(brand_id, start_date, end_date) do
       {:ok, sessions} ->
-        match_and_update_streams(brand_id, streams, sessions)
+        :ok = match_and_update_streams(brand_id, streams, sessions)
+        {:ok, %{streams_processed: length(streams), sessions_fetched: length(sessions)}}
 
       {:error, :rate_limited} ->
         Logger.warning("TikTok Analytics API rate limited, snoozing for 5 minutes")
@@ -76,6 +94,14 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
         Logger.error("Failed to fetch TikTok Analytics: #{inspect(reason)}")
         {:error, reason}
     end
+  end
+
+  defp broadcast(brand_id, message) do
+    Phoenix.PubSub.broadcast(
+      SocialObjects.PubSub,
+      "stream_analytics:sync:#{brand_id}",
+      message
+    )
   end
 
   defp calculate_date_range(streams) do

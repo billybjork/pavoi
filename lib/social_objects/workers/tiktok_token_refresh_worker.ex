@@ -26,21 +26,27 @@ defmodule SocialObjects.Workers.TiktokTokenRefreshWorker do
   def perform(%Oban.Job{args: args}) do
     case resolve_brand_id(Map.get(args, "brand_id")) do
       {:ok, brand_id} ->
+        broadcast(brand_id, {:tiktok_token_refresh_started})
+
         case TiktokShop.maybe_refresh_token_if_expiring(brand_id) do
           {:ok, :no_refresh_needed} ->
             Logger.debug("TikTok token still valid, no refresh needed")
+            broadcast(brand_id, {:tiktok_token_refresh_completed, :no_refresh_needed})
             :ok
 
           {:ok, :refreshed} ->
             Logger.info("TikTok access token refreshed successfully")
+            broadcast(brand_id, {:tiktok_token_refresh_completed, :refreshed})
             :ok
 
           {:error, :no_auth_record} ->
             Logger.debug("No TikTok auth record found, skipping token refresh")
+            broadcast(brand_id, {:tiktok_token_refresh_completed, :no_auth_record})
             :ok
 
           {:error, reason} ->
             Logger.error("Failed to refresh TikTok token: #{inspect(reason)}")
+            broadcast(brand_id, {:tiktok_token_refresh_failed, reason})
             {:error, reason}
         end
 
@@ -61,4 +67,12 @@ defmodule SocialObjects.Workers.TiktokTokenRefreshWorker do
   end
 
   defp resolve_brand_id(brand_id), do: {:ok, normalize_brand_id(brand_id)}
+
+  defp broadcast(brand_id, message) do
+    Phoenix.PubSub.broadcast(
+      SocialObjects.PubSub,
+      "tiktok_token_refresh:sync:#{brand_id}",
+      message
+    )
+  end
 end

@@ -21,6 +21,7 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   require Logger
 
   alias SocialObjects.Catalog
+  alias SocialObjects.Settings
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjects.TiktokShop.Parsers
 
@@ -39,6 +40,9 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
 
     case sync_products(brand_id) do
       {:ok, stats} ->
+        # Update the system_settings timestamp for the dashboard
+        Settings.update_product_performance_last_sync_at(brand_id)
+
         Phoenix.PubSub.broadcast(
           SocialObjects.PubSub,
           "product_performance:sync:#{brand_id}",
@@ -47,7 +51,8 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
 
         Logger.info(
           "Product performance sync completed for brand #{brand_id}: " <>
-            "#{stats.products_synced} products synced"
+            "#{stats.products_synced} synced, #{stats.products_skipped} skipped " <>
+            "(#{stats.api_products_count} from API, #{stats.local_products_count} local)"
         )
 
         :ok
@@ -77,6 +82,13 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
     case fetch_all_products(brand_id, start_date, end_date) do
       {:ok, api_products} ->
         stats = process_products(product_lookup, api_products)
+
+        stats =
+          Map.merge(stats, %{
+            api_products_count: length(api_products),
+            local_products_count: map_size(product_lookup)
+          })
+
         {:ok, stats}
 
       {:error, :rate_limited} ->
@@ -94,37 +106,105 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   end
 
   defp fetch_all_pages(brand_id, start_date, end_date, page_token, acc) do
-    opts = [
+    opts = build_page_opts(start_date, end_date, page_token)
+
+    Analytics.get_shop_product_performance_list(brand_id, opts)
+    |> handle_fetch_page_response(brand_id, start_date, end_date, acc)
+  end
+
+  defp build_page_opts(start_date, end_date, page_token) do
+    base_opts = [
       start_date_ge: start_date,
       end_date_lt: end_date,
-      page_size: 100,
+      page_size: page_size(),
       sort_field: "gmv",
       sort_order: "DESC"
     ]
 
-    opts = if page_token, do: Keyword.put(opts, :page_token, page_token), else: opts
+    if page_token, do: Keyword.put(base_opts, :page_token, page_token), else: base_opts
+  end
 
-    case Analytics.get_shop_product_performance_list(brand_id, opts) do
-      {:ok, %{"data" => data}} ->
-        products = Map.get(data, "shop_products", [])
-        next_token = Map.get(data, "next_page_token")
-        all_products = acc ++ products
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => data}},
+         brand_id,
+         start_date,
+         end_date,
+         acc
+       ) do
+    products = Map.get(data, "shop_products", [])
+    next_token = Map.get(data, "next_page_token")
+    all_products = acc ++ products
 
-        if next_token && next_token != "" do
-          fetch_all_pages(brand_id, start_date, end_date, next_token, all_products)
-        else
-          {:ok, all_products}
-        end
+    maybe_log_api_sample(acc, products)
+    maybe_fetch_next_page(next_token, brand_id, start_date, end_date, all_products)
+  end
 
-      {:ok, %{"code" => 429}} ->
-        {:error, :rate_limited}
+  defp handle_fetch_page_response(
+         {:ok, %{"code" => 429}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       ) do
+    {:error, :rate_limited}
+  end
 
-      {:ok, %{"code" => code}} when code >= 500 ->
-        {:error, {:server_error, code}}
+  defp handle_fetch_page_response(
+         {:ok, %{"code" => code}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       )
+       when code >= 500 do
+    {:error, {:server_error, code}}
+  end
 
-      {:error, reason} ->
-        {:error, reason}
-    end
+  defp handle_fetch_page_response(
+         {:ok, %{"code" => code, "message" => message}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       )
+       when code != 0 do
+    Logger.error("TikTok product performance API error: code=#{code}, message=#{message}")
+    {:error, {:api_error, code, message}}
+  end
+
+  defp handle_fetch_page_response({:ok, response}, _brand_id, _start_date, _end_date, _acc) do
+    Logger.error("Unexpected TikTok product performance API response: #{inspect(response)}")
+    {:error, {:unexpected_response, response}}
+  end
+
+  defp handle_fetch_page_response({:error, reason}, _brand_id, _start_date, _end_date, _acc) do
+    {:error, reason}
+  end
+
+  defp maybe_log_api_sample([], [sample | _]) do
+    sample_keys = Map.keys(sample)
+
+    Logger.debug(
+      "TikTok product performance API sample - keys: #{inspect(sample_keys)}, " <>
+        "id: #{inspect(sample["id"])}, product_id: #{inspect(sample["product_id"])}"
+    )
+  end
+
+  defp maybe_log_api_sample(_acc, _products), do: :ok
+
+  defp maybe_fetch_next_page(next_token, brand_id, start_date, end_date, all_products)
+       when is_binary(next_token) and next_token != "" do
+    fetch_all_pages(brand_id, start_date, end_date, next_token, all_products)
+  end
+
+  defp maybe_fetch_next_page(_next_token, _brand_id, _start_date, _end_date, all_products) do
+    {:ok, all_products}
+  end
+
+  defp page_size do
+    Application.get_env(:social_objects, :worker_tuning, [])
+    |> Keyword.get(:product_performance_sync, [])
+    |> Keyword.get(:page_size, 100)
   end
 
   defp process_products(product_lookup, api_products) do
@@ -137,7 +217,8 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   end
 
   defp process_single_product(product_lookup, api_product, synced_at, acc) do
-    tiktok_id = api_product["id"]
+    # TikTok API may return product ID as "id" or "product_id" depending on endpoint version
+    tiktok_id = api_product["id"] || api_product["product_id"]
 
     case Map.get(product_lookup, tiktok_id) do
       nil ->
