@@ -35,15 +35,18 @@ defmodule SocialObjectsWeb.TiktokShopController do
   def callback(conn, %{"code" => auth_code} = params) do
     Logger.info("[TikTok OAuth] Received callback with code")
 
-    # Try to get brand_id from state first, then fall back to session
-    brand_id = get_brand_id_from_state(params) || get_session(conn, :tiktok_oauth_brand_id)
+    # Try to get brand_id from state, session, or fall back to default brand (for custom apps)
+    brand_id =
+      get_brand_id_from_state(params) ||
+        get_session(conn, :tiktok_oauth_brand_id) ||
+        get_default_brand_id()
 
     if is_nil(brand_id) do
-      Logger.error("[TikTok OAuth] No brand_id found in state or session")
+      Logger.error("[TikTok OAuth] No brand_id found in state, session, or default")
 
       conn
       |> delete_session(:tiktok_oauth_brand_id)
-      |> put_flash(:error, "TikTok Shop connection failed: session expired. Please try again.")
+      |> put_flash(:error, "TikTok Shop connection failed: no brand found. Please try again.")
       |> redirect(to: "/admin/brands")
     else
       Logger.info("[TikTok OAuth] Using brand_id: #{brand_id}")
@@ -76,6 +79,20 @@ defmodule SocialObjectsWeb.TiktokShopController do
   end
 
   defp get_brand_id_from_state(_), do: nil
+
+  # Fallback for custom TikTok Shop apps that only serve one brand
+  # TikTok doesn't return the state parameter, so we default to the primary brand
+  defp get_default_brand_id do
+    case SocialObjects.Catalog.get_brand_by_slug("pavoi") do
+      %{id: id} ->
+        Logger.info("[TikTok OAuth] Using default brand 'pavoi' (id: #{id})")
+        id
+
+      nil ->
+        Logger.warning("[TikTok OAuth] Default brand 'pavoi' not found")
+        nil
+    end
+  end
 
   defp process_oauth_callback(conn, brand_id, auth_code) do
     with {:ok, _auth} <- TiktokShop.exchange_code_for_token(brand_id, auth_code),
