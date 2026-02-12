@@ -323,6 +323,41 @@
 }
 
 /* ============================================================================
+   CONTACT CONFLICT BANNER
+   ============================================================================ */
+
+.contact-conflict-banner {
+  @apply flex flex-col gap-3 p-4 rounded-md mb-4;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.contact-conflict-banner__content {
+  @apply flex items-start gap-3;
+}
+
+.contact-conflict-banner__icon {
+  @apply w-6 h-6 shrink-0 text-accent-amber;
+}
+
+.contact-conflict-banner__text {
+  @apply flex flex-col gap-1;
+}
+
+.contact-conflict-banner__text strong {
+  @apply text-sm font-semibold text-text-primary;
+}
+
+.contact-conflict-banner__text p {
+  @apply text-sm text-text-secondary m-0;
+}
+
+[data-theme="dark"] .contact-conflict-banner {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* ============================================================================
    MODAL TABLE ADJUSTMENTS
    ============================================================================ */
 

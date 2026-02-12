@@ -244,15 +244,17 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
 
   # Comprehensive update of creator from order data - fills in missing OR masked fields
   # Masked data (containing *) is replaced with real data from BigQuery
+  # Respects manually_edited_fields - does not overwrite manually edited contact info
   defp update_creator_from_order_data(creator, order) do
     {first_name, last_name} = Creators.parse_name(order["recipient_name"])
     normalized_phone = Creators.normalize_phone(order["phone_number"])
     phone_is_valid = normalized_phone && !String.contains?(normalized_phone, "*")
     {address_line1, city, state} = parse_address_fields(order)
     email = get_usable_email(order["email"])
+    protected = creator.manually_edited_fields || []
 
     updates =
-      build_field_updates(creator, [
+      build_field_updates(creator, protected, [
         {:first_name, first_name},
         {:last_name, last_name},
         {:email, email},
@@ -264,26 +266,37 @@ defmodule SocialObjects.Workers.BigQueryOrderSyncWorker do
         {:country, order["country"]}
       ])
 
-    updates = maybe_add_phone_update(updates, creator, normalized_phone, phone_is_valid)
+    updates =
+      maybe_add_phone_update(updates, creator, normalized_phone, phone_is_valid, protected)
 
     if map_size(updates) > 0, do: Creators.update_creator(creator, updates), else: {:ok, creator}
   end
 
-  defp build_field_updates(creator, field_pairs) do
+  defp build_field_updates(creator, protected, field_pairs) do
     Enum.reduce(field_pairs, %{}, fn {field, value}, acc ->
-      if needs_update?(Map.get(creator, field)) && value,
+      if needs_update?(Map.get(creator, field)) && value && !field_protected?(field, protected),
         do: Map.put(acc, field, value),
         else: acc
     end)
   end
 
-  defp maybe_add_phone_update(updates, creator, phone, true = _valid) when not is_nil(phone) do
-    if needs_update?(creator.phone),
+  defp maybe_add_phone_update(updates, creator, phone, true = _valid, protected)
+       when not is_nil(phone) do
+    if needs_update?(creator.phone) && !field_protected?(:phone, protected),
       do: Map.merge(updates, %{phone: phone, phone_verified: true}),
       else: updates
   end
 
-  defp maybe_add_phone_update(updates, _creator, _phone, _valid), do: updates
+  defp maybe_add_phone_update(updates, _creator, _phone, _valid, _protected), do: updates
+
+  # Check if a field is in the manually_edited_fields list
+  defp field_protected?(field, protected) when is_atom(field) do
+    Atom.to_string(field) in protected
+  end
+
+  defp field_protected?(field, protected) when is_binary(field) do
+    field in protected
+  end
 
   # Check if a field needs to be updated (empty or contains masked data)
   defp needs_update?(nil), do: true

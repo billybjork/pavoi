@@ -185,7 +185,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
     <div class="creator-table-wrapper">
       <table
         id="unified-creators-table"
-        class="creator-table mode-unified has-checkbox"
+        class="data-table creator-table mode-unified has-checkbox"
         phx-hook="ColumnResize"
         data-table-id="creators-unified"
         data-time-filter={@delta_period}
@@ -890,6 +890,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :active_tab, :string, default: "contact"
   attr :editing_contact, :boolean, default: false
   attr :contact_form, :any, default: nil
+  attr :contact_conflict, :boolean, default: false
   attr :tag_picker_open, :boolean, default: false
   attr :samples, :list, default: nil
   attr :purchases, :list, default: nil
@@ -1059,6 +1060,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   creator={@creator}
                   editing={@editing_contact}
                   form={@contact_form}
+                  conflict={@contact_conflict}
                 />
               <% "samples" -> %>
                 <.samples_table samples={@samples || []} />
@@ -1082,10 +1084,38 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :creator, :any, required: true
   attr :editing, :boolean, default: false
   attr :form, :any, default: nil
+  attr :conflict, :boolean, default: false
 
   def contact_tab(assigns) do
     ~H"""
     <div class="contact-tab">
+      <%= if @conflict do %>
+        <div class="contact-conflict-banner">
+          <div class="contact-conflict-banner__content">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              class="contact-conflict-banner__icon"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <div class="contact-conflict-banner__text">
+              <strong>This record was modified by another process</strong>
+              <p>
+                Your changes could not be saved because the creator's data was updated elsewhere (e.g., by a sync process or another user).
+              </p>
+            </div>
+          </div>
+          <button type="button" class="btn btn--primary btn--sm" phx-click="refresh_for_conflict">
+            Refresh to see current data
+          </button>
+        </div>
+      <% end %>
       <%= if @editing && @form do %>
         <.form
           for={@form}

@@ -69,6 +69,9 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:active_tab, "contact")
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      # Contact edit locking state
+      |> assign(:contact_lock_at, nil)
+      |> assign(:contact_conflict, false)
       # Lazy-loaded modal tab data
       |> assign(:modal_samples, nil)
       |> assign(:modal_videos, nil)
@@ -84,7 +87,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
-      |> assign(:outreach_email_enabled, Keyword.get(features, :outreach_email_enabled, true))
+      |> assign(:outreach_email_enabled, SocialObjects.FeatureFlags.enabled?("outreach_email"))
       |> assign(:show_send_modal, false)
       # Email template selection
       |> assign(:available_templates, [])
@@ -202,8 +205,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("edit_contact", _params, socket) do
+    creator = socket.assigns.selected_creator
+
     form =
-      socket.assigns.selected_creator
+      creator
       |> Creator.changeset(%{})
       |> to_form()
 
@@ -211,6 +216,8 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       socket
       |> assign(:editing_contact, true)
       |> assign(:contact_form, form)
+      |> assign(:contact_lock_at, creator.updated_at)
+      |> assign(:contact_conflict, false)
 
     {:noreply, socket}
   end
@@ -221,6 +228,8 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       socket
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      |> assign(:contact_lock_at, nil)
+      |> assign(:contact_conflict, false)
 
     {:noreply, socket}
   end
@@ -238,7 +247,9 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   @impl true
   def handle_event("save_contact", %{"creator" => params}, socket) do
     authorize socket, :admin do
-      case Creators.update_creator(socket.assigns.selected_creator, params) do
+      lock_at = socket.assigns.contact_lock_at
+
+      case Creators.update_creator_contact(socket.assigns.selected_creator, params, lock_at) do
         {:ok, creator} ->
           # Reload with minimal associations (not all tab data)
           creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
@@ -248,7 +259,19 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
             |> assign(:selected_creator, creator)
             |> assign(:editing_contact, false)
             |> assign(:contact_form, nil)
+            |> assign(:contact_lock_at, nil)
+            |> assign(:contact_conflict, false)
             |> put_flash(:info, "Contact info updated")
+
+          {:noreply, socket}
+
+        {:error, :stale_entry} ->
+          # Record was modified since we started editing - show conflict UI
+          socket =
+            socket
+            |> assign(:contact_conflict, true)
+            |> assign(:editing_contact, false)
+            |> assign(:contact_form, nil)
 
           {:noreply, socket}
 
@@ -256,6 +279,21 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
           {:noreply, assign(socket, :contact_form, to_form(changeset))}
       end
     end
+  end
+
+  @impl true
+  def handle_event("refresh_for_conflict", _params, socket) do
+    # Reload fresh creator data after a conflict
+    creator =
+      Creators.get_creator_for_modal!(socket.assigns.brand_id, socket.assigns.selected_creator.id)
+
+    socket =
+      socket
+      |> assign(:selected_creator, creator)
+      |> assign(:contact_conflict, false)
+      |> assign(:contact_lock_at, nil)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -622,9 +660,14 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
       message =
         case count do
-          0 -> "Are you sure you want to delete this tag?"
-          1 -> "This tag is currently applied to 1 creator. Are you sure you want to delete it?"
-          n -> "This tag is currently applied to #{n} creators. Are you sure you want to delete it?"
+          0 ->
+            "Are you sure you want to delete this tag?"
+
+          1 ->
+            "This tag is currently applied to 1 creator. Are you sure you want to delete it?"
+
+          n ->
+            "This tag is currently applied to #{n} creators. Are you sure you want to delete it?"
         end
 
       {:noreply, push_event(socket, "confirm_delete_tag", %{tag_id: tag_id, message: message})}

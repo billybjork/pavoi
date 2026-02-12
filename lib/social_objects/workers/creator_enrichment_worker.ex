@@ -451,38 +451,41 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     phone = extract_phone(recipient["phone_number"])
     name = recipient["name"] || ""
     {first_name, last_name} = Creators.parse_name(name)
+    protected = creator.manually_edited_fields || []
 
     %{tiktok_user_id: user_id}
-    |> maybe_add_phone(creator, phone)
-    |> maybe_add_name(creator, first_name, last_name)
-    |> maybe_add_address(creator, recipient)
+    |> maybe_add_phone(creator, phone, protected)
+    |> maybe_add_name(creator, first_name, last_name, protected)
+    |> maybe_add_address(creator, recipient, protected)
   end
 
-  defp maybe_add_phone(attrs, creator, phone) do
-    if is_nil(creator.phone) && phone && !phone_is_masked?(phone) do
+  defp maybe_add_phone(attrs, creator, phone, protected) do
+    if is_nil(creator.phone) && phone && !phone_is_masked?(phone) &&
+         !field_protected?(:phone, protected) do
       Map.merge(attrs, %{phone: phone, phone_verified: true})
     else
       attrs
     end
   end
 
-  defp maybe_add_name(attrs, creator, first_name, last_name) do
+  defp maybe_add_name(attrs, creator, first_name, last_name, protected) do
     attrs
-    |> maybe_put_if_missing(creator, :first_name, first_name)
-    |> maybe_put_if_missing(creator, :last_name, last_name)
+    |> maybe_put_if_missing(creator, :first_name, first_name, protected)
+    |> maybe_put_if_missing(creator, :last_name, last_name, protected)
   end
 
-  defp maybe_put_if_missing(attrs, creator, field, value) do
+  defp maybe_put_if_missing(attrs, creator, field, value, protected) do
     current = Map.get(creator, field)
 
-    if is_nil(current) && value && !String.contains?(value, "*") do
+    if is_nil(current) && value && !String.contains?(value, "*") &&
+         !field_protected?(field, protected) do
       Map.put(attrs, field, value)
     else
       attrs
     end
   end
 
-  defp maybe_add_address(attrs, creator, recipient) do
+  defp maybe_add_address(attrs, creator, recipient, protected) do
     district_info = recipient["district_info"] || []
 
     # Extract location from district_info
@@ -495,35 +498,35 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     postal_code = recipient["postal_code"]
 
     attrs =
-      if should_update_field?(creator.address_line_1, address_line1) do
+      if should_update_field?(creator.address_line_1, address_line1, :address_line_1, protected) do
         Map.put(attrs, :address_line_1, address_line1)
       else
         attrs
       end
 
     attrs =
-      if should_update_field?(creator.zipcode, postal_code) do
+      if should_update_field?(creator.zipcode, postal_code, :zipcode, protected) do
         Map.put(attrs, :zipcode, postal_code)
       else
         attrs
       end
 
     attrs =
-      if should_update_field?(creator.city, city) do
+      if should_update_field?(creator.city, city, :city, protected) do
         Map.put(attrs, :city, city)
       else
         attrs
       end
 
     attrs =
-      if should_update_field?(creator.state, state) do
+      if should_update_field?(creator.state, state, :state, protected) do
         Map.put(attrs, :state, state)
       else
         attrs
       end
 
     attrs =
-      if is_nil(creator.country) && country do
+      if is_nil(creator.country) && country && !field_protected?(:country, protected) do
         Map.put(attrs, :country, country)
       else
         attrs
@@ -532,11 +535,17 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     attrs
   end
 
-  # Update field if: current is nil/empty OR current is masked, AND new value is unmasked
-  defp should_update_field?(current, new) do
+  # Update field if: current is nil/empty OR current is masked, AND new value is unmasked, AND field not protected
+  defp should_update_field?(current, new, field, protected) do
     has_new = new && new != "" && !String.contains?(new, "*")
     needs_update = is_nil(current) || current == "" || String.contains?(current || "", "*")
-    has_new && needs_update
+    not_protected = !field_protected?(field, protected)
+    has_new && needs_update && not_protected
+  end
+
+  # Check if a field is in the manually_edited_fields list
+  defp field_protected?(field, protected) when is_atom(field) do
+    Atom.to_string(field) in protected
   end
 
   defp find_district_value(district_info, level_name) do

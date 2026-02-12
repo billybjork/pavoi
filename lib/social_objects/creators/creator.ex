@@ -100,8 +100,14 @@ defmodule SocialObjects.Creators.Creator do
 
     has_many :purchases, SocialObjects.Creators.CreatorPurchase
 
+    # Fields manually edited via UI (protected from sync overwrites)
+    field :manually_edited_fields, {:array, :string}, default: []
+
     timestamps()
   end
+
+  # Contact fields that can be manually edited
+  @contact_fields ~w(email phone first_name last_name address_line_1 address_line_2 city state zipcode country notes is_whitelisted)a
 
   @doc false
   def changeset(creator, attrs) do
@@ -150,7 +156,8 @@ defmodule SocialObjects.Creators.Creator do
       :cumulative_gmv_cents,
       :cumulative_video_gmv_cents,
       :cumulative_live_gmv_cents,
-      :gmv_tracking_started_at
+      :gmv_tracking_started_at,
+      :manually_edited_fields
     ])
     |> validate_required([])
     |> normalize_username()
@@ -182,4 +189,86 @@ defmodule SocialObjects.Creators.Creator do
       name -> name
     end
   end
+
+  @doc """
+  Returns the list of contact fields that can be manually edited.
+  """
+  def contact_fields, do: @contact_fields
+
+  @doc """
+  Creates a changeset for contact info with optimistic locking.
+
+  Takes a `lock_updated_at` timestamp that must match the creator's current
+  `updated_at` to proceed. Returns `{:error, :stale_entry}` if the record
+  was modified since the lock was acquired.
+
+  Automatically tracks which fields were changed in `manually_edited_fields`.
+  """
+  def contact_changeset(creator, attrs, lock_updated_at) do
+    # Check for stale entry
+    if stale_entry?(creator, lock_updated_at) do
+      {:error, :stale_entry}
+    else
+      changeset = build_contact_changeset(creator, attrs)
+      {:ok, changeset}
+    end
+  end
+
+  defp stale_entry?(%__MODULE__{updated_at: updated_at}, lock_updated_at) do
+    # Compare timestamps - if lock_updated_at doesn't match, record was modified
+    case {updated_at, lock_updated_at} do
+      {nil, _} ->
+        false
+
+      {_, nil} ->
+        true
+
+      {current, lock} ->
+        # Truncate both to seconds for comparison (avoid microsecond differences)
+        # updated_at is NaiveDateTime, so use NaiveDateTime.truncate
+        NaiveDateTime.truncate(current, :second) != NaiveDateTime.truncate(lock, :second)
+    end
+  end
+
+  defp build_contact_changeset(creator, attrs) do
+    changeset =
+      creator
+      |> cast(attrs, @contact_fields)
+      |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "must be a valid email")
+
+    # Track which fields were changed
+    changed_fields = get_changed_contact_fields(changeset)
+
+    if Enum.empty?(changed_fields) do
+      changeset
+    else
+      # Merge new changed fields with existing manually_edited_fields
+      existing = creator.manually_edited_fields || []
+      new_manually_edited = Enum.uniq(existing ++ changed_fields)
+      put_change(changeset, :manually_edited_fields, new_manually_edited)
+    end
+  end
+
+  defp get_changed_contact_fields(changeset) do
+    @contact_fields
+    |> Enum.filter(&field_actually_changed?(changeset, &1))
+    |> Enum.map(&Atom.to_string/1)
+  end
+
+  defp field_actually_changed?(changeset, field) do
+    case get_change(changeset, field) do
+      nil ->
+        false
+
+      new_value ->
+        # Only count as changed if the value is actually different
+        old_value = Map.get(changeset.data, field)
+        normalize_value(new_value) != normalize_value(old_value)
+    end
+  end
+
+  defp normalize_value(nil), do: nil
+  defp normalize_value(""), do: nil
+  defp normalize_value(value) when is_binary(value), do: String.trim(value)
+  defp normalize_value(value), do: value
 end

@@ -599,6 +599,24 @@ defmodule SocialObjects.Creators do
   end
 
   @doc """
+  Updates creator contact info with optimistic locking.
+
+  Takes a `lock_updated_at` timestamp that must match the creator's current
+  `updated_at` to proceed. Returns:
+  - `{:ok, creator}` on success
+  - `{:error, :stale_entry}` if the record was modified since lock was acquired
+  - `{:error, changeset}` if validation fails
+
+  Automatically tracks which fields were edited in `manually_edited_fields`.
+  """
+  def update_creator_contact(%Creator{} = creator, attrs, lock_updated_at) do
+    case Creator.contact_changeset(creator, attrs, lock_updated_at) do
+      {:ok, changeset} -> Repo.update(changeset)
+      {:error, :stale_entry} -> {:error, :stale_entry}
+    end
+  end
+
+  @doc """
   Deletes a creator.
   """
   def delete_creator(%Creator{} = creator) do

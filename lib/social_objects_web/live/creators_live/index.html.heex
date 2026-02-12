@@ -271,7 +271,7 @@
         <%!-- Infinite scroll container --%>
         <div
           id="creators-list"
-          class="creators-scroll-container"
+          class="creators-scroll-container data-table-scroll-container"
           phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
         >
           <.unified_creator_table
@@ -545,6 +545,7 @@
   active_tab={@active_tab}
   editing_contact={@editing_contact}
   contact_form={@contact_form}
+  contact_conflict={@contact_conflict}
   tag_picker_open={@tag_picker_open_for != nil && @tag_picker_source == :modal}
   samples={@modal_samples}
   purchases={@modal_purchases}
