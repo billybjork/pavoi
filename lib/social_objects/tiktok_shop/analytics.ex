@@ -502,9 +502,15 @@ defmodule SocialObjects.TiktokShop.Analytics do
            page_size: 50,
            account_type: "ALL"
          ) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         sessions = Map.get(data, "live_stream_sessions", [])
         find_and_fetch_product_performance(brand_id, stream, sessions)
+
+      {:ok, %{"data" => nil}} ->
+        {:error, :no_match}
+
+      {:ok, %{"data" => data}} ->
+        {:error, {:unexpected_data_payload, data}}
 
       {:ok, %{"code" => code}} ->
         {:error, {:api_error, code}}
@@ -535,10 +541,16 @@ defmodule SocialObjects.TiktokShop.Analytics do
            live_id: live_id,
            currency: "USD"
          ) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         products = Map.get(data, "products", [])
         parsed = Parsers.parse_product_performance(products)
         {:ok, %{"products" => parsed}}
+
+      {:ok, %{"data" => nil}} ->
+        {:ok, %{"products" => []}}
+
+      {:ok, %{"data" => data}} ->
+        {:error, {:unexpected_data_payload, data}}
 
       {:ok, %{"code" => code}} ->
         {:error, {:api_error, code}}

@@ -6,7 +6,7 @@
 
 <div
   id="product-sets-container"
-  class="container container--xl py-8 max-sm:pt-3 max-sm:pb-6 product-sets-index"
+  class="container container--xl pb-8 max-sm:pb-6 product-sets-index"
   phx-hook="ProductContextMenu"
   phx-window-keydown={
     JS.push("escape_pressed") |> JS.hide(to: ".product-set-menu", transition: "fade-out")
@@ -187,21 +187,21 @@
               <% end %>
 
               <div class="product-set-card__actions" phx-click="stop_propagation">
-                <a
+                <.link
                   href={~p"/products/#{product_set.id}/controller"}
                   target="_blank"
                   class="button button--primary button--sm"
                 >
                   Controller
-                </a>
+                </.link>
 
-                <a
+                <.link
                   href={~p"/products/#{product_set.id}/host"}
                   target="_blank"
                   class="button button--primary button--sm"
                 >
                   Host View
-                </a>
+                </.link>
 
                 <div class="menu-container">
                   <button

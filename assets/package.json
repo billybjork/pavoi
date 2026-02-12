@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Frontend assets for Social Objects platform",
   "private": true,
+  "scripts": {
+    "test:list-editor": "node --test js/lib/grapesjs/list-editor-logic.test.mjs"
+  },
   "dependencies": {
     "@huggingface/transformers": "^3.2.0",
     "@ricky0123/vad-web": "^0.0.19",

@@ -55,6 +55,16 @@ defmodule SocialObjectsWeb.BrandRoutes do
     end
   end
 
+  def brand_base_url(%Brand{} = brand) do
+    case brand.primary_domain do
+      domain when is_binary(domain) and domain != "" ->
+        "https://#{domain}"
+
+      _ ->
+        SocialObjectsWeb.Endpoint.url()
+    end
+  end
+
   defp normalize_path(path) do
     if String.starts_with?(path, "/"), do: path, else: "/" <> path
   end

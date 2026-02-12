@@ -529,17 +529,19 @@ defmodule SocialObjectsWeb.CoreComponents do
   attr :size, :string, default: "sm", values: ["sm", "md"]
 
   def brand_logo(assigns) do
-    assigns = assign(assigns, :logo_url, SocialObjects.Storage.public_url(assigns.brand.logo_url))
+    # Try explicit logo_url first, then fall back to slug-based static image path
+    logo_url =
+      SocialObjects.Storage.public_url(assigns.brand.logo_url) ||
+        "/images/brands/#{assigns.brand.slug}.png"
+
+    assigns = assign(assigns, :logo_url, logo_url)
 
     ~H"""
     <div class={["brand-logo", "brand-logo--#{@size}"]}>
-      <%= if @logo_url do %>
-        <img src={@logo_url} alt={@brand.name} class="brand-logo__img" />
-      <% else %>
-        <span class="brand-logo__fallback">
-          {String.first(@brand.name)}
-        </span>
-      <% end %>
+      <img src={@logo_url} alt={@brand.name} class="brand-logo__img" />
+      <span class="brand-logo__fallback">
+        {String.first(@brand.name)}
+      </span>
     </div>
     """
   end

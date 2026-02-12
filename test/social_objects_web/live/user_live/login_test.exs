@@ -2,7 +2,6 @@ defmodule SocialObjectsWeb.UserLive.LoginTest do
   use SocialObjectsWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
-  import SocialObjects.AccountsFixtures
 
   describe "login page" do
     test "renders login page", %{conn: conn} do
