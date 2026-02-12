@@ -23,9 +23,8 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     feature_flags = SocialObjects.FeatureFlags.list_all()
     defined_flags = SocialObjects.FeatureFlags.defined_flags()
 
-    # Default to first brand or nil
-    selected_brand = List.first(brands)
-    selected_brand_id = if selected_brand, do: selected_brand.id, else: nil
+    # Default to "All Brands"
+    selected_brand_id = nil
 
     # Subscribe to PubSub topics for real-time updates
     if connected?(socket) do
@@ -116,13 +115,45 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   # PubSub Handlers
   # ============================================================================
 
+  # Started events - refresh to show "Running..." state
+  @impl true
+  def handle_info({:sync_started}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:tiktok_sync_started}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:bigquery_sync_started}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:enrichment_started, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:video_sync_started}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:scan_started, _source}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  # Completed events - refresh to update status and last run time
   @impl true
   def handle_info({:shopify_sync_completed, _brand_id}, socket) do
     {:noreply, load_monitoring_data(socket)}
   end
 
   @impl true
-  def handle_info({:tiktok_sync_completed, _brand_id}, socket) do
+  def handle_info({:tiktok_sync_completed, _counts}, socket) do
     {:noreply, load_monitoring_data(socket)}
   end
 
@@ -146,6 +177,33 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
     {:noreply, load_monitoring_data(socket)}
   end
 
+  # Product performance events
+  @impl true
+  def handle_info({:product_performance_sync_started}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:product_performance_sync_completed, _counts}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:product_performance_sync_failed, _reason}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  # Failed events - refresh to clear running state
+  @impl true
+  def handle_info({:tiktok_sync_failed, _reason}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:sync_failed, _reason}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
   @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
@@ -163,6 +221,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator:enrichment:#{brand.id}")
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand.id}")
       Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "product_performance:sync:#{brand.id}")
     end
   end
 
@@ -253,13 +312,9 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
         <div class="monitoring-panel">
           <div class="monitoring-panel__header">
             <h2 class="monitoring-panel__title">System Monitoring</h2>
-            <div class="brand-filter">
+            <form class="brand-filter" phx-change="filter_brand">
               <label class="brand-filter__label">Brand:</label>
-              <select
-                class="brand-filter__select"
-                phx-change="filter_brand"
-                name="brand_id"
-              >
+              <select class="brand-filter__select" name="brand_id">
                 <option value="all" selected={is_nil(@selected_brand_id)}>All Brands</option>
                 <option
                   :for={brand <- @brands}
@@ -269,7 +324,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
                   {brand.name}
                 </option>
               </select>
-            </div>
+            </form>
           </div>
           <div class="monitoring-panel__body">
             <.queue_health_stats stats={@oban_stats} />
