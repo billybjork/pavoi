@@ -78,8 +78,9 @@ defmodule SocialObjectsWeb.UserLive.ChangePassword do
   def handle_event("save", %{"user" => user_params}, socket) do
     user = socket.assigns.current_scope.user
 
-    case Accounts.update_user_password(user, user_params) do
-      {:ok, {_user, _tokens}} ->
+    # Use keep_session variant to avoid logging user out after forced password change
+    case Accounts.update_user_password_keep_session(user, user_params) do
+      {:ok, _user} ->
         {:noreply,
          socket
          |> put_flash(:info, "Password changed successfully.")

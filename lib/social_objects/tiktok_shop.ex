@@ -56,7 +56,10 @@ defmodule SocialObjects.TiktokShop do
     url = "#{auth_base()}/api/v2/token/get"
 
     Logger.info("[TikTok Token] Exchanging code for token at #{url}")
-    Logger.debug("[TikTok Token] app_key present: #{app_key() != nil}, app_secret present: #{app_secret() != nil}")
+
+    Logger.debug(
+      "[TikTok Token] app_key present: #{app_key() != nil}, app_secret present: #{app_secret() != nil}"
+    )
 
     params = [
       app_key: app_key(),

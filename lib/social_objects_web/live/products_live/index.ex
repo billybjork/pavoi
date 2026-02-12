@@ -1464,7 +1464,10 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
               socket
               |> reload_product_sets()
               |> assign(:editing_product_set, updated_session)
-              |> assign(:product_set_edit_form, to_form(ProductSet.changeset(updated_session, %{})))
+              |> assign(
+                :product_set_edit_form,
+                to_form(ProductSet.changeset(updated_session, %{}))
+              )
               |> put_flash(:info, "Product set image removed")
 
             {:noreply, socket}

@@ -170,8 +170,12 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
 
     missing_fields =
       []
-      |> then(fn acc -> if is_nil(username) || username == "", do: [:username | acc], else: acc end)
-      |> then(fn acc -> if is_nil(video_id) || video_id == "", do: [:video_id | acc], else: acc end)
+      |> then(fn acc ->
+        if is_nil(username) || username == "", do: [:username | acc], else: acc
+      end)
+      |> then(fn acc ->
+        if is_nil(video_id) || video_id == "", do: [:video_id | acc], else: acc
+      end)
 
     if missing_fields != [] do
       {:error, {:missing_required_fields, missing_fields}}

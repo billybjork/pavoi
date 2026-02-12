@@ -8,52 +8,53 @@
 /* Alert box - the notification content */
 .alert {
   @apply flex items-center gap-3 p-3 px-4 rounded-lg text-sm leading-normal;
+  @apply bg-surface-primary;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 /* Variant styles - colored backgrounds for visibility
-   Uses opacity tokens that auto-adjust for dark mode via color-mix() */
+   Uses solid surface base with accent color tint layered on top */
 .alert--info {
   border-left: 4px solid var(--color-accent-blue);
-  background-color: var(--color-accent-blue-10);
+  background: linear-gradient(var(--color-accent-blue-10), var(--color-accent-blue-10)), var(--color-surface-primary);
   color: var(--color-accent-blue);
 }
 
 .alert--error {
   border-left: 4px solid var(--color-accent-red);
-  background-color: var(--color-accent-red-10);
+  background: linear-gradient(var(--color-accent-red-10), var(--color-accent-red-10)), var(--color-surface-primary);
   color: var(--color-accent-red);
 }
 
 .alert--success {
   border-left: 4px solid var(--color-accent-green);
-  background-color: var(--color-accent-green-10);
+  background: linear-gradient(var(--color-accent-green-10), var(--color-accent-green-10)), var(--color-surface-primary);
   color: var(--color-accent-green);
 }
 
 .alert--warning {
   border-left: 4px solid var(--color-accent-amber);
-  background-color: var(--color-accent-amber-10);
+  background: linear-gradient(var(--color-accent-amber-10), var(--color-accent-amber-10)), var(--color-surface-primary);
   color: var(--color-accent-amber);
 }
 
 /* Dark mode - slightly stronger backgrounds for visibility on dark surfaces */
 .dark .alert--info {
-  background-color: var(--color-accent-blue-15);
+  background: linear-gradient(var(--color-accent-blue-15), var(--color-accent-blue-15)), var(--color-surface-primary);
 }
 
 .dark .alert--error {
-  background-color: var(--color-accent-red-15);
+  background: linear-gradient(var(--color-accent-red-15), var(--color-accent-red-15)), var(--color-surface-primary);
 }
 
 .dark .alert--success {
-  background-color: var(--color-accent-green-15);
+  background: linear-gradient(var(--color-accent-green-15), var(--color-accent-green-15)), var(--color-surface-primary);
 }
 
 .dark .alert--warning {
-  background-color: var(--color-accent-amber-15);
+  background: linear-gradient(var(--color-accent-amber-15), var(--color-accent-amber-15)), var(--color-surface-primary);
 }
 
 /* Icon */

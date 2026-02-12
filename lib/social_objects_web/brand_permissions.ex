@@ -79,7 +79,11 @@ defmodule SocialObjectsWeb.BrandPermissions do
   """
   def unauthorized_response(socket) do
     {:noreply,
-     Phoenix.LiveView.put_flash(socket, :error, "You don't have permission to perform this action.")}
+     Phoenix.LiveView.put_flash(
+       socket,
+       :error,
+       "You don't have permission to perform this action."
+     )}
   end
 
   @doc """
