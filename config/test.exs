@@ -5,6 +5,7 @@ config :bcrypt_elixir, :log_rounds, 1
 
 # Track environment at runtime (for conditional behavior in workers, etc.)
 config :social_objects, env: :test
+config :social_objects, use_brand_domains_in_outbound: false
 
 # Configure your database
 #

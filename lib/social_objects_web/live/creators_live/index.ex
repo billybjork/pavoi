@@ -989,6 +989,31 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   end
 
   @impl true
+  def handle_event("duplicate_template", %{"id" => id}, socket) do
+    authorize socket, :admin do
+      case Communications.duplicate_email_template(socket.assigns.brand_id, id) do
+        {:ok, duplicated_template} ->
+          edit_path =
+            BrandRoutes.brand_path(
+              socket.assigns.current_brand,
+              "/templates/#{duplicated_template.id}/edit",
+              socket.assigns.current_host
+            )
+
+          socket =
+            socket
+            |> put_flash(:info, "Template duplicated. Editing copy.")
+            |> push_navigate(to: edit_path)
+
+          {:noreply, socket}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to duplicate template")}
+      end
+    end
+  end
+
+  @impl true
   def handle_event("delete_template", %{"id" => id}, socket) do
     authorize socket, :admin do
       template = Communications.get_email_template!(socket.assigns.brand_id, id)

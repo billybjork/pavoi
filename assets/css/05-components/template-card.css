@@ -12,7 +12,7 @@
 }
 
 .template-card {
-  @apply flex flex-col bg-surface overflow-hidden cursor-pointer;
+  @apply flex flex-col bg-surface cursor-pointer;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -31,6 +31,8 @@
   @apply relative overflow-hidden bg-white;
   aspect-ratio: 1 / 1;
   border-bottom: 1px solid var(--color-border);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
 }
 
 .template-card__preview-frame {
@@ -62,6 +64,12 @@
 
 .template-card__actions {
   @apply flex gap-1 shrink-0;
+}
+
+/* Keep the active card above neighboring cards while a menu is open. */
+.template-card:has(.menu-container:hover),
+.template-card:has(.template-card-menu.fade-in) {
+  @apply relative z-[100];
 }
 
 /* ============================================================================

@@ -45,6 +45,7 @@ Temporary Items
 /priv/static/images/*
 !/priv/static/images/favicon-16x16.png
 !/priv/static/images/favicon-32x32.png
+!/priv/static/images/pavoi-logo-email.png
 !/priv/static/images/integrations/
 !/priv/static/images/brands/
 # Ignore digested/gzipped versions - only track source SVGs

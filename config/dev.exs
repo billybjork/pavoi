@@ -3,6 +3,12 @@ import Config
 # Track environment at runtime (for conditional behavior in workers, etc.)
 config :social_objects, env: :dev
 
+# Outbound email/page links in dev should resolve to this app instance by default.
+# Set OUTBOUND_BASE_URL to a public tunnel URL (e.g. ngrok) for end-to-end testing.
+config :social_objects,
+  use_brand_domains_in_outbound: false,
+  outbound_base_url: System.get_env("OUTBOUND_BASE_URL")
+
 # Configure your database
 # Supports DATABASE_URL environment variable or defaults to local PostgreSQL
 if database_url = System.get_env("DATABASE_URL") do

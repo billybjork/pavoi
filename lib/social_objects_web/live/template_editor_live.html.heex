@@ -6,7 +6,7 @@
         navigate={
           SocialObjectsWeb.BrandRoutes.brand_path(
             @current_brand,
-            "/creators?pt=templates",
+            @return_to,
             @current_host
           )
         }
@@ -33,13 +33,12 @@
             type="text"
             label="Name"
             placeholder="Template name"
-            disabled={not @is_new}
           />
         </div>
 
         <%!-- Subject field only for email templates --%>
         <div
-          :if={@template_type == "email"}
+          :if={@template_type == :email}
           class="template-editor-field template-editor-field--grow"
         >
           <.input
@@ -69,7 +68,7 @@
           navigate={
             SocialObjectsWeb.BrandRoutes.brand_path(
               @current_brand,
-              "/creators?pt=templates",
+              @return_to,
               @current_host
             )
           }
@@ -94,7 +93,8 @@
     <input
       type="hidden"
       name="email_template[form_config]"
-      value={Jason.encode!(@form[:form_config].value || %{})}
+      id="email_template_form_config"
+      value={form_config_input_value(@form[:form_config].value)}
     />
 
     <%!-- GrapesJS editor container with template type --%>

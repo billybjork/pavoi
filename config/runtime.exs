@@ -17,6 +17,9 @@ end
 config :social_objects, :features,
   outreach_email_override: System.get_env("OUTREACH_EMAIL_OVERRIDE")
 
+config :social_objects,
+  outbound_base_url: System.get_env("OUTBOUND_BASE_URL")
+
 # Shopify configuration for development (after .env is loaded)
 # Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically
 # using client credentials grant. See lib/social_objects/shopify/auth.ex for details.

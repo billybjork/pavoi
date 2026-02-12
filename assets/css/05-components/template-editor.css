@@ -83,6 +83,16 @@
 }
 
 /* ============================================================================
+   Canvas Background
+   Match the body background color used when emails are sent (#f5f5f5)
+   so the editor displays WYSIWYG-accurate previews.
+   ============================================================================ */
+
+.template-editor-container .gjs-cv-canvas {
+  background-color: #f5f5f5;
+}
+
+/* ============================================================================
    Theme Colors Only
    ============================================================================ */
 
@@ -101,4 +111,84 @@
 .template-editor-container .gjs-four-color,
 .template-editor-container .gjs-four-color-h:hover {
   color: #71c5e8;
+}
+
+/* ============================================================================
+   Link Editor Popover
+   Custom UI for adding/editing hyperlinks in the RTE
+   ============================================================================ */
+
+.gjs-link-popover {
+  display: none;
+  position: fixed;
+  z-index: 100;
+  background: #373d49;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  min-width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+}
+
+.gjs-link-popover-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gjs-link-url-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  background: #2c303a;
+  color: #e2e8f0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.gjs-link-url-input:focus {
+  border-color: #71c5e8;
+}
+
+.gjs-link-url-input::placeholder {
+  color: #718096;
+}
+
+.gjs-link-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.gjs-link-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.gjs-link-btn-apply {
+  background: #71c5e8;
+  color: #1a202c;
+}
+
+.gjs-link-btn-apply:hover {
+  background: #5bb8de;
+}
+
+.gjs-link-btn-remove {
+  background: transparent;
+  color: #fc8181;
+  border: 1px solid #fc8181;
+}
+
+.gjs-link-btn-remove:hover {
+  background: rgba(252, 129, 129, 0.1);
 }

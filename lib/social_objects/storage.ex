@@ -77,6 +77,7 @@ defmodule SocialObjects.Storage do
   def public_url("/uploads/" <> _ = path), do: path
   def public_url("uploads/" <> _ = path), do: "/" <> path
   def public_url("/images/" <> _ = path), do: path
+  def public_url("images/" <> _ = path), do: "/" <> path
 
   def public_url(key_or_url) do
     # Handle both keys and full URLs (for backwards compatibility)

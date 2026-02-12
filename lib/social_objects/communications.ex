@@ -111,6 +111,29 @@ defmodule SocialObjects.Communications do
   end
 
   @doc """
+  Duplicates an email template for a brand.
+
+  The duplicate copies all template content but is always active and non-default.
+  """
+  def duplicate_email_template(brand_id, template_id) do
+    source_template = get_email_template!(brand_id, template_id)
+
+    attrs = %{
+      name: next_duplicate_template_name(brand_id, source_template.name),
+      subject: source_template.subject,
+      html_body: source_template.html_body,
+      text_body: source_template.text_body,
+      is_active: true,
+      is_default: false,
+      lark_preset: source_template.lark_preset,
+      type: source_template.type,
+      form_config: source_template.form_config || %{}
+    }
+
+    create_email_template(brand_id, attrs)
+  end
+
+  @doc """
   Sets a template as the default, clearing any existing default.
 
   For page templates, only clears default within the same type+lark_preset combo.
@@ -149,13 +172,33 @@ defmodule SocialObjects.Communications do
     )
   end
 
+  defp next_duplicate_template_name(brand_id, source_name, attempt \\ 1) do
+    candidate_name =
+      if attempt == 1 do
+        "Copy of #{source_name}"
+      else
+        "Copy of #{source_name} (#{attempt})"
+      end
+
+    if template_name_taken?(brand_id, candidate_name) do
+      next_duplicate_template_name(brand_id, source_name, attempt + 1)
+    else
+      candidate_name
+    end
+  end
+
+  defp template_name_taken?(brand_id, name) do
+    from(t in EmailTemplate,
+      where: t.brand_id == ^brand_id and t.name == ^name
+    )
+    |> Repo.exists?()
+  end
+
   @doc """
-  Soft-deletes an email template by marking it inactive.
+  Deletes an email template.
   """
   def delete_email_template(%EmailTemplate{} = template) do
-    template
-    |> EmailTemplate.changeset(%{is_active: false, is_default: false})
-    |> Repo.update()
+    Repo.delete(template)
   end
 
   @doc """

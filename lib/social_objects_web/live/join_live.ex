@@ -13,6 +13,7 @@ defmodule SocialObjectsWeb.JoinLive do
 
   alias SocialObjects.Catalog
   alias SocialObjects.Communications
+  alias SocialObjects.Communications.TemplateRenderer
   alias SocialObjects.Creators
   alias SocialObjects.Outreach
   alias SocialObjects.Settings
@@ -36,7 +37,7 @@ defmodule SocialObjectsWeb.JoinLive do
         lark_url = get_lark_url(brand_id, lark_preset)
 
         # Load page template if configured
-        {template_html, form_config} = load_page_template(brand_id, lark_preset)
+        {template_html, form_config} = load_page_template(brand, lark_preset)
 
         brand_name = brand.name || Settings.app_name()
 
@@ -80,8 +81,8 @@ defmodule SocialObjectsWeb.JoinLive do
     end
   end
 
-  defp load_page_template(brand_id, lark_preset) do
-    case Communications.get_default_page_template(brand_id, lark_preset) do
+  defp load_page_template(brand, lark_preset) do
+    case Communications.get_default_page_template(brand.id, lark_preset) do
       nil ->
         # No template configured - use fallback
         {nil, @default_form_config}
@@ -89,7 +90,7 @@ defmodule SocialObjectsWeb.JoinLive do
       template ->
         # Merge template's form_config with defaults
         config = Map.merge(@default_form_config, template.form_config || %{})
-        {template.html_body, config}
+        {TemplateRenderer.render_page_html(template.html_body, brand), config}
     end
   end
 
@@ -169,9 +170,14 @@ defmodule SocialObjectsWeb.JoinLive do
   }
 
   defp get_lark_url(brand_id, lark_preset) do
-    setting_key = "lark_preset_#{lark_preset}"
-    Settings.get_setting(brand_id, setting_key) || Map.get(@lark_defaults, lark_preset, "")
+    preset = normalize_lark_preset(lark_preset)
+    setting_key = "lark_preset_#{preset}"
+    Settings.get_setting(brand_id, setting_key) || Map.get(@lark_defaults, preset, "")
   end
+
+  defp normalize_lark_preset(preset) when is_atom(preset), do: Atom.to_string(preset)
+  defp normalize_lark_preset(preset) when is_binary(preset), do: preset
+  defp normalize_lark_preset(_preset), do: ""
 
   defp get_client_info(socket) do
     if connected?(socket) do
@@ -254,7 +260,12 @@ defmodule SocialObjectsWeb.JoinLive do
   # Consent form component - uses form_config for customizable text
   defp consent_form(assigns) do
     ~H"""
-    <form phx-submit="submit" phx-change="validate" class="join-form">
+    <form
+      id="join-consent-form"
+      phx-submit="submit"
+      phx-change="validate"
+      class="join-form"
+    >
       <div class="join-field">
         <label for="email">{@form_config["email_label"]}</label>
         <input
@@ -351,7 +362,12 @@ defmodule SocialObjectsWeb.JoinLive do
               </p>
             </div>
 
-            <form phx-submit="submit" phx-change="validate" class="join-form">
+            <form
+              id="join-consent-form"
+              phx-submit="submit"
+              phx-change="validate"
+              class="join-form"
+            >
               <div class="join-field">
                 <label for="email">Email</label>
                 <input
