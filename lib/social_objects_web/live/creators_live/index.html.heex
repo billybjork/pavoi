@@ -143,25 +143,95 @@
           </button>
 
           <%!-- Contact Status Filter --%>
-          <form phx-change="change_outreach_status">
-            <select name="status" class="filter-select" value={@outreach_status || ""}>
-              <option value="">
-                All Creators ({@outreach_stats.total})
-              </option>
-              <option value="sampled" selected={@outreach_status == "sampled"}>
-                Sampled ({@outreach_stats.sampled})
-              </option>
-              <option value="never_contacted" selected={@outreach_status == "never_contacted"}>
-                Never Contacted ({@outreach_stats.never_contacted})
-              </option>
-              <option value="contacted" selected={@outreach_status == "contacted"}>
-                Contacted ({@outreach_stats.contacted})
-              </option>
-              <option value="opted_out" selected={@outreach_status == "opted_out"}>
-                Opted Out ({@outreach_stats.opted_out})
-              </option>
-            </select>
-          </form>
+          <div class="status-filter">
+            <button
+              type="button"
+              class={["status-filter__trigger", @outreach_status && "status-filter__trigger--active"]}
+            >
+              <span>
+                <%= case @outreach_status do %>
+                  <% nil -> %>
+                    All Creators ({@outreach_stats.total})
+                  <% "sampled" -> %>
+                    Sampled ({@outreach_stats.sampled})
+                  <% "never_contacted" -> %>
+                    Never Contacted ({@outreach_stats.never_contacted})
+                  <% "contacted" -> %>
+                    Contacted ({@outreach_stats.contacted})
+                  <% "opted_out" -> %>
+                    Opted Out ({@outreach_stats.opted_out})
+                  <% _ -> %>
+                    All Creators ({@outreach_stats.total})
+                <% end %>
+              </span>
+              <%= if @outreach_status do %>
+                <span
+                  class="status-filter__clear-x"
+                  phx-click="clear_status_filter"
+                  title="Clear filter"
+                >
+                  ×
+                </span>
+              <% else %>
+                <svg
+                  class="size-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              <% end %>
+            </button>
+
+            <div class="status-filter__dropdown">
+              <div class="status-filter__list">
+                <button
+                  type="button"
+                  class={["status-filter__item", is_nil(@outreach_status) && "status-filter__item--selected"]}
+                  phx-click="change_outreach_status"
+                  phx-value-status=""
+                >
+                  All Creators ({@outreach_stats.total})
+                </button>
+                <button
+                  type="button"
+                  class={["status-filter__item", @outreach_status == "sampled" && "status-filter__item--selected"]}
+                  phx-click="change_outreach_status"
+                  phx-value-status="sampled"
+                >
+                  Sampled ({@outreach_stats.sampled})
+                </button>
+                <button
+                  type="button"
+                  class={["status-filter__item", @outreach_status == "never_contacted" && "status-filter__item--selected"]}
+                  phx-click="change_outreach_status"
+                  phx-value-status="never_contacted"
+                >
+                  Never Contacted ({@outreach_stats.never_contacted})
+                </button>
+                <button
+                  type="button"
+                  class={["status-filter__item", @outreach_status == "contacted" && "status-filter__item--selected"]}
+                  phx-click="change_outreach_status"
+                  phx-value-status="contacted"
+                >
+                  Contacted ({@outreach_stats.contacted})
+                </button>
+                <button
+                  type="button"
+                  class={["status-filter__item", @outreach_status == "opted_out" && "status-filter__item--selected"]}
+                  phx-click="change_outreach_status"
+                  phx-value-status="opted_out"
+                >
+                  Opted Out ({@outreach_stats.opted_out})
+                </button>
+              </div>
+            </div>
+          </div>
 
           <%!-- Data Freshness Indicator --%>
           <.data_freshness_panel
