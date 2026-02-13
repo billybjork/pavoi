@@ -178,6 +178,13 @@
   box-shadow: 0 0 0 2px var(--color-bg-primary);
 }
 
+.controller-color-btn--amber { @apply bg-accent-amber; }
+.controller-color-btn--blue { @apply bg-accent-blue; }
+.controller-color-btn--green { @apply bg-accent-green; }
+.controller-color-btn--red { @apply bg-accent-red; }
+.controller-color-btn--purple { @apply bg-accent-purple; }
+.controller-color-btn--gray { @apply bg-text-secondary; }
+
 .controller-message-buttons {
   @apply flex gap-2;
 }
@@ -513,6 +520,13 @@ body:has(.controller-container) .app-content {
   border-radius: var(--radius-sm);
 }
 
+.preset-item__color--amber { @apply bg-accent-amber; }
+.preset-item__color--blue { @apply bg-accent-blue; }
+.preset-item__color--green { @apply bg-accent-green; }
+.preset-item__color--red { @apply bg-accent-red; }
+.preset-item__color--purple { @apply bg-accent-purple; }
+.preset-item__color--gray { @apply bg-text-secondary; }
+
 .preset-item__text {
   @apply flex-1 min-w-0 text-base font-medium text-text-primary text-left overflow-hidden text-ellipsis whitespace-nowrap;
 }
@@ -580,6 +594,13 @@ body:has(.controller-container) .app-content {
   border: 2px solid rgba(255, 255, 255, 0.2);
   transition: all var(--transition-fast);
 }
+
+.color-swatch--amber { @apply bg-accent-amber; }
+.color-swatch--blue { @apply bg-accent-blue; }
+.color-swatch--green { @apply bg-accent-green; }
+.color-swatch--red { @apply bg-accent-red; }
+.color-swatch--purple { @apply bg-accent-purple; }
+.color-swatch--gray { @apply bg-text-secondary; }
 
 .color-label {
   @apply text-xs font-medium text-text-primary;

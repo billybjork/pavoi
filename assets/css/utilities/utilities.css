@@ -5,31 +5,6 @@
    non-utility selector files can remain layered.
    ============================================================================ */
 
-/* Dynamic color classes used by tag picker and swatch UIs. */
-@utility color-accent--amber {
-  background-color: var(--color-accent-amber);
-}
-
-@utility color-accent--blue {
-  background-color: var(--color-accent-blue);
-}
-
-@utility color-accent--green {
-  background-color: var(--color-accent-green);
-}
-
-@utility color-accent--red {
-  background-color: var(--color-accent-red);
-}
-
-@utility color-accent--purple {
-  background-color: var(--color-accent-purple);
-}
-
-@utility color-accent--gray {
-  background-color: var(--color-text-secondary);
-}
-
 @utility scrollbar-none {
   scrollbar-width: none;
 

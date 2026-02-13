@@ -64,21 +64,6 @@
 }
 
 /* ============================================================================
-   STATUS BADGES
-   ============================================================================ */
-
-.status-badge {
-  @apply inline-flex px-2 rounded-sm text-xs font-medium capitalize;
-  padding-top: 2px;
-  padding-bottom: 2px;
-}
-
-.status-badge--pending { background: rgba(245, 158, 11, 0.15); @apply text-accent-amber; }
-.status-badge--shipped { background: rgba(59, 130, 246, 0.15); @apply text-primary; }
-.status-badge--delivered { background: rgba(16, 185, 129, 0.15); @apply text-success; }
-.status-badge--cancelled { background: rgba(239, 68, 68, 0.15); @apply text-accent-red; }
-
-/* ============================================================================
    TAG PILLS
    ============================================================================ */
 
@@ -175,26 +160,6 @@
 
 .sample-product__thumb {
   @apply w-8 h-8 object-cover rounded-sm bg-surface-secondary;
-}
-
-/* ============================================================================
-   EMPTY STATE
-   ============================================================================ */
-
-.empty-state {
-  @apply text-center py-8 px-4 text-text-secondary;
-}
-
-.empty-state__icon {
-  @apply w-8 h-8 mx-auto mb-3 text-text-tertiary;
-}
-
-.empty-state__title {
-  @apply text-sm font-medium text-text-secondary mb-1;
-}
-
-.empty-state__description {
-  @apply text-xs text-text-tertiary;
 }
 
 /* ============================================================================
@@ -461,6 +426,13 @@
   filter: brightness(0.9);
 }
 
+.tag-picker__quick-create-btn--amber { @apply bg-accent-amber; }
+.tag-picker__quick-create-btn--blue { @apply bg-accent-blue; }
+.tag-picker__quick-create-btn--green { @apply bg-accent-green; }
+.tag-picker__quick-create-btn--red { @apply bg-accent-red; }
+.tag-picker__quick-create-btn--purple { @apply bg-accent-purple; }
+.tag-picker__quick-create-btn--gray { @apply bg-text-secondary; }
+
 .tag-picker__quick-create-btn strong {
   @apply font-semibold uppercase max-w-[120px] overflow-hidden whitespace-nowrap;
   text-overflow: ellipsis;
@@ -480,6 +452,13 @@
   @apply border-text-primary;
 }
 
+.tag-picker__quick-color--amber { @apply bg-accent-amber; }
+.tag-picker__quick-color--blue { @apply bg-accent-blue; }
+.tag-picker__quick-color--green { @apply bg-accent-green; }
+.tag-picker__quick-color--red { @apply bg-accent-red; }
+.tag-picker__quick-color--purple { @apply bg-accent-purple; }
+.tag-picker__quick-color--gray { @apply bg-text-secondary; }
+
 .tag-picker__list {
   @apply max-h-[250px] overflow-y-auto p-2;
 }
@@ -497,13 +476,17 @@
   background: rgba(59, 130, 246, 0.08);
 }
 
-.tag-picker__item-check {
-  @apply w-4 h-4 text-primary shrink-0;
+.tag-picker__item-color {
+  @apply w-3.5 h-3.5 rounded-full shrink-0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-.tag-picker__item-color {
-  @apply w-3 h-3 rounded-full shrink-0;
-}
+.tag-picker__item-color--amber { @apply bg-accent-amber; }
+.tag-picker__item-color--blue { @apply bg-accent-blue; }
+.tag-picker__item-color--green { @apply bg-accent-green; }
+.tag-picker__item-color--red { @apply bg-accent-red; }
+.tag-picker__item-color--purple { @apply bg-accent-purple; }
+.tag-picker__item-color--gray { @apply bg-text-secondary; }
 
 .tag-picker__item-name {
   @apply flex-1 text-sm text-text-primary overflow-hidden uppercase whitespace-nowrap;
@@ -577,7 +560,7 @@
 
 .tag-filter__dropdown {
   @apply absolute top-full right-0 mt-1;
-  @apply min-w-[160px] max-w-[180px];
+  @apply w-60;
   @apply bg-surface-primary border border-border-primary rounded-md;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   @apply opacity-0 invisible z-50;
@@ -589,11 +572,11 @@
 }
 
 .tag-filter__list {
-  @apply max-h-[250px] overflow-y-auto p-2;
+  @apply max-h-[250px] overflow-y-auto py-2 pr-2 pl-3;
 }
 
 .tag-filter__item {
-  @apply flex items-center gap-2 py-1 px-2 rounded-sm;
+  @apply flex items-center gap-2 p-2 rounded-sm;
   transition: background 0.15s ease;
 }
 
@@ -602,19 +585,47 @@
 }
 
 .tag-filter__item-label {
-  @apply flex items-center gap-2 flex-1 cursor-pointer;
+  @apply flex items-center gap-2 flex-1 cursor-pointer overflow-hidden;
 }
 
 .tag-filter__item-label input[type="checkbox"] {
-  @apply shrink-0;
+  @apply shrink-0 ml-0.5;
 }
 
 .tag-filter__item-color {
-  @apply w-3 h-3 rounded-full shrink-0;
+  @apply w-3.5 h-3.5 rounded-full shrink-0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
+.tag-filter__item-color--amber { @apply bg-accent-amber; }
+.tag-filter__item-color--blue { @apply bg-accent-blue; }
+.tag-filter__item-color--green { @apply bg-accent-green; }
+.tag-filter__item-color--red { @apply bg-accent-red; }
+.tag-filter__item-color--purple { @apply bg-accent-purple; }
+.tag-filter__item-color--gray { @apply bg-text-secondary; }
+
 .tag-filter__item-name {
-  @apply flex-1 text-sm text-text-primary uppercase;
+  @apply flex-1 text-sm text-text-primary overflow-hidden uppercase whitespace-nowrap;
+  text-overflow: ellipsis;
+}
+
+.tag-filter__item-delete {
+  @apply w-5 h-5 flex items-center justify-center shrink-0;
+  @apply border-none rounded-sm cursor-pointer;
+  background: rgba(127, 127, 127, 0.2);
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  color: #666;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[data-theme="dark"] .tag-filter__item-delete {
+  color: #ccc;
+}
+
+.tag-filter__item-delete:hover {
+  @apply bg-accent-red text-white;
 }
 
 .tag-filter__empty {

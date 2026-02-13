@@ -1,0 +1,21 @@
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================
+   Shared empty-state presentation used across index/list surfaces.
+   ============================================================================ */
+
+.empty-state {
+  @apply text-center py-8 px-4 text-text-secondary;
+}
+
+.empty-state__icon {
+  @apply w-8 h-8 mx-auto mb-3 text-text-tertiary;
+}
+
+.empty-state__title {
+  @apply text-sm font-medium text-text-secondary mb-1;
+}
+
+.empty-state__description {
+  @apply text-xs text-text-tertiary;
+}

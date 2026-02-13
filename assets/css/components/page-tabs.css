@@ -1,0 +1,55 @@
+/* ============================================================================
+   PAGE TABS
+   ============================================================================
+   Shared tabs used on Streams/Analytics, Creators/Templates, and Sets/Products.
+   ============================================================================ */
+
+.tiktok-live-index.region,
+.creators-index.region,
+.product-sets-index.region {
+  @apply pt-4;
+}
+
+.page-tabs {
+  @apply flex items-end justify-between gap-4 mb-4;
+  border-bottom: 2px solid var(--color-border-secondary);
+}
+
+.page-tabs__tabs {
+  @apply flex gap-1;
+}
+
+.page-tabs__actions {
+  @apply flex items-center mb-2;
+}
+
+.page-tabs__actions .button {
+  @apply py-1 px-2 text-xs;
+}
+
+.page-tab {
+  @apply py-2 px-4 text-sm font-medium text-text-secondary bg-transparent border-0 cursor-pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.page-tab:hover {
+  @apply text-text-primary;
+}
+
+.page-tab--active {
+  @apply text-primary;
+  border-bottom-color: var(--color-primary);
+}
+
+@media (max-width: 640px) {
+  .page-tabs__tabs {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page-tab {
+    @apply whitespace-nowrap;
+  }
+}

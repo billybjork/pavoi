@@ -347,50 +347,53 @@
 */
 
 /* Generic Layer - Reset, normalize, and animations */
-@import "./02-generic/reset.css" layer(base);
-@import "./02-generic/animations.css" layer(base);
+@import "./generic/reset.css" layer(base);
+@import "./generic/animations.css" layer(base);
 
 /* Elements Layer - Base HTML elements */
-@import "./03-elements/base.css" layer(base);
-@import "./03-elements/typography.css" layer(base);
+@import "./elements/base.css" layer(base);
+@import "./elements/typography.css" layer(base);
 
 /* Pages Layer - Page-specific styles */
-@import "./04-pages/product-set-index.css" layer(components);
-@import "./04-pages/product-set-host.css" layer(components);
-@import "./04-pages/product-set-controller.css" layer(components);
-@import "./04-pages/creators-index.css" layer(components);
-@import "./04-pages/join.css" layer(components);
-@import "./04-pages/login.css" layer(components);
-@import "./04-pages/settings.css" layer(components);
-@import "./04-pages/readme.css" layer(components);
-@import "./04-pages/admin.css" layer(components);
-@import "./04-pages/shop-analytics.css" layer(components);
-@import "./04-pages/_public-product-set.css" layer(components);
+@import "./pages/product-set-index.css" layer(components);
+@import "./pages/product-set-host.css" layer(components);
+@import "./pages/product-set-controller.css" layer(components);
+@import "./pages/creators-index.css" layer(components);
+@import "./pages/creator.css" layer(components);
+@import "./pages/join.css" layer(components);
+@import "./pages/login.css" layer(components);
+@import "./pages/settings.css" layer(components);
+@import "./pages/readme.css" layer(components);
+@import "./pages/admin.css" layer(components);
+@import "./pages/monitoring.css" layer(components);
+@import "./pages/shop-analytics.css" layer(components);
+@import "./pages/public-product-set.css" layer(components);
+@import "./pages/template-editor.css" layer(components);
+@import "./pages/tiktok-live.css" layer(components);
 
 /* Components Layer - UI components */
-@import "./05-components/button.css" layer(components);
-@import "./05-components/card.css" layer(components);
-@import "./05-components/input.css" layer(components);
-@import "./05-components/modal.css" layer(components);
-@import "./05-components/product-grid.css" layer(components);
-@import "./05-components/product-variants.css" layer(components);
-@import "./05-components/badge.css" layer(components);
-@import "./05-components/navbar.css" layer(components);
-@import "./05-components/page-header.css" layer(components);
-@import "./05-components/toast.css" layer(components);
-@import "./05-components/alert.css" layer(components);
-@import "./05-components/image-carousel.css" layer(components);
-@import "./05-components/theme-toggle.css" layer(components);
-@import "./05-components/host-message.css" layer(components);
-@import "./05-components/voice-control.css" layer(components);
-@import "./05-components/creator.css" layer(components);
-@import "./05-components/tiktok-live.css" layer(components);
-@import "./05-components/filter-dropdown.css" layer(components);
-@import "./05-components/template-card.css" layer(components);
-@import "./05-components/template-editor.css" layer(components);
-@import "./05-components/video-grid.css" layer(components);
-@import "./05-components/monitoring.css" layer(components);
-@import "./05-components/data-table.css" layer(components);
+@import "./components/button.css" layer(components);
+@import "./components/card.css" layer(components);
+@import "./components/input.css" layer(components);
+@import "./components/modal.css" layer(components);
+@import "./components/product-grid.css" layer(components);
+@import "./components/product-variants.css" layer(components);
+@import "./components/badge.css" layer(components);
+@import "./components/empty-state.css" layer(components);
+@import "./components/navbar.css" layer(components);
+@import "./components/page-tabs.css" layer(components);
+@import "./components/page-header.css" layer(components);
+@import "./components/status-badge.css" layer(components);
+@import "./components/toast.css" layer(components);
+@import "./components/alert.css" layer(components);
+@import "./components/image-carousel.css" layer(components);
+@import "./components/theme-toggle.css" layer(components);
+@import "./components/host-message.css" layer(components);
+@import "./components/voice-control.css" layer(components);
+@import "./components/filter-dropdown.css" layer(components);
+@import "./components/template-card.css" layer(components);
+@import "./components/video-grid.css" layer(components);
+@import "./components/data-table.css" layer(components);
 
 /* Intentional top-level utilities - keep unlayered so @utility remains valid. */
-@import "./06-utilities/utilities.css";
+@import "./utilities/utilities.css";

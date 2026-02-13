@@ -1,0 +1,69 @@
+/* ============================================================================
+   STATUS BADGES
+   ============================================================================
+   Shared badge styles used across creators and TikTok Live surfaces.
+   ============================================================================ */
+
+.status-badge {
+  @apply inline-flex px-2 rounded-sm text-xs font-medium capitalize;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.status-badge--pending {
+  background: rgba(245, 158, 11, 0.15);
+  @apply text-accent-amber;
+}
+
+.status-badge--shipped,
+.status-badge--in_transit {
+  background: rgba(59, 130, 246, 0.15);
+  @apply text-primary;
+}
+
+.status-badge--delivered,
+.status-badge--completed {
+  background: rgba(16, 185, 129, 0.15);
+  @apply text-success;
+}
+
+.status-badge--cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  @apply text-accent-red;
+}
+
+.status-badge--live {
+  @apply inline-flex items-center gap-1 font-semibold;
+  background: var(--color-accent-red-15);
+  color: var(--color-accent-red);
+}
+
+.status-badge__pulse {
+  @apply w-2 h-2 rounded-full;
+  background: var(--color-accent-red);
+  animation: pulse-live 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+.status-badge--ended {
+  @apply bg-surface-secondary text-text-secondary;
+}
+
+.status-badge--failed {
+  background: var(--color-accent-red-10);
+  color: var(--color-accent-red);
+}
+
+.status-badge--unknown {
+  @apply bg-surface-secondary text-text-tertiary;
+}

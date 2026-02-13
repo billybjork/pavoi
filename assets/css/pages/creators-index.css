@@ -94,7 +94,7 @@
 .creator-table.mode-unified th[data-column-id="email"] { width: 240px; }
 .creator-table.mode-unified th[data-column-id="tags"] { width: 175px; }
 .creator-table.mode-unified th[data-column-id="followers"] { width: 125px; }
-.creator-table.mode-unified th[data-column-id="cumulative_gmv"] { width: 150px; }
+.creator-table.mode-unified th[data-column-id="cumulative_gmv"] { width: 188px; }
 .creator-table.mode-unified th[data-column-id="avg_views"] { width: 150px; }
 .creator-table.mode-unified th[data-column-id="samples"] { width: 135px; }
 .creator-table.mode-unified th[data-column-id="videos_posted"] { width: 140px; }
