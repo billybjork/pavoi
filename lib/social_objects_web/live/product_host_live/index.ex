@@ -305,20 +305,11 @@ defmodule SocialObjectsWeb.ProductHostLive.Index do
   defp load_initial_state(socket) do
     product_set_id = socket.assigns.product_set_id
 
-    # Try to load existing state, or initialize to first product
     case ProductSets.get_product_set_state(product_set_id) do
-      {:ok, %{current_product_set_product_id: nil}} ->
-        # State exists but no product selected - initialize to first
-        case ProductSets.initialize_product_set_state(product_set_id) do
-          {:ok, state} -> load_state_from_product_set_state(socket, state)
-          {:error, _} -> socket
-        end
-
-      {:ok, state} ->
+      {:ok, %{current_product_set_product_id: id} = state} when not is_nil(id) ->
         load_state_from_product_set_state(socket, state)
 
-      {:error, :not_found} ->
-        # Initialize to first product
+      _no_state_or_no_product ->
         case ProductSets.initialize_product_set_state(product_set_id) do
           {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket

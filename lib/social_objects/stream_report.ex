@@ -63,7 +63,7 @@ defmodule SocialObjects.StreamReport do
       TiktokLive.get_aggregate_sentiment_breakdown(brand_id, stream_id: stream_id)
 
     category_breakdown = TiktokLive.get_category_breakdown(brand_id, stream_id)
-    unique_commenters = count_unique_commenters(brand_id, stream_id)
+    unique_commenters = TiktokLive.count_unique_commenters(brand_id, stream_id)
 
     {:ok,
      %{
@@ -459,24 +459,25 @@ defmodule SocialObjects.StreamReport do
   defp format_ended_at(nil), do: "Unknown"
 
   defp format_ended_at(%DateTime{} = dt) do
-    # Convert UTC to PST (UTC-8)
-    pst_dt = DateTime.add(dt, -8 * 3600, :second)
-    pst_today = DateTime.add(DateTime.utc_now(), -8 * 3600, :second) |> DateTime.to_date()
-    date = DateTime.to_date(pst_dt)
-    time_str = Calendar.strftime(pst_dt, "%I:%M %p")
+    {offset, tz_abbr} = pacific_offset(dt)
+    local_dt = DateTime.add(dt, offset, :second)
+    local_now = DateTime.add(DateTime.utc_now(), offset, :second)
+    local_today = DateTime.to_date(local_now)
+    date = DateTime.to_date(local_dt)
+    time_str = Calendar.strftime(local_dt, "%I:%M %p")
 
     cond do
-      date == pst_today ->
-        "Today at #{time_str} PST"
+      date == local_today ->
+        "Today at #{time_str} #{tz_abbr}"
 
-      Date.diff(pst_today, date) == 1 ->
-        "Yesterday at #{time_str} PST"
+      Date.diff(local_today, date) == 1 ->
+        "Yesterday at #{time_str} #{tz_abbr}"
 
-      Date.diff(pst_today, date) < 7 ->
-        Calendar.strftime(pst_dt, "%A at ") <> "#{time_str} PST"
+      Date.diff(local_today, date) < 7 ->
+        Calendar.strftime(local_dt, "%A at ") <> "#{time_str} #{tz_abbr}"
 
       true ->
-        Calendar.strftime(pst_dt, "%b %d at ") <> "#{time_str} PST"
+        Calendar.strftime(local_dt, "%b %d at ") <> "#{time_str} #{tz_abbr}"
     end
   end
 
@@ -520,9 +521,9 @@ defmodule SocialObjects.StreamReport do
   end
 
   defp format_hour_pst(hour) do
-    # Convert UTC to PST (UTC-8)
-    pst_hour = DateTime.add(hour, -8 * 3600, :second)
-    Calendar.strftime(pst_hour, "%I %p")
+    {offset, _tz_abbr} = pacific_offset(hour)
+    local_hour = DateTime.add(hour, offset, :second)
+    Calendar.strftime(local_hour, "%I %p")
   end
 
   defp format_money(cents) when is_integer(cents) do
@@ -691,11 +692,45 @@ defmodule SocialObjects.StreamReport do
     end
   end
 
-  defp count_unique_commenters(brand_id, stream_id) do
-    from(c in Comment,
-      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
-      select: count(c.tiktok_user_id, :distinct)
-    )
-    |> Repo.one()
+  # Returns {utc_offset_seconds, abbreviation} for US Pacific time,
+  # accounting for daylight saving time (PDT: Mar-Nov, PST: Nov-Mar).
+  # DST starts second Sunday of March, ends first Sunday of November.
+  defp pacific_offset(%DateTime{} = dt) do
+    date = DateTime.to_date(dt)
+
+    if in_pacific_dst?(date) do
+      {-7 * 3600, "PDT"}
+    else
+      {-8 * 3600, "PST"}
+    end
+  end
+
+  defp in_pacific_dst?(date) do
+    year = date.year
+
+    # Second Sunday of March (DST starts at 2:00 AM local, but we approximate by date)
+    dst_start = second_sunday_of(year, 3)
+    # First Sunday of November (DST ends at 2:00 AM local)
+    dst_end = first_sunday_of(year, 11)
+
+    Date.compare(date, dst_start) != :lt and Date.compare(date, dst_end) == :lt
+  end
+
+  defp second_sunday_of(year, month) do
+    # First day of month
+    {:ok, first} = Date.new(year, month, 1)
+    # Day of week (1=Monday, 7=Sunday)
+    dow = Date.day_of_week(first)
+    # Days until first Sunday
+    days_to_sunday = rem(7 - dow, 7)
+    # Second Sunday = first Sunday + 7
+    Date.add(first, days_to_sunday + 7)
+  end
+
+  defp first_sunday_of(year, month) do
+    {:ok, first} = Date.new(year, month, 1)
+    dow = Date.day_of_week(first)
+    days_to_sunday = rem(7 - dow, 7)
+    Date.add(first, days_to_sunday)
   end
 end

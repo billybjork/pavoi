@@ -202,7 +202,7 @@ defmodule SocialObjects.AI do
             Logger.debug("Applied talking points to product #{product_id}")
             {:ok, product_id, updated_product}
           else
-            nil ->
+            {:error, :not_found} ->
               error = "Product not found"
               Logger.warning("Failed to apply talking points to product #{product_id}: #{error}")
               {:error, product_id, error}
@@ -293,7 +293,7 @@ defmodule SocialObjects.AI do
 
   defp fetch_product_for_generation(nil, product_id) do
     case Repo.get(Product, product_id) do
-      nil -> nil
+      nil -> {:error, :not_found}
       product -> {:ok, product}
     end
   end

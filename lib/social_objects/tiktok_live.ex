@@ -656,7 +656,10 @@ defmodule SocialObjects.TiktokLive do
     }
   end
 
-  defp count_unique_commenters(brand_id, stream_id) do
+  @doc """
+  Counts the number of unique commenters for a stream.
+  """
+  def count_unique_commenters(brand_id, stream_id) do
     from(c in Comment,
       where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       select: count(c.tiktok_user_id, :distinct)

@@ -170,10 +170,14 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
     {:noreply, assign(socket, :message_draft, message_text)}
   end
 
+  @valid_colors ~w(amber blue green red purple gray)
+
   @impl true
-  def handle_event("select_color", %{"color" => color}, socket) do
+  def handle_event("select_color", %{"color" => color}, socket) when color in @valid_colors do
     {:noreply, assign(socket, :selected_color, String.to_existing_atom(color))}
   end
+
+  def handle_event("select_color", _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("clear_host_message", _params, socket) do
@@ -311,16 +315,10 @@ defmodule SocialObjectsWeb.ProductControllerLive.Index do
     product_set_id = socket.assigns.product_set_id
 
     case ProductSets.get_product_set_state(product_set_id) do
-      {:ok, %{current_product_set_product_id: nil}} ->
-        case ProductSets.initialize_product_set_state(product_set_id) do
-          {:ok, state} -> load_state_from_product_set_state(socket, state)
-          {:error, _} -> socket
-        end
-
-      {:ok, state} ->
+      {:ok, %{current_product_set_product_id: id} = state} when not is_nil(id) ->
         load_state_from_product_set_state(socket, state)
 
-      {:error, :not_found} ->
+      _no_state_or_no_product ->
         case ProductSets.initialize_product_set_state(product_set_id) do
           {:ok, state} -> load_state_from_product_set_state(socket, state)
           {:error, _} -> socket
