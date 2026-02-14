@@ -94,7 +94,7 @@ defmodule SocialObjects.Communications do
   def get_default_page_template(brand_id, lark_preset) do
     Repo.get_by(EmailTemplate,
       brand_id: brand_id,
-      type: "page",
+      type: :page,
       lark_preset: lark_preset,
       is_default: true,
       is_active: true
@@ -169,7 +169,7 @@ defmodule SocialObjects.Communications do
     end)
   end
 
-  defp build_clear_default_query(%EmailTemplate{type: "page"} = template) do
+  defp build_clear_default_query(%EmailTemplate{type: :page} = template) do
     from(t in EmailTemplate,
       where:
         t.brand_id == ^template.brand_id and

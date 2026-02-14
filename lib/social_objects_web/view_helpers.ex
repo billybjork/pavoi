@@ -318,7 +318,7 @@ defmodule SocialObjectsWeb.ViewHelpers do
   For email templates, returns the HTML body directly.
   For page templates, injects the consent form and wraps with minimal styles.
   """
-  def template_preview_html(%{type: "page"} = template) do
+  def template_preview_html(%{type: :page} = template) do
     template_preview_html(template, SocialObjects.Settings.app_name())
   end
 
@@ -326,7 +326,7 @@ defmodule SocialObjectsWeb.ViewHelpers do
     template.html_body
   end
 
-  def template_preview_html(%{type: "page"} = template, brand_name) do
+  def template_preview_html(%{type: :page} = template, brand_name) do
     form_config = template.form_config || %{}
     button_text = form_config["button_text"] || "JOIN THE PROGRAM"
     email_label = form_config["email_label"] || "Email"

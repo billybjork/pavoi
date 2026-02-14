@@ -3,14 +3,16 @@ defmodule SocialObjectsWeb.Router do
 
   import SocialObjectsWeb.UserAuth
 
-  # Strict CSP for most routes - no unsafe-inline/unsafe-eval
-  # This provides protection against XSS attacks for the majority of the application
+  # Strict CSP for most routes - no unsafe-inline/unsafe-eval for scripts
+  # This provides protection against XSS attacks for the majority of the application.
+  # Note: 'unsafe-inline' is allowed for styles to support email template previews,
+  # which use inline styles (standard for email HTML) in sandboxed iframe srcdoc.
   @strict_csp %{
     "content-security-policy" =>
       "default-src 'self'; " <>
         "script-src 'self' blob: data:; " <>
-        "style-src 'self' https://cdnjs.cloudflare.com; " <>
-        "style-src-elem 'self' https://cdnjs.cloudflare.com; " <>
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
+        "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
         "img-src 'self' data: blob: https:; " <>
         "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
         "frame-src 'self' blob: data: https://www.tiktok.com; " <>
