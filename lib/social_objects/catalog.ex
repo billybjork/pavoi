@@ -146,6 +146,7 @@ defmodule SocialObjects.Catalog do
   @spec list_products_by_brand_with_images(pos_integer()) :: [Product.t()]
   def list_products_by_brand_with_images(brand_id), do: list_products_with_images(brand_id)
 
+
   # Allow-list for safe product sorting
   defp build_order_by(sort_by) do
     case sort_by do
@@ -284,12 +285,13 @@ defmodule SocialObjects.Catalog do
 
   @doc """
   Gets a single product.
-  Returns `{:ok, product}` if found, `nil` if not found.
+
+  Returns `{:ok, product}` if found, `{:error, :not_found}` if not found.
   """
   @spec get_product(pos_integer(), pos_integer()) :: {:ok, Product.t()} | nil
   def get_product(brand_id, id) do
     case Repo.get_by(Product, id: id, brand_id: brand_id) do
-      nil -> nil
+      nil -> {:error, :not_found}
       product -> {:ok, product}
     end
   end

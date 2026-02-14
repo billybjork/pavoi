@@ -746,18 +746,17 @@ defmodule SocialObjects.ProductSets do
   """
   @spec get_product_set_state(pos_integer()) :: {:ok, ProductSetState.t()} | {:error, :not_found}
   def get_product_set_state(product_set_id) do
+    ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
+
     case Repo.get_by(ProductSetState, product_set_id: product_set_id) do
       nil ->
         {:error, :not_found}
 
       state ->
-        # Preload with ordered images
         state =
-          state
-          |> Repo.preload(current_product_set_product: [product: :brand])
-          |> Repo.preload(
+          Repo.preload(state,
             current_product_set_product: [
-              product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])]
+              product: [:brand, product_images: ordered_images]
             ]
           )
 
@@ -1009,28 +1008,23 @@ defmodule SocialObjects.ProductSets do
         product_set_products
         |> Enum.with_index(1)
         |> Enum.count(fn {psp, new_position} ->
-          update_product_set_product_position({psp, new_position}) != :ok
+          if psp.position != new_position do
+            psp
+            |> Ecto.Changeset.change(position: new_position)
+            |> Repo.update!()
+
+            true
+          else
+            false
+          end
         end)
 
       # Touch product set to update its timestamp
       touch_product_set(product_set_id)
 
-      {:ok, updated_count}
+      updated_count
     end)
-    |> case do
-      {:ok, {:ok, count}} -> {:ok, count}
-      {:error, reason} -> {:error, reason}
-    end
   end
-
-  defp update_product_set_product_position({psp, new_position})
-       when psp.position != new_position do
-    psp
-    |> Ecto.Changeset.change(position: new_position)
-    |> Repo.update!()
-  end
-
-  defp update_product_set_product_position(_), do: :ok
 
   ## Private Helpers
 
@@ -1094,17 +1088,16 @@ defmodule SocialObjects.ProductSets do
     do: {:error, :no_current_product}
 
   defp get_current_product_set_product(state) do
+    ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
+
     case Repo.get(ProductSetProduct, state.current_product_set_product_id) do
       nil ->
         {:error, :not_found}
 
       psp ->
-        # Preload with ordered images
         psp =
-          psp
-          |> Repo.preload(product: :brand)
-          |> Repo.preload(
-            product: [product_images: from(pi in ProductImage, order_by: [asc: pi.position])]
+          Repo.preload(psp,
+            product: [:brand, product_images: ordered_images]
           )
 
         {:ok, psp}
