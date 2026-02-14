@@ -13,6 +13,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Returns the list of brands.
   """
+  @spec list_brands() :: [Brand.t()]
   def list_brands do
     from(b in Brand, order_by: [asc: b.name])
     |> Repo.all()
@@ -22,6 +23,7 @@ defmodule SocialObjects.Catalog do
   Gets a single brand.
   Raises `Ecto.NoResultsError` if the Brand does not exist.
   """
+  @spec get_brand!(pos_integer()) :: Brand.t() | no_return()
   def get_brand!(id), do: Repo.get!(Brand, id)
 
   @doc """
@@ -29,15 +31,18 @@ defmodule SocialObjects.Catalog do
 
   Returns nil if the Brand does not exist.
   """
+  @spec get_brand(pos_integer()) :: Brand.t() | nil
   def get_brand(id), do: Repo.get(Brand, id)
 
   @doc """
   Gets a brand by slug.
   """
+  @spec get_brand_by_slug(String.t()) :: Brand.t() | nil
   def get_brand_by_slug(slug) do
     Repo.get_by(Brand, slug: slug)
   end
 
+  @spec get_brand_by_slug!(String.t()) :: Brand.t() | no_return()
   def get_brand_by_slug!(slug) do
     Repo.get_by!(Brand, slug: slug)
   end
@@ -45,10 +50,12 @@ defmodule SocialObjects.Catalog do
   @doc """
   Gets a brand by primary domain.
   """
+  @spec get_brand_by_domain(String.t()) :: Brand.t() | nil
   def get_brand_by_domain(domain) when is_binary(domain) do
     Repo.get_by(Brand, primary_domain: domain)
   end
 
+  @spec get_brand_by_domain!(String.t()) :: Brand.t() | no_return()
   def get_brand_by_domain!(domain) when is_binary(domain) do
     Repo.get_by!(Brand, primary_domain: domain)
   end
@@ -56,6 +63,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Gets a brand by name.
   """
+  @spec get_brand_by_name(String.t()) :: Brand.t() | nil
   def get_brand_by_name(name) do
     Repo.get_by(Brand, name: name)
   end
@@ -63,6 +71,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Creates a brand.
   """
+  @spec create_brand(map()) :: {:ok, Brand.t()} | {:error, Ecto.Changeset.t()}
   def create_brand(attrs \\ %{}) do
     %Brand{}
     |> Brand.changeset(attrs)
@@ -72,6 +81,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Updates a brand.
   """
+  @spec update_brand(Brand.t(), map()) :: {:ok, Brand.t()} | {:error, Ecto.Changeset.t()}
   def update_brand(%Brand{} = brand, attrs) do
     brand
     |> Brand.changeset(attrs)
@@ -81,6 +91,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes a brand.
   """
+  @spec delete_brand(Brand.t()) :: {:ok, Brand.t()} | {:error, Ecto.Changeset.t()}
   def delete_brand(%Brand{} = brand) do
     Repo.delete(brand)
   end
@@ -93,6 +104,7 @@ defmodule SocialObjects.Catalog do
   ## Options
     - `:include_archived` - Include archived products (default: false)
   """
+  @spec list_products(pos_integer(), keyword()) :: [Product.t()]
   def list_products(brand_id, filters \\ []) do
     include_archived = Keyword.get(filters, :include_archived, false)
 
@@ -110,6 +122,7 @@ defmodule SocialObjects.Catalog do
   ## Options
     - `:include_archived` - Include archived products (default: false)
   """
+  @spec list_products_with_images(pos_integer(), keyword()) :: [Product.t()]
   def list_products_with_images(brand_id, opts \\ []) do
     include_archived = Keyword.get(opts, :include_archived, false)
 
@@ -130,6 +143,7 @@ defmodule SocialObjects.Catalog do
   Lists products for a specific brand with their images preloaded.
   Adds a primary_image virtual field for convenience.
   """
+  @spec list_products_by_brand_with_images(pos_integer()) :: [Product.t()]
   def list_products_by_brand_with_images(brand_id), do: list_products_with_images(brand_id)
 
   # Allow-list for safe product sorting
@@ -166,6 +180,13 @@ defmodule SocialObjects.Catalog do
       - per_page: Items per page
       - has_more: Boolean indicating if more products are available
   """
+  @spec search_products_paginated(pos_integer(), keyword()) :: %{
+          products: [Product.t()],
+          total: non_neg_integer(),
+          page: pos_integer(),
+          per_page: pos_integer(),
+          has_more: boolean()
+        }
   def search_products_paginated(brand_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
@@ -265,6 +286,7 @@ defmodule SocialObjects.Catalog do
   Gets a single product.
   Returns `{:ok, product}` if found, `nil` if not found.
   """
+  @spec get_product(pos_integer(), pos_integer()) :: {:ok, Product.t()} | nil
   def get_product(brand_id, id) do
     case Repo.get_by(Product, id: id, brand_id: brand_id) do
       nil -> nil
@@ -276,12 +298,14 @@ defmodule SocialObjects.Catalog do
   Gets a single product.
   Raises `Ecto.NoResultsError` if the Product does not exist.
   """
+  @spec get_product!(pos_integer(), pos_integer()) :: Product.t() | no_return()
   def get_product!(brand_id, id), do: Repo.get_by!(Product, id: id, brand_id: brand_id)
 
   @doc """
   Gets a product by Shopify product ID (PID).
   Returns nil if not found.
   """
+  @spec get_product_by_pid(pos_integer(), String.t()) :: Product.t() | nil
   def get_product_by_pid(brand_id, pid) do
     Repo.get_by(Product, pid: pid, brand_id: brand_id)
   end
@@ -290,6 +314,7 @@ defmodule SocialObjects.Catalog do
   Gets a product by TikTok product ID.
   Returns nil if not found.
   """
+  @spec get_product_by_tiktok_product_id(pos_integer(), String.t()) :: Product.t() | nil
   def get_product_by_tiktok_product_id(brand_id, tiktok_product_id) do
     Repo.get_by(Product, tiktok_product_id: tiktok_product_id, brand_id: brand_id)
   end
@@ -298,6 +323,7 @@ defmodule SocialObjects.Catalog do
   Gets multiple products by their Shopify product IDs (PIDs).
   Returns a list of products that match any of the given PIDs.
   """
+  @spec list_products_by_pids(pos_integer(), [String.t()]) :: [Product.t()]
   def list_products_by_pids(brand_id, pids) when is_list(pids) do
     Product
     |> where([p], p.brand_id == ^brand_id and p.pid in ^pids)
@@ -319,6 +345,7 @@ defmodule SocialObjects.Catalog do
   ## Options
   - `:brand_id` - Filter by brand ID (optional)
   """
+  @spec find_products_by_ids(pos_integer(), [String.t()]) :: {[Product.t()], [String.t()]}
   def find_products_by_ids(brand_id, product_ids) when is_list(product_ids) do
     # Build expanded Shopify GID patterns for numeric IDs
     # e.g., "8772010639613" -> "gid://shopify/Product/8772010639613"
@@ -423,6 +450,7 @@ defmodule SocialObjects.Catalog do
 
   Returns nil if no match found.
   """
+  @spec find_product_by_sku(pos_integer(), String.t()) :: Product.t() | nil
   def find_product_by_sku(brand_id, sku) when is_binary(sku) do
     Product
     |> where([p], p.brand_id == ^brand_id and ilike(p.sku, ^"%#{sku}%"))
@@ -433,6 +461,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Gets a product with brand, images, and variants preloaded.
   """
+  @spec get_product_with_images!(pos_integer(), pos_integer()) :: Product.t() | no_return()
   def get_product_with_images!(brand_id, id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
@@ -450,6 +479,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Creates a product.
   """
+  @spec create_product(pos_integer(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def create_product(brand_id, attrs \\ %{}) do
     %Product{brand_id: brand_id}
     |> Product.changeset(attrs)
@@ -459,6 +489,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Updates a product.
   """
+  @spec update_product(Product.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def update_product(%Product{} = product, attrs) do
     product
     |> Product.changeset(attrs)
@@ -468,6 +499,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes a product.
   """
+  @spec delete_product(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def delete_product(%Product{} = product) do
     Repo.delete(product)
   end
@@ -477,6 +509,8 @@ defmodule SocialObjects.Catalog do
 
   Valid reasons: "shopify_filter_excluded", "manual"
   """
+  @spec archive_product(Product.t(), String.t()) ::
+          {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def archive_product(%Product{} = product, reason) do
     product
     |> Product.changeset(%{archived_at: DateTime.utc_now(), archive_reason: reason})
@@ -486,6 +520,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Unarchives a product, clearing the archive status.
   """
+  @spec unarchive_product(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def unarchive_product(%Product{} = product) do
     product
     |> Product.changeset(%{archived_at: nil, archive_reason: nil})
@@ -497,6 +532,8 @@ defmodule SocialObjects.Catalog do
 
   Used by ProductPerformanceSyncWorker to sync GMV, items sold, and orders.
   """
+  @spec update_product_performance(Product.t(), map()) ::
+          {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def update_product_performance(%Product{} = product, attrs) do
     product
     |> Product.performance_changeset(attrs)
@@ -508,6 +545,7 @@ defmodule SocialObjects.Catalog do
 
   Used by ProductPerformanceSyncWorker to efficiently match API data to products.
   """
+  @spec get_products_by_tiktok_ids(pos_integer()) :: %{String.t() => Product.t()}
   def get_products_by_tiktok_ids(brand_id) do
     Product
     |> where([p], p.brand_id == ^brand_id and not is_nil(p.tiktok_product_id))
@@ -518,6 +556,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Returns all archived products for a brand.
   """
+  @spec list_archived_products(pos_integer()) :: [Product.t()]
   def list_archived_products(brand_id) do
     Product
     |> where([p], p.brand_id == ^brand_id and not is_nil(p.archived_at))
@@ -529,6 +568,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Creates a product image.
   """
+  @spec create_product_image(map()) :: {:ok, ProductImage.t()} | {:error, Ecto.Changeset.t()}
   def create_product_image(attrs \\ %{}) do
     product_id = Map.get(attrs, :product_id) || Map.get(attrs, "product_id")
 
@@ -541,6 +581,8 @@ defmodule SocialObjects.Catalog do
   @doc """
   Updates a product image.
   """
+  @spec update_product_image(ProductImage.t(), map()) ::
+          {:ok, ProductImage.t()} | {:error, Ecto.Changeset.t()}
   def update_product_image(%ProductImage{} = image, attrs) do
     image
     |> ProductImage.changeset(attrs)
@@ -550,6 +592,8 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes a product image.
   """
+  @spec delete_product_image(ProductImage.t()) ::
+          {:ok, ProductImage.t()} | {:error, Ecto.Changeset.t()}
   def delete_product_image(%ProductImage{} = image) do
     Repo.delete(image)
   end
@@ -557,6 +601,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes all images for a product.
   """
+  @spec delete_product_images(pos_integer()) :: {non_neg_integer(), nil | [term()]}
   def delete_product_images(product_id) do
     from(pi in ProductImage, where: pi.product_id == ^product_id)
     |> Repo.delete_all()
@@ -567,6 +612,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Creates a product variant.
   """
+  @spec create_product_variant(map()) :: {:ok, ProductVariant.t()} | {:error, Ecto.Changeset.t()}
   def create_product_variant(attrs \\ %{}) do
     %ProductVariant{}
     |> ProductVariant.changeset(attrs)
@@ -576,6 +622,8 @@ defmodule SocialObjects.Catalog do
   @doc """
   Updates a product variant.
   """
+  @spec update_product_variant(ProductVariant.t(), map()) ::
+          {:ok, ProductVariant.t()} | {:error, Ecto.Changeset.t()}
   def update_product_variant(%ProductVariant{} = variant, attrs) do
     variant
     |> ProductVariant.changeset(attrs)
@@ -585,6 +633,8 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes a product variant.
   """
+  @spec delete_product_variant(ProductVariant.t()) ::
+          {:ok, ProductVariant.t()} | {:error, Ecto.Changeset.t()}
   def delete_product_variant(%ProductVariant{} = variant) do
     Repo.delete(variant)
   end
@@ -592,6 +642,7 @@ defmodule SocialObjects.Catalog do
   @doc """
   Deletes all variants for a product.
   """
+  @spec delete_product_variants(pos_integer()) :: {non_neg_integer(), nil | [term()]}
   def delete_product_variants(product_id) do
     from(pv in ProductVariant, where: pv.product_id == ^product_id)
     |> Repo.delete_all()
@@ -601,6 +652,7 @@ defmodule SocialObjects.Catalog do
   Gets a product variant by Shopify variant ID.
   Returns nil if not found.
   """
+  @spec get_variant_by_shopify_id(String.t()) :: ProductVariant.t() | nil
   def get_variant_by_shopify_id(shopify_variant_id) do
     Repo.get_by(ProductVariant, shopify_variant_id: shopify_variant_id)
   end
